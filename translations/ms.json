@@ -1,0 +1,8 @@
+{
+  "field.worker": "pekerja",
+  "field.worksheet": "kertas kerja",
+  "field.date": "tarikh",
+  "field.start_time": "waktu permulaan",
+  "field.end_time": "waktu pengakhiran",
+  "field.details": "perincian"
+}
