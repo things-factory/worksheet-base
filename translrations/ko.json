@@ -1,0 +1,8 @@
+{
+  "field.worker": "작업자",
+  "field.worksheet": "워크시트",
+  "field.date": "날짜",
+  "field.start_time": "시작 시간",
+  "field.end_time": "종료 시간",
+  "field.details": "상세"
+}
