@@ -2,7 +2,7 @@
   "field.worker": "worker",
   "field.worksheet": "worksheet",
   "field.date": "date",
-  "field.start_time": "start_time",
-  "field.end_time": "end_time",
+  "field.start_time": "start time",
+  "field.end_time": "end time",
   "field.details": "details"
 }
