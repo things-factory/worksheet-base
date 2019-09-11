@@ -6,7 +6,7 @@ import { Location } from '@things-factory/warehouse-base'
 import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import { Worksheet } from './worksheet'
 
-@Entity('worksheet-details')
+@Entity()
 @Index(
   'ix_worksheet-detail_0',
   (worksheetDetail: WorksheetDetail) => [worksheetDetail.domain, worksheetDetail.bizplace, worksheetDetail.name],
@@ -29,6 +29,9 @@ export class WorksheetDetail {
     nullable: true
   })
   description: string
+
+  @Column()
+  type: string
 
   @ManyToOne(type => Worksheet, {
     nullable: false
@@ -55,12 +58,6 @@ export class WorksheetDetail {
 
   @Column()
   status: string
-
-  @Column('datetime')
-  startedAt: Date
-
-  @Column('datetime')
-  endedAt: Date
 
   @ManyToOne(type => User, {
     nullable: true

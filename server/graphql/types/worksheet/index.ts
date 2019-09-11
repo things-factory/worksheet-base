@@ -16,6 +16,11 @@ export const Mutation = `
   deleteWorksheet (
     name: String!
   ): Boolean
+
+  generateArrivalNoticeWorksheet (
+    arrivalNotice: ObjectRef!
+    bufferLocation: ObjectRef!
+  ): Worksheet
 `
 
 export const Query = `

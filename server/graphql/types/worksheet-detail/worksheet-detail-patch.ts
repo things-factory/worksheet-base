@@ -4,6 +4,7 @@ export const WorksheetDetailPatch = gql`
   input WorksheetDetailPatch {
     name: String
     description: String
+    type: String
     worksheet: ObjectRef
     worker: ObjectRef
     fromLocation: ObjectRef

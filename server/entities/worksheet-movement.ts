@@ -2,7 +2,7 @@ import { Domain } from '@things-factory/shell'
 import { Column, Entity, Index, ManyToOne, PrimaryGeneratedColumn } from 'typeorm'
 import { Worksheet } from './worksheet'
 
-@Entity('worksheet-movements')
+@Entity()
 @Index('ix_worksheet-movement_0', (worksheetMovement: WorksheetMovement) => [worksheetMovement.domain], {
   unique: true
 })

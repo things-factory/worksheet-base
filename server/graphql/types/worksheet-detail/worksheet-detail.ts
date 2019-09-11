@@ -7,6 +7,7 @@ export const WorksheetDetail = gql`
     bizplace: Bizplace
     name: String
     description: String
+    type: String
     worksheet: Worksheet
     worker: Worker
     fromLocation: Location
@@ -15,8 +16,6 @@ export const WorksheetDetail = gql`
     targetVas: OrderVas
     remark: String
     status: String
-    startedAt: String
-    endedAt: String
     creator: User
     updater: User
     createdAt: String

@@ -14,7 +14,7 @@ import {
 } from 'typeorm'
 import { WorksheetDetail } from './worksheet-detail'
 
-@Entity('worksheets')
+@Entity()
 @Index('ix_worksheet_0', (worksheet: Worksheet) => [worksheet.domain, worksheet.bizplace, worksheet.name], {
   unique: true
 })
