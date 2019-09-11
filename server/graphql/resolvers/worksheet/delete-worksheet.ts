@@ -1,10 +1,14 @@
-import { getRepository } from 'typeorm'
+import { getRepository, In } from 'typeorm'
 import { Worksheet } from '../../../entities'
 
 export const deleteWorksheet = {
-  async deleteWorksheet(_, { id }) {
-    const repository = getRepository(Worksheet)
+  async deleteWorksheet(_: any, { name }, context: any) {
+    await getRepository(Worksheet).delete({
+      domain: context.state.domain,
+      bizplace: In(context.state.bizplaces),
+      name
+    })
 
-    return await repository.delete(id)
+    return true
   }
 }

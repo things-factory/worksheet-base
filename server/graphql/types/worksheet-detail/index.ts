@@ -1,8 +1,7 @@
-import { WorksheetDetail } from './worksheet-detail'
 import { NewWorksheetDetail } from './new-worksheet-detail'
-import { WorksheetDetailPatch } from './worksheet-detail-patch'
+import { WorksheetDetail } from './worksheet-detail'
 import { WorksheetDetailList } from './worksheet-detail-list'
-import { Filter, Pagination, Sorting } from '@things-factory/shell'
+import { WorksheetDetailPatch } from './worksheet-detail-patch'
 
 export const Mutation = `
   createWorksheetDetail (
@@ -10,22 +9,18 @@ export const Mutation = `
   ): WorksheetDetail
 
   updateWorksheetDetail (
-    id: String!
+    name: String!
     patch: WorksheetDetailPatch!
   ): WorksheetDetail
 
   deleteWorksheetDetail (
-    id: String!
-  ): WorksheetDetail
-
-  publishWorksheetDetail (
-    id: String!
-  ): WorksheetDetail
+    name: String!
+  ): Boolean
 `
 
 export const Query = `
   worksheetDetails(filters: [Filter], pagination: Pagination, sortings: [Sorting]): WorksheetDetailList
-  worksheetDetail(id: String!): WorksheetDetail
+  worksheetDetail(name: String!): WorksheetDetail
 `
 
-export const Types = [Filter, Pagination, Sorting, WorksheetDetail, NewWorksheetDetail, WorksheetDetailPatch, WorksheetDetailList]
+export const Types = [WorksheetDetail, NewWorksheetDetail, WorksheetDetailPatch, WorksheetDetailList]

@@ -1,30 +1,80 @@
-import { Entity, Index, Column, OneToMany, ManyToOne, PrimaryGeneratedColumn, OneToOne } from 'typeorm'
-import { Domain, DomainBaseEntity } from '@things-factory/shell'
+import { User } from '@things-factory/auth-base'
+import { Bizplace, Worker } from '@things-factory/biz-base'
+import { OrderProduct, OrderVas } from '@things-factory/sales-base'
+import { Domain } from '@things-factory/shell'
+import { Location } from '@things-factory/warehouse-base'
+import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import { Worksheet } from './worksheet'
-import { Worker } from '@things-factory/biz-base'
 
 @Entity('worksheet-details')
-@Index('ix_worksheet-detail_0', (worksheetDetail: WorksheetDetail) => [worksheetDetail.domain, worksheetDetail.name], {
-  unique: true
-})
-export class WorksheetDetail extends DomainBaseEntity {
+@Index(
+  'ix_worksheet-detail_0',
+  (worksheetDetail: WorksheetDetail) => [worksheetDetail.domain, worksheetDetail.bizplace, worksheetDetail.name],
+  { unique: true }
+)
+export class WorksheetDetail {
   @PrimaryGeneratedColumn('uuid')
   id: string
 
   @ManyToOne(type => Domain)
   domain: Domain
 
-  @Column('text')
+  @ManyToOne(type => Bizplace)
+  bizplace: Bizplace
+
+  @Column()
   name: string
+
+  @Column({
+    nullable: true
+  })
+  description: string
+
+  @ManyToOne(type => Worksheet, {
+    nullable: false
+  })
+  worksheet: Worksheet
 
   @ManyToOne(type => Worker)
   worker: Worker
 
-  @ManyToOne(type => Worksheet)
-  worksheet: Worksheet
+  @ManyToOne(type => Location)
+  fromLocation: Location
 
-  @Column('text', {
+  @ManyToOne(type => Location)
+  toLocation: Location
+
+  @ManyToOne(type => OrderProduct)
+  targetProduct: OrderProduct
+
+  @ManyToOne(type => OrderVas)
+  targetVas: OrderVas
+
+  @Column()
+  remark: string
+
+  @Column()
+  status: string
+
+  @Column('datetime')
+  startedAt: Date
+
+  @Column('datetime')
+  endedAt: Date
+
+  @ManyToOne(type => User, {
     nullable: true
   })
-  description: string
+  creator: User
+
+  @ManyToOne(type => User, {
+    nullable: true
+  })
+  updater: User
+
+  @CreateDateColumn()
+  createdAt: Date
+
+  @UpdateDateColumn()
+  updatedAt: Date
 }

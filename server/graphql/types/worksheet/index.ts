@@ -1,8 +1,7 @@
-import { Worksheet } from './worksheet'
 import { NewWorksheet } from './new-worksheet'
-import { WorksheetPatch } from './worksheet-patch'
+import { Worksheet } from './worksheet'
 import { WorksheetList } from './worksheet-list'
-import { Filter, Pagination, Sorting } from '@things-factory/shell'
+import { WorksheetPatch } from './worksheet-patch'
 
 export const Mutation = `
   createWorksheet (
@@ -10,22 +9,18 @@ export const Mutation = `
   ): Worksheet
 
   updateWorksheet (
-    id: String!
+    name: String!
     patch: WorksheetPatch!
   ): Worksheet
 
   deleteWorksheet (
-    id: String!
-  ): Worksheet
-
-  publishWorksheet (
-    id: String!
-  ): Worksheet
+    name: String!
+  ): Boolean
 `
 
 export const Query = `
   worksheets(filters: [Filter], pagination: Pagination, sortings: [Sorting]): WorksheetList
-  worksheet(id: String!): Worksheet
+  worksheet(name: String!): Worksheet
 `
 
-export const Types = [Filter, Pagination, Sorting, Worksheet, NewWorksheet, WorksheetPatch, WorksheetList]
+export const Types = [Worksheet, NewWorksheet, WorksheetPatch, WorksheetList]

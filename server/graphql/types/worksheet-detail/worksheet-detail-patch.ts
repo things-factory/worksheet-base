@@ -4,5 +4,14 @@ export const WorksheetDetailPatch = gql`
   input WorksheetDetailPatch {
     name: String
     description: String
+    worksheet: ObjectRef
+    worker: ObjectRef
+    fromLocation: ObjectRef
+    toLocation: ObjectRef
+    targetProduct: ObjectRef
+    targetVas: ObjectRef
+    remark: String
+    status: String
+    cuFlag: String
   }
 `

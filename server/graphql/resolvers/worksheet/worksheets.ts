@@ -1,12 +1,17 @@
-import { buildQuery, ListParam } from '@things-factory/shell'
-import { getRepository } from 'typeorm'
+import { Bizplace } from '@things-factory/biz-base'
+import { convertListParams, ListParam } from '@things-factory/shell'
+import { getRepository, In } from 'typeorm'
 import { Worksheet } from '../../../entities'
 
 export const worksheetsResolver = {
   async worksheets(_: any, params: ListParam, context: any) {
-    const queryBuilder = getRepository(Worksheet).createQueryBuilder()
-    buildQuery(queryBuilder, params)
-    const [items, total] = await queryBuilder.getManyAndCount()
+    const convertedParams = convertListParams(params)
+    convertedParams.where.bizplace = In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id))
+
+    const [items, total] = await getRepository(Worksheet).findAndCount({
+      ...convertedParams,
+      relations: ['domain', 'bizplace', 'worksheetDetails', 'creator', 'updater']
+    })
 
     return { items, total }
   }

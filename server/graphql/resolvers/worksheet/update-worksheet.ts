@@ -1,15 +1,16 @@
-import { getRepository } from 'typeorm'
+import { In, getRepository } from 'typeorm'
 import { Worksheet } from '../../../entities'
 
 export const updateWorksheet = {
-  async updateWorksheet(_, { id, patch }) {
-    const repository = getRepository(Worksheet)
+  async updateWorksheet(_: any, { name, patch }, context: any) {
+    const worksheet: Worksheet = await getRepository(Worksheet).findOne({
+      where: { domain: context.state.domain, bizplace: In(context.state.bizplaces), name }
+    })
 
-    const worksheet = await repository.findOne({ id })
-
-    return await repository.save({
+    return await getRepository(Worksheet).save({
       ...worksheet,
-      ...patch
+      ...patch,
+      updater: context.state.user
     })
   }
 }

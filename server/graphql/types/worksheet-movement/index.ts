@@ -1,8 +1,7 @@
-import { WorksheetMovement } from './worksheet-movement'
 import { NewWorksheetMovement } from './new-worksheet-movement'
-import { WorksheetMovementPatch } from './worksheet-movement-patch'
+import { WorksheetMovement } from './worksheet-movement'
 import { WorksheetMovementList } from './worksheet-movement-list'
-import { Filter, Pagination, Sorting } from '@things-factory/shell'
+import { WorksheetMovementPatch } from './worksheet-movement-patch'
 
 export const Mutation = `
   createWorksheetMovement (
@@ -28,4 +27,4 @@ export const Query = `
   worksheetMovement(id: String!): WorksheetMovement
 `
 
-export const Types = [Filter, Pagination, Sorting, WorksheetMovement, NewWorksheetMovement, WorksheetMovementPatch, WorksheetMovementList]
+export const Types = [WorksheetMovement, NewWorksheetMovement, WorksheetMovementPatch, WorksheetMovementList]
