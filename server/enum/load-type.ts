@@ -1,0 +1,4 @@
+export const enum LOAD_TYPES {
+  FULL_CONTAINER_LOAD = 'FCL',
+  LOW_CONTAINER_LOAD = 'LCL'
+}

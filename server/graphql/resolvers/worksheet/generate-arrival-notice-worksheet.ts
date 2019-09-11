@@ -1,9 +1,8 @@
 import { ArrivalNotice, OrderProduct, OrderVas } from '@things-factory/sales-base'
-import { ORDER_PRODUCT_STATUS, ORDER_STATUS, ORDER_VAS_STATUS } from '@things-factory/sales-base/dist-server/enum'
 import { Location } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
+import { ORDER_PRODUCT_STATUS, ORDER_STATUS, ORDER_VAS_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
 
 export const generateArrivalNoticeWorksheet = {
@@ -20,7 +19,7 @@ export const generateArrivalNoticeWorksheet = {
       })
 
       if (!foundArrivalNotice) throw new Error(`Arrival notice doesn't exists.`)
-      if (!foundArrivalNotice.status !== ORDER_STATUS.ARRIVED)
+      if (foundArrivalNotice.status !== ORDER_STATUS.ARRIVED)
         throw new Error('Status is not suitable for getting ready to unload')
 
       /**
