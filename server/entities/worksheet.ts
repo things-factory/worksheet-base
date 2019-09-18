@@ -52,10 +52,14 @@ export class Worksheet {
   @Column()
   status: string
 
-  @Column('datetime')
+  @Column('datetime', {
+    nullable: true
+  })
   startedAt: Date
 
-  @Column('datetime')
+  @Column('datetime', {
+    nullable: true
+  })
   endedAt: Date
 
   @ManyToOne(type => User, {
