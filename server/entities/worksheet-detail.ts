@@ -53,7 +53,9 @@ export class WorksheetDetail {
   @ManyToOne(type => OrderVas)
   targetVas: OrderVas
 
-  @Column()
+  @Column({
+    nullable: true
+  })
   remark: string
 
   @Column()

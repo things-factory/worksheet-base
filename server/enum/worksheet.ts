@@ -12,3 +12,10 @@ export const enum WORKSHEET_STATUS {
   EXECUTING = 'EXECUTING',
   DONE = 'DONE'
 }
+
+export const enum WORKSHEET_DETAIL_STATUS {
+  READY = 'READY',
+  ISSUE = 'ISSUE',
+  CANCELED = 'CANCELED',
+  DONE = 'DONE'
+}

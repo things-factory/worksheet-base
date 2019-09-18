@@ -2,7 +2,14 @@ import { ArrivalNotice, OrderProduct, OrderVas } from '@things-factory/sales-bas
 import { Location } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { ORDER_PRODUCT_STATUS, ORDER_STATUS, ORDER_VAS_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
+import {
+  ORDER_PRODUCT_STATUS,
+  ORDER_STATUS,
+  ORDER_VAS_STATUS,
+  WORKSHEET_DETAIL_STATUS,
+  WORKSHEET_STATUS,
+  WORKSHEET_TYPE
+} from '../../../enum'
 import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
 
 export const generateArrivalNoticeWorksheet = {
@@ -49,6 +56,7 @@ export const generateArrivalNoticeWorksheet = {
             toLocation: await transactionalEntityManager.getRepository(Location).findOne(bufferLocation.id),
             targetProduct: orderProduct,
             type: WORKSHEET_TYPE.UNLOADING,
+            status: WORKSHEET_DETAIL_STATUS.READY,
             creator: context.state.user,
             updater: context.state.user
           })
