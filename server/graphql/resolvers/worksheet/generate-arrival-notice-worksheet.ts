@@ -62,7 +62,7 @@ export const generateArrivalNoticeWorksheet = {
             {
               ...orderProduct,
               status: ORDER_PRODUCT_STATUS.READY_TO_UNLOAD,
-              updater: context.stats.user
+              updater: context.state.user
             }
           )
         })
