@@ -12,7 +12,6 @@ export const WorksheetDetailPatch = gql`
     targetProduct: ObjectRef
     targetVas: ObjectRef
     remark: String
-    status: String
     cuFlag: String
   }
 `
