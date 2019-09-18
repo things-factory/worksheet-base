@@ -29,7 +29,7 @@ export const generateArrivalNoticeWorksheet = {
         domain: context.state.domain,
         bizplace: context.state.bizplaces[0],
         name: WorksheetNoGenerator.arrivalNotice(),
-        type: WORKSHEET_TYPE.ARRIVAL_NOTICE,
+        type: WORKSHEET_TYPE.UNLOADING,
         status: WORKSHEET_STATUS.DEACTIVATED,
         creator: context.state.user,
         updater: context.state.user
