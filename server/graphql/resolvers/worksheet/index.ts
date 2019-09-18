@@ -1,3 +1,4 @@
+import { activateUnloading } from './activate-unloading'
 import { createWorksheet } from './create-worksheet'
 import { deleteWorksheet } from './delete-worksheet'
 import { generateArrivalNoticeWorksheet } from './generate-arrival-notice-worksheet'
@@ -14,5 +15,6 @@ export const Mutation = {
   ...updateWorksheet,
   ...createWorksheet,
   ...deleteWorksheet,
-  ...generateArrivalNoticeWorksheet
+  ...generateArrivalNoticeWorksheet,
+  ...activateUnloading
 }

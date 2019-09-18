@@ -21,6 +21,13 @@ export const Mutation = `
     arrivalNotice: ObjectRef!
     bufferLocation: ObjectRef!
   ): Worksheet
+
+  activateUnloading (
+    name: String!
+    productWorksheetDetails: [WorksheetDetailPatch]
+    vasWorksheetDetails: [WorksheetDetailPatch]
+    : [WorksheetDetailPatch]
+  ): Worksheet
 `
 
 export const Query = `
