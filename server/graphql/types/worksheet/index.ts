@@ -1,4 +1,7 @@
 import { NewWorksheet } from './new-worksheet'
+import { UnloadWorksheet } from './unload-worksheet'
+import { UnloadWorksheetDetail } from './unload-worksheet-detail'
+import { UnloadWorksheetInfo } from './unload-worksheet-info'
 import { Worksheet } from './worksheet'
 import { WorksheetList } from './worksheet-list'
 import { WorksheetPatch } from './worksheet-patch'
@@ -32,6 +35,15 @@ export const Mutation = `
 export const Query = `
   worksheets(filters: [Filter], pagination: Pagination, sortings: [Sorting]): WorksheetList
   worksheet(name: String!): Worksheet
+  unloadWorksheet(name: String!): UnloadWorksheet
 `
 
-export const Types = [Worksheet, NewWorksheet, WorksheetPatch, WorksheetList]
+export const Types = [
+  Worksheet,
+  NewWorksheet,
+  WorksheetPatch,
+  WorksheetList,
+  UnloadWorksheet,
+  UnloadWorksheetInfo,
+  UnloadWorksheetDetail
+]

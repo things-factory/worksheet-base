@@ -5,10 +5,12 @@ import { generateArrivalNoticeWorksheet } from './generate-arrival-notice-worksh
 import { updateWorksheet } from './update-worksheet'
 import { worksheetResolver } from './worksheet'
 import { worksheetsResolver } from './worksheets'
+import { unloadWorksheetResolver } from './unload-worksheet'
 
 export const Query = {
   ...worksheetsResolver,
-  ...worksheetResolver
+  ...worksheetResolver,
+  ...unloadWorksheetResolver
 }
 
 export const Mutation = {
