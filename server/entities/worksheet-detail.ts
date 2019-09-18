@@ -58,9 +58,6 @@ export class WorksheetDetail {
   })
   remark: string
 
-  @Column()
-  status: string
-
   @ManyToOne(type => User, {
     nullable: true
   })
