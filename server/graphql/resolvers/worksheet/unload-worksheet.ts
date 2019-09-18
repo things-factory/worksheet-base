@@ -37,20 +37,22 @@ export const unloadWorksheetResolver = {
         startedAt: worksheet.startedAt,
         bizplace: worksheet.bizplace
       },
-      unloadWorksheetDetails: worksheet.worksheetDetails.map((worksheetDetail: WorksheetDetail) => {
-        const orderProduct: OrderProduct = worksheetDetail.targetProduct
-        return {
-          name: worksheetDetail.name,
-          product: orderProduct.product,
-          remark: worksheetDetail.remark,
-          packingType: orderProduct.packingType,
-          weight: orderProduct.weight,
-          unit: orderProduct.unit,
-          packQty: orderProduct.packQty,
-          totalWeight: orderProduct.totalWeight,
-          palletQty: orderProduct.packQty
-        }
-      })
+      unloadWorksheetDetails: worksheet.worksheetDetails
+        .filter((worksheetDetail: WorksheetDetail) => worksheetDetail.targetProduct)
+        .map((worksheetDetail: WorksheetDetail) => {
+          const orderProduct: OrderProduct = worksheetDetail.targetProduct
+          return {
+            name: worksheetDetail.name,
+            product: orderProduct.product,
+            remark: worksheetDetail.remark,
+            packingType: orderProduct.packingType,
+            weight: orderProduct.weight,
+            unit: orderProduct.unit,
+            packQty: orderProduct.packQty,
+            totalWeight: orderProduct.totalWeight,
+            palletQty: orderProduct.packQty
+          }
+        })
     }
   }
 }
