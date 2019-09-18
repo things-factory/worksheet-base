@@ -26,6 +26,7 @@ export const generateArrivalNoticeWorksheet = {
        * 2. Create worksheet
        */
       const worksheet = await transactionalEntityManager.getRepository(Worksheet).save({
+        domain: context.state.domain,
         name: WorksheetNoGenerator.arrivalNotice(),
         type: WORKSHEET_TYPE.ARRIVAL_NOTICE,
         status: WORKSHEET_STATUS.DEACTIVATED,
@@ -40,6 +41,7 @@ export const generateArrivalNoticeWorksheet = {
       const orderProducts: [OrderProduct] = foundArrivalNotice.orderProducts
       orderProducts.forEach(async (orderProduct: OrderProduct) => {
         await transactionalEntityManager.getRepository(WorksheetDetail).save({
+          domain: context.state.domain,
           toLocation: await transactionalEntityManager.getRepository(Location).findOne(bufferLocation.id),
           targetProduct: orderProduct,
           type: WORKSHEET_TYPE.UNLOADING,
