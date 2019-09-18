@@ -26,7 +26,6 @@ export const Mutation = `
     name: String!
     productWorksheetDetails: [WorksheetDetailPatch]
     vasWorksheetDetails: [WorksheetDetailPatch]
-    : [WorksheetDetailPatch]
   ): Worksheet
 `
 

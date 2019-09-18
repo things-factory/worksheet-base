@@ -101,7 +101,7 @@ export const activateUnloading = {
       /**
        * 6. Update Worksheet (status: DEACTIVATED => EXECUTING)
        */
-      transactionalEntityManager.getRepository(Worksheet).save({
+      return await transactionalEntityManager.getRepository(Worksheet).save({
         ...foundWorksheet,
         status: WORKSHEET_STATUS.EXECUTING,
         startedAt: Date.now(),
