@@ -40,7 +40,7 @@ export const generateArrivalNoticeWorksheet = {
        */
       // 3. 1) Create worksheet detail for products
       const orderProducts: [OrderProduct] = foundArrivalNotice.orderProducts
-      await Promise.all(
+      const worksheetDetails = await Promise.all(
         orderProducts.map(async (orderProduct: OrderProduct) => {
           await transactionalEntityManager.getRepository(WorksheetDetail).save({
             domain: context.state.domain,
@@ -77,6 +77,10 @@ export const generateArrivalNoticeWorksheet = {
         await Promise.all(
           orderVass.map(async (orderVas: OrderVas) => {
             await transactionalEntityManager.getRepository(WorksheetDetail).save({
+              domain: context.state.domain,
+              bizplace: context.state.bizplaces[0],
+              worksheet,
+              name: WorksheetNoGenerator.arrivalNoticeDetail(),
               targetVas: orderVas,
               type: WORKSHEET_TYPE.VAS,
               creator: context.state.user,
@@ -109,7 +113,11 @@ export const generateArrivalNoticeWorksheet = {
       /**
        * 6. Returning worksheet as a result
        */
-      return worksheet
+
+      return {
+        ...worksheet,
+        worksheetDetails: [...worksheetDetails]
+      }
     })
   }
 }
