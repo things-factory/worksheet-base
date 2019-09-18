@@ -4,4 +4,8 @@ export class WorksheetNoGenerator {
   static arrivalNotice() {
     return uuid()
   }
+
+  static arrivalNoticeDetail() {
+    return uuid()
+  }
 }
