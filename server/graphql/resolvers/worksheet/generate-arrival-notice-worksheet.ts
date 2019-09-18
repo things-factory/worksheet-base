@@ -40,29 +40,31 @@ export const generateArrivalNoticeWorksheet = {
        */
       // 3. 1) Create worksheet detail for products
       const orderProducts: [OrderProduct] = foundArrivalNotice.orderProducts
-      orderProducts.forEach(async (orderProduct: OrderProduct) => {
-        await transactionalEntityManager.getRepository(WorksheetDetail).save({
-          domain: context.state.domain,
-          bizplace: context.state.bizplaces[0],
-          toLocation: await transactionalEntityManager.getRepository(Location).findOne(bufferLocation.id),
-          targetProduct: orderProduct,
-          type: WORKSHEET_TYPE.UNLOADING,
-          creator: context.state.user,
-          updater: context.state.user
-        })
+      await Promise.all(
+        orderProducts.map(async (orderProduct: OrderProduct) => {
+          await transactionalEntityManager.getRepository(WorksheetDetail).save({
+            domain: context.state.domain,
+            bizplace: context.state.bizplaces[0],
+            toLocation: await transactionalEntityManager.getRepository(Location).findOne(bufferLocation.id),
+            targetProduct: orderProduct,
+            type: WORKSHEET_TYPE.UNLOADING,
+            creator: context.state.user,
+            updater: context.state.user
+          })
 
-        // 3. 2) Update status of order products (ARRIVED => READY_TO_UNLOAD)
-        await transactionalEntityManager.getRepository(OrderProduct).update(
-          {
-            id: orderProduct.id
-          },
-          {
-            ...orderProduct,
-            status: ORDER_PRODUCT_STATUS.READY_TO_UNLOAD,
-            updater: context.stats.user
-          }
-        )
-      })
+          // 3. 2) Update status of order products (ARRIVED => READY_TO_UNLOAD)
+          await transactionalEntityManager.getRepository(OrderProduct).update(
+            {
+              id: orderProduct.id
+            },
+            {
+              ...orderProduct,
+              status: ORDER_PRODUCT_STATUS.READY_TO_UNLOAD,
+              updater: context.stats.user
+            }
+          )
+        })
+      )
 
       /**
        * 4. Create worksheet detail for vass (if it exists)
@@ -70,32 +72,34 @@ export const generateArrivalNoticeWorksheet = {
       const orderVass: [OrderVas] = foundArrivalNotice.orderVass
       if (orderVass && orderVass.length) {
         // 4. 1) Create worksheet detail for vass
-        orderVass.forEach(async (orderVas: OrderVas) => {
-          await transactionalEntityManager.getRepository(WorksheetDetail).save({
-            targetVas: orderVas,
-            type: WORKSHEET_TYPE.VAS,
-            creator: context.state.user,
-            updater: context.state.user
-          })
-
-          // 4. 2) Update status of order vass (ARRIVED => READY_TO_PROCESS)
-          transactionalEntityManager.getRepository(WorksheetDetail).update(
-            {
-              id: orderVas.id
-            },
-            {
-              ...orderVas,
-              status: ORDER_VAS_STATUS.READY_TO_PROCESS,
+        await Promise.all(
+          orderVass.map(async (orderVas: OrderVas) => {
+            await transactionalEntityManager.getRepository(WorksheetDetail).save({
+              targetVas: orderVas,
+              type: WORKSHEET_TYPE.VAS,
+              creator: context.state.user,
               updater: context.state.user
-            }
-          )
-        })
+            })
+
+            // 4. 2) Update status of order vass (ARRIVED => READY_TO_PROCESS)
+            transactionalEntityManager.getRepository(WorksheetDetail).update(
+              {
+                id: orderVas.id
+              },
+              {
+                ...orderVas,
+                status: ORDER_VAS_STATUS.READY_TO_PROCESS,
+                updater: context.state.user
+              }
+            )
+          })
+        )
       }
 
       /**
        * 5. Update status of arrival notice (ARRIVED => READY_TO_UNLOAD)
        */
-      transactionalEntityManager.getRepository(ArrivalNotice).save({
+      await transactionalEntityManager.getRepository(ArrivalNotice).save({
         ...foundArrivalNotice,
         status: ORDER_STATUS.READY_TO_UNLOAD
       })
