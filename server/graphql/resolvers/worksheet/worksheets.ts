@@ -10,7 +10,19 @@ export const worksheetsResolver = {
 
     const [items, total] = await getRepository(Worksheet).findAndCount({
       ...convertedParams,
-      relations: ['domain', 'bizplace', 'worksheetDetails', 'creator', 'updater']
+      relations: [
+        'domain',
+        'bizplace',
+        'worksheetDetails',
+        'worksheetDetails.fromLocation',
+        'worksheetDetails.toLocation',
+        'worksheetDetails.targetProduct',
+        'worksheetDetails.targetProduct.product',
+        'worksheetDetails.targetVas',
+        'worksheetDetails.targetVas.vas',
+        'creator',
+        'updater'
+      ]
     })
 
     return { items, total }
