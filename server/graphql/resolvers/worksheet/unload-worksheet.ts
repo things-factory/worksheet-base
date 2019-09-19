@@ -23,8 +23,6 @@ export const unloadWorksheetResolver = {
         'worksheetDetails.toLocation.warehouse',
         'worksheetDetails.targetProduct',
         'worksheetDetails.targetProduct.product',
-        'worksheetDetails.targetVas',
-        'worksheetDetails.targetVas.vas',
         'creator',
         'updater'
       ]

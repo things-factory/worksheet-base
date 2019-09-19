@@ -22,65 +22,75 @@ export const generateArrivalNoticeWorksheet = {
       if (foundArrivalNotice.status !== ORDER_STATUS.ARRIVED)
         throw new Error('Status is not suitable for getting ready to unload')
 
-      /**
-       * 2. Create worksheet
+      /*
+       * 2. Create worksheet and worksheet details for products
        */
-      const worksheet = await transactionalEntityManager.getRepository(Worksheet).save({
-        domain: context.state.domain,
-        bizplace: context.state.bizplaces[0],
-        name: WorksheetNoGenerator.arrivalNotice(),
-        arrivalNotice: foundArrivalNotice,
-        type: WORKSHEET_TYPE.UNLOADING,
-        status: WORKSHEET_STATUS.DEACTIVATED,
-        creator: context.state.user,
-        updater: context.state.user
-      })
-
-      /**
-       * 3. Create worksheet details for products
-       */
-      // 3. 1) Create worksheet detail for products
       const orderProducts: [OrderProduct] = foundArrivalNotice.orderProducts
-      const worksheetDetails = await Promise.all(
-        orderProducts.map(async (orderProduct: OrderProduct) => {
-          await transactionalEntityManager.getRepository(WorksheetDetail).save({
-            domain: context.state.domain,
-            bizplace: context.state.bizplaces[0],
-            worksheet,
-            name: WorksheetNoGenerator.arrivalNoticeDetail(),
-            toLocation: await transactionalEntityManager.getRepository(Location).findOne(bufferLocation.id),
-            targetProduct: orderProduct,
-            type: WORKSHEET_TYPE.UNLOADING,
-            creator: context.state.user,
-            updater: context.state.user
-          })
-
-          // 3. 2) Update status of order products (ARRIVED => READY_TO_UNLOAD)
-          await transactionalEntityManager.getRepository(OrderProduct).update(
-            {
-              id: orderProduct.id
-            },
-            {
-              ...orderProduct,
-              status: ORDER_PRODUCT_STATUS.READY_TO_UNLOAD,
-              updater: context.state.user
-            }
-          )
+      let unloadingWorksheet: Worksheet = new Worksheet()
+      if (orderProducts && orderProducts.length) {
+        unloadingWorksheet = await transactionalEntityManager.getRepository(Worksheet).save({
+          domain: context.state.domain,
+          bizplace: context.state.bizplaces[0],
+          name: WorksheetNoGenerator.arrivalNotice(),
+          arrivalNotice: foundArrivalNotice,
+          type: WORKSHEET_TYPE.UNLOADING,
+          status: WORKSHEET_STATUS.DEACTIVATED,
+          creator: context.state.user,
+          updater: context.state.user
         })
-      )
+
+        await Promise.all(
+          orderProducts.map(async (orderProduct: OrderProduct) => {
+            await transactionalEntityManager.getRepository(WorksheetDetail).save({
+              domain: context.state.domain,
+              bizplace: context.state.bizplaces[0],
+              worksheet: unloadingWorksheet,
+              name: WorksheetNoGenerator.arrivalNoticeDetail(),
+              toLocation: await transactionalEntityManager.getRepository(Location).findOne(bufferLocation.id),
+              targetProduct: orderProduct,
+              type: WORKSHEET_TYPE.UNLOADING,
+              creator: context.state.user,
+              updater: context.state.user
+            })
+
+            // 3. 2) Update status of order products (ARRIVED => READY_TO_UNLOAD)
+            return await transactionalEntityManager.getRepository(OrderProduct).update(
+              {
+                id: orderProduct.id
+              },
+              {
+                ...orderProduct,
+                status: ORDER_PRODUCT_STATUS.READY_TO_UNLOAD,
+                updater: context.state.user
+              }
+            )
+          })
+        )
+      }
 
       /**
        * 4. Create worksheet detail for vass (if it exists)
        */
       const orderVass: [OrderVas] = foundArrivalNotice.orderVass
+      let vasWorksheet: Worksheet = new Worksheet()
       if (orderVass && orderVass.length) {
-        // 4. 1) Create worksheet detail for vass
+        vasWorksheet = await transactionalEntityManager.getRepository(Worksheet).save({
+          domain: context.state.domain,
+          bizplace: context.state.bizplaces[0],
+          name: WorksheetNoGenerator.arrivalNotice(),
+          arrivalNotice: foundArrivalNotice,
+          type: WORKSHEET_TYPE.VAS,
+          status: WORKSHEET_STATUS.DEACTIVATED,
+          creator: context.state.user,
+          updater: context.state.user
+        })
+
         await Promise.all(
           orderVass.map(async (orderVas: OrderVas) => {
             await transactionalEntityManager.getRepository(WorksheetDetail).save({
               domain: context.state.domain,
               bizplace: context.state.bizplaces[0],
-              worksheet,
+              worksheet: vasWorksheet,
               name: WorksheetNoGenerator.arrivalNoticeDetail(),
               targetVas: orderVas,
               type: WORKSHEET_TYPE.VAS,
@@ -114,10 +124,9 @@ export const generateArrivalNoticeWorksheet = {
       /**
        * 6. Returning worksheet as a result
        */
-
       return {
-        ...worksheet,
-        worksheetDetails: [...worksheetDetails]
+        unloadingWorksheet,
+        vasWorksheet
       }
     })
   }

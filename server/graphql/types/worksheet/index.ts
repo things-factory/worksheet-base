@@ -1,3 +1,4 @@
+import { ArrivalNoticeWorksheet } from './arrival-notice-worksheet'
 import { NewWorksheet } from './new-worksheet'
 import { UnloadWorksheet } from './unload-worksheet'
 import { UnloadWorksheetDetail } from './unload-worksheet-detail'
@@ -23,12 +24,16 @@ export const Mutation = `
   generateArrivalNoticeWorksheet (
     arrivalNotice: ObjectRef!
     bufferLocation: ObjectRef!
-  ): Worksheet
+  ): ArrivalNoticeWorksheet
 
   activateUnloading (
     name: String!
     productWorksheetDetails: [WorksheetDetailPatch]
     vasWorksheetDetails: [WorksheetDetailPatch]
+  ): Worksheet
+
+  completeUnloading (
+    arrivalNoticeNo: String!
   ): Worksheet
 `
 
@@ -45,5 +50,6 @@ export const Types = [
   WorksheetList,
   UnloadWorksheet,
   UnloadWorksheetInfo,
-  UnloadWorksheetDetail
+  UnloadWorksheetDetail,
+  ArrivalNoticeWorksheet
 ]

@@ -1,11 +1,12 @@
 import { activateUnloading } from './activate-unloading'
+import { completeUnloading } from './complete-unloading'
 import { createWorksheet } from './create-worksheet'
 import { deleteWorksheet } from './delete-worksheet'
 import { generateArrivalNoticeWorksheet } from './generate-arrival-notice-worksheet'
+import { unloadWorksheetResolver } from './unload-worksheet'
 import { updateWorksheet } from './update-worksheet'
 import { worksheetResolver } from './worksheet'
 import { worksheetsResolver } from './worksheets'
-import { unloadWorksheetResolver } from './unload-worksheet'
 
 export const Query = {
   ...worksheetsResolver,
@@ -18,5 +19,6 @@ export const Mutation = {
   ...createWorksheet,
   ...deleteWorksheet,
   ...generateArrivalNoticeWorksheet,
-  ...activateUnloading
+  ...activateUnloading,
+  ...completeUnloading
 }
