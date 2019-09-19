@@ -25,7 +25,7 @@ export const activateUnloading = {
         throw new Error('Status is not suitable for unloading')
 
       /**
-       * 2. Update remark of product worksheet details details
+       * 2. Update description of product worksheet details
        */
       await Promise.all(
         productWorksheetDetails.map(async (productWorksheetDetail: WorksheetDetail) => {
@@ -36,7 +36,8 @@ export const activateUnloading = {
               bizplace: In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id))
             },
             {
-              remark: productWorksheetDetail.remark
+              description: productWorksheetDetail.description,
+              updater: context.state.user
             }
           )
         })
@@ -55,7 +56,8 @@ export const activateUnloading = {
               id: productWorksheetDetail.targetProduct.id
             },
             {
-              status: ORDER_PRODUCT_STATUS.UNLOADING
+              status: ORDER_PRODUCT_STATUS.UNLOADING,
+              updater: context.state.user
             }
           )
         })
