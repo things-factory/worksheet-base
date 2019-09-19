@@ -4,12 +4,11 @@ import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
 export const completeUnloading = {
-  async completeUnloading(_: any, { arrivalNoticeNo }, context: any) {
+  async completeUnloading(_: any, { arrivalNoticeNo, worksheetDetails }, context: any) {
     return await getManager().transaction(async transactionalEntityManager => {
       /**
        * 1. Validation for worksheet
        *    - data existing
-       *    - status of worksheet
        */
       const foundUnloadingWorksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
@@ -24,10 +23,6 @@ export const completeUnloading = {
           'bizplace',
           'arrivalNotice',
           'worksheetDetails',
-          'worksheetDetails.fromLocation',
-          'worksheetDetails.fromLocation.warehouse',
-          'worksheetDetails.toLocation',
-          'worksheetDetails.toLocation.warehouse',
           'worksheetDetails.targetProduct',
           'worksheetDetails.targetProduct.product',
           'creator',
@@ -36,21 +31,30 @@ export const completeUnloading = {
       })
 
       if (!foundUnloadingWorksheet) throw new Error(`Worksheet doesn't exists.`)
-      if (foundUnloadingWorksheet.status !== WORKSHEET_STATUS.EXECUTING)
-        throw new Error('Status is not suitable to complete unloading')
 
       /**
-       * 2. Update order product (status: UNLOADING => UNLOADED)
+       * 2. Update worksheet detail and order product
+       *    - worksheet detail: Update remark if it's exists
+       *    - order product: Update actual qty
        */
-      const unloadingWorksheetDetails: WorksheetDetail[] = foundUnloadingWorksheet.worksheetDetails
       await Promise.all(
-        unloadingWorksheetDetails.map(async (unloadingWorksheetDetail: WorksheetDetail) => {
-          transactionalEntityManager.getRepository(OrderProduct).update(
+        worksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
+          await transactionalEntityManager.getRepository(WorksheetDetail).update(
             {
-              id: unloadingWorksheetDetail.targetProduct.id
+              id: worksheetDetail.id
             },
             {
-              ...unloadingWorksheetDetail.targetProduct,
+              remark: worksheetDetail.remark,
+              updater: context.state.user
+            }
+          )
+
+          await transactionalEntityManager.getRepository(OrderProduct).update(
+            {
+              id: worksheetDetail.targetProduct.id
+            },
+            {
+              actualQty: worksheetDetail.targetProduct.actualQty,
               status: ORDER_PRODUCT_STATUS.UNLOADED,
               updater: context.state.user
             }
@@ -61,7 +65,7 @@ export const completeUnloading = {
       /**
        * 3. Update worksheet status (status: UNLOADING => DONE)
        */
-      transactionalEntityManager.getRepository(Worksheet).save({
+      await transactionalEntityManager.getRepository(Worksheet).save({
         ...foundUnloadingWorksheet,
         status: WORKSHEET_STATUS.DONE,
         endedAt: Date.now(),
@@ -72,31 +76,17 @@ export const completeUnloading = {
        * 4. Check whether every related worksheet is completed
        *    - if yes => Update Status of arrival notice
        */
-      const foundVasWorksheet: Worksheet = await getRepository(Worksheet).findOne({
+      const foundVasWorksheets: Worksheet[] = await getRepository(Worksheet).find({
         where: {
           domain: context.state.domain,
           bizplace: In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id)),
           status: Not(Equal(WORKSHEET_STATUS.DONE)),
           type: WORKSHEET_TYPE.VAS,
-          arrivalNoticeNo
-        },
-        relations: [
-          'domain',
-          'bizplace',
-          'arrivalNotice',
-          'worksheetDetails',
-          'worksheetDetails.fromLocation',
-          'worksheetDetails.fromLocation.warehouse',
-          'worksheetDetails.toLocation',
-          'worksheetDetails.toLocation.warehouse',
-          'worksheetDetails.targetVas',
-          'worksheetDetails.targetVas.vas',
-          'creator',
-          'updater'
-        ]
+          name: arrivalNoticeNo
+        }
       })
 
-      if (!foundVasWorksheet) {
+      if (!foundVasWorksheets || foundVasWorksheets.length === 0) {
         await transactionalEntityManager.getRepository(ArrivalNotice).update(
           {
             domain: context.state.domain,
