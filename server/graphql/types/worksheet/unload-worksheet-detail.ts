@@ -4,6 +4,7 @@ export const UnloadWorksheetDetail = gql`
   type UnloadWorksheetDetail {
     name: String
     remark: String
+    description: String
     product: Product
     seq: Int
     batchId: String

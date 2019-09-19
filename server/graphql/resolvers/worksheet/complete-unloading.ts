@@ -40,7 +40,7 @@ export const completeUnloading = {
         throw new Error('Status is not suitable to complete unloading')
 
       /**
-       * 2. Update order product (status: READY_TO_UNLOAD => UNLOADING)
+       * 2. Update order product (status: UNLOADING => UNLOADED)
        */
       const unloadingWorksheetDetails: WorksheetDetail[] = foundUnloadingWorksheet.worksheetDetails
       await Promise.all(

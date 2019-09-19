@@ -53,7 +53,7 @@ export const unloadWorksheetResolver = {
               unit: orderProduct.unit,
               packQty: orderProduct.packQty,
               totalWeight: orderProduct.totalWeight,
-              palletQty: orderProduct.packQty
+              palletQty: orderProduct.palletQty
             }
           })
       }
