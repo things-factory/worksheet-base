@@ -1,4 +1,4 @@
-import { Bizplace, OrderProduct } from '@things-factory/sales-base'
+import { ArrivalNotice, Bizplace, OrderProduct } from '@things-factory/sales-base'
 import { getRepository, In } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WORKSHEET_STATUS } from '../../../enum'
@@ -10,7 +10,11 @@ export const unloadWorksheetResolver = {
         domain: context.state.domain,
         bizplace: In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id)),
         status: WORKSHEET_STATUS.EXECUTING,
-        arrivalNoticeNo
+        arrivalNotice: await getRepository(ArrivalNotice).findOne({
+          domain: context.state.domain,
+          bizplace: In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id)),
+          name: arrivalNoticeNo
+        })
       },
       relations: [
         'domain',
@@ -47,7 +51,7 @@ export const unloadWorksheetResolver = {
             return {
               name: worksheetDetail.name,
               product: orderProduct.product,
-              remark: worksheetDetail.remark,
+              description: worksheetDetail.description,
               packingType: orderProduct.packingType,
               weight: orderProduct.weight,
               unit: orderProduct.unit,
