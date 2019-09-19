@@ -1,10 +1,10 @@
-import { ArrivalNotice, Bizplace, OrderProduct, OrderVas } from '@things-factory/sales-base'
+import { ArrivalNotice, Bizplace, OrderProduct } from '@things-factory/sales-base'
 import { getManager, In } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { ORDER_STATUS, ORDER_PRODUCT_STATUS, ORDER_VAS_STATUS, WORKSHEET_STATUS } from '../../../enum'
+import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS } from '../../../enum'
 
 export const activateUnloading = {
-  async activateUnloading(_: any, { name, productWorksheetDetails, vasWorksheetDetails }, context: any) {
+  async activateUnloading(_: any, { name, productWorksheetDetails }, context: any) {
     return await getManager().transaction(async transactionalEntityManager => {
       /**
        * 1. Validation for worksheet
@@ -17,7 +17,7 @@ export const activateUnloading = {
           bizplace: In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id)),
           name
         },
-        relations: ['arrivalNotice', 'worksheetDetails', 'worksheetDetails.targetProduct', 'worksheetDetails.targetVas']
+        relations: ['arrivalNotice', 'worksheetDetails', 'worksheetDetails.targetProduct']
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
@@ -43,25 +43,7 @@ export const activateUnloading = {
       )
 
       /**
-       * 3. Update remark of vas worksheet details details
-       */
-      await Promise.all(
-        vasWorksheetDetails.map(async (vasWorksheetDetail: WorksheetDetail) => {
-          await transactionalEntityManager.getRepository(WorksheetDetail).update(
-            {
-              name: vasWorksheetDetail.name,
-              domain: context.state.domain,
-              bizplace: In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id))
-            },
-            {
-              remark: vasWorksheetDetail.remark
-            }
-          )
-        })
-      )
-
-      /**
-       * 4. Update order product (status: READY_TO_UNLOAD => UNLOADING)
+       * 3. Update order product (status: READY_TO_UNLOAD => UNLOADING)
        */
       const foundProductWorksheetDetails: WorksheetDetail[] = foundWorksheet.worksheetDetails.filter(
         (worksheetDetail: WorksheetDetail) => worksheetDetail.targetProduct
@@ -80,7 +62,7 @@ export const activateUnloading = {
       )
 
       /**
-       * 6. Update Arrival Notice (status: READY_TO_UNLOAD => )
+       * 4. Update Arrival Notice (status: READY_TO_UNLOAD => PROCESSING)
        */
       const arrivalNotice: ArrivalNotice = foundWorksheet.arrivalNotice
       await transactionalEntityManager.getRepository(ArrivalNotice).save({
@@ -90,7 +72,7 @@ export const activateUnloading = {
       })
 
       /**
-       * 7. Update Worksheet (status: DEACTIVATED => EXECUTING)
+       * 5. Update Worksheet (status: DEACTIVATED => EXECUTING)
        */
       return await transactionalEntityManager.getRepository(Worksheet).save({
         ...foundWorksheet,
