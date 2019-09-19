@@ -1,7 +1,7 @@
-import { Bizplace, OrderProduct, OrderVas } from '@things-factory/sales-base'
+import { ArrivalNotice, Bizplace, OrderProduct, OrderVas } from '@things-factory/sales-base'
 import { getManager, In } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { ORDER_PRODUCT_STATUS, ORDER_VAS_STATUS, WORKSHEET_STATUS } from '../../../enum'
+import { ORDER_STATUS, ORDER_PRODUCT_STATUS, ORDER_VAS_STATUS, WORKSHEET_STATUS } from '../../../enum'
 
 export const activateUnloading = {
   async activateUnloading(_: any, { name, productWorksheetDetails, vasWorksheetDetails }, context: any) {
@@ -17,7 +17,7 @@ export const activateUnloading = {
           bizplace: In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id)),
           name
         },
-        relations: ['worksheetDetails', 'worksheetDetails.targetProduct', 'worksheetDetails.targetVas']
+        relations: ['arrivalNotice', 'worksheetDetails', 'worksheetDetails.targetProduct', 'worksheetDetails.targetVas']
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
@@ -99,7 +99,17 @@ export const activateUnloading = {
       )
 
       /**
-       * 6. Update Worksheet (status: DEACTIVATED => EXECUTING)
+       * 6. Update Arrival Notice (status: READY_TO_UNLOAD => )
+       */
+      const arrivalNotice: ArrivalNotice = foundWorksheet.arrivalNotice
+      await transactionalEntityManager.getRepository(ArrivalNotice).save({
+        ...arrivalNotice,
+        status: ORDER_STATUS.PROCESSING,
+        updater: context.state.user
+      })
+
+      /**
+       * 7. Update Worksheet (status: DEACTIVATED => EXECUTING)
        */
       return await transactionalEntityManager.getRepository(Worksheet).save({
         ...foundWorksheet,

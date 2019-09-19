@@ -4,17 +4,18 @@ import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WORKSHEET_STATUS } from '../../../enum'
 
 export const unloadWorksheetResolver = {
-  async unloadWorksheet(_: any, { name }, context: any) {
+  async unloadWorksheet(_: any, { arrivalNoticeNo }, context: any) {
     const worksheet: Worksheet = await getRepository(Worksheet).findOne({
       where: {
         domain: context.state.domain,
         bizplace: In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id)),
         status: WORKSHEET_STATUS.EXECUTING,
-        name
+        arrivalNoticeNo
       },
       relations: [
         'domain',
         'bizplace',
+        'arrivalNotice',
         'worksheetDetails',
         'worksheetDetails.fromLocation',
         'worksheetDetails.fromLocation.warehouse',
@@ -30,6 +31,9 @@ export const unloadWorksheetResolver = {
     })
 
     return {
+      arrivalNotice: {
+        ...worksheet.arrivalNotice
+      },
       unloadWorksheetInfo: {
         name: worksheet.name,
         status: worksheet.status,

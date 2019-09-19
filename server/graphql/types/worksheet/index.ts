@@ -35,7 +35,7 @@ export const Mutation = `
 export const Query = `
   worksheets(filters: [Filter], pagination: Pagination, sortings: [Sorting]): WorksheetList
   worksheet(name: String!): Worksheet
-  unloadWorksheet(name: String!): UnloadWorksheet
+  unloadWorksheet(arrivalNoticeNo: String!): UnloadWorksheet
 `
 
 export const Types = [

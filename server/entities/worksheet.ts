@@ -1,5 +1,6 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
+import { ArrivalNotice, ShippingOrder } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Warehouse } from '@things-factory/warehouse-base'
 import {
@@ -31,6 +32,12 @@ export class Worksheet {
     nullable: false
   })
   bizplace: Bizplace
+
+  @ManyToOne(type => ArrivalNotice)
+  arrivalNotice: ArrivalNotice
+
+  @ManyToOne(type => ShippingOrder)
+  shippingOrder: ShippingOrder
 
   @ManyToOne(type => Warehouse)
   warehouse: Warehouse
