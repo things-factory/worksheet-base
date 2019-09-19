@@ -29,7 +29,6 @@ export const Mutation = `
   activateUnloading (
     name: String!
     productWorksheetDetails: [WorksheetDetailPatch]
-    vasWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet
 
   completeUnloading (

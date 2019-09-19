@@ -80,25 +80,6 @@ export const activateUnloading = {
       )
 
       /**
-       * 5. Update order vas (status: READY_TO_PROCESS => PROCESSING)
-       */
-      const foundVasWorksheetDetails: WorksheetDetail[] = foundWorksheet.worksheetDetails.filter(
-        (worksheetDetail: WorksheetDetail) => worksheetDetail.targetVas
-      )
-      await Promise.all(
-        foundVasWorksheetDetails.map(async (vasWorksheetDetail: WorksheetDetail) => {
-          await transactionalEntityManager.getRepository(OrderVas).update(
-            {
-              id: vasWorksheetDetail.targetVas.id
-            },
-            {
-              status: ORDER_VAS_STATUS.PROCESSING
-            }
-          )
-        })
-      )
-
-      /**
        * 6. Update Arrival Notice (status: READY_TO_UNLOAD => )
        */
       const arrivalNotice: ArrivalNotice = foundWorksheet.arrivalNotice
