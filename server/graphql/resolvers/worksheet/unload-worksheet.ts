@@ -30,33 +30,37 @@ export const unloadWorksheetResolver = {
       ]
     })
 
-    return {
-      arrivalNotice: {
-        ...worksheet.arrivalNotice
-      },
-      unloadWorksheetInfo: {
-        name: worksheet.name,
-        status: worksheet.status,
-        bufferLocation: worksheet.worksheetDetails[0].toLocation,
-        startedAt: worksheet.startedAt,
-        bizplace: worksheet.bizplace
-      },
-      unloadWorksheetDetails: worksheet.worksheetDetails
-        .filter((worksheetDetail: WorksheetDetail) => worksheetDetail.targetProduct)
-        .map((worksheetDetail: WorksheetDetail) => {
-          const orderProduct: OrderProduct = worksheetDetail.targetProduct
-          return {
-            name: worksheetDetail.name,
-            product: orderProduct.product,
-            remark: worksheetDetail.remark,
-            packingType: orderProduct.packingType,
-            weight: orderProduct.weight,
-            unit: orderProduct.unit,
-            packQty: orderProduct.packQty,
-            totalWeight: orderProduct.totalWeight,
-            palletQty: orderProduct.packQty
-          }
-        })
+    if (worksheet) {
+      return {
+        arrivalNotice: {
+          ...worksheet.arrivalNotice
+        },
+        unloadWorksheetInfo: {
+          name: worksheet.name,
+          status: worksheet.status,
+          bufferLocation: worksheet.worksheetDetails[0].toLocation,
+          startedAt: worksheet.startedAt,
+          bizplace: worksheet.bizplace
+        },
+        unloadWorksheetDetails: worksheet.worksheetDetails
+          .filter((worksheetDetail: WorksheetDetail) => worksheetDetail.targetProduct)
+          .map((worksheetDetail: WorksheetDetail) => {
+            const orderProduct: OrderProduct = worksheetDetail.targetProduct
+            return {
+              name: worksheetDetail.name,
+              product: orderProduct.product,
+              remark: worksheetDetail.remark,
+              packingType: orderProduct.packingType,
+              weight: orderProduct.weight,
+              unit: orderProduct.unit,
+              packQty: orderProduct.packQty,
+              totalWeight: orderProduct.totalWeight,
+              palletQty: orderProduct.packQty
+            }
+          })
+      }
+    } else {
+      throw new Error('Data is not exisits.')
     }
   }
 }
