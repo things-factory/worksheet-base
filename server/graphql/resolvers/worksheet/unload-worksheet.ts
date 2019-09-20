@@ -1,34 +1,33 @@
-import { ArrivalNotice, Bizplace, OrderProduct } from '@things-factory/sales-base'
-import { getRepository, In } from 'typeorm'
+import { ArrivalNotice, OrderProduct } from '@things-factory/sales-base'
+import { getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WORKSHEET_STATUS } from '../../../enum'
 
 export const unloadWorksheetResolver = {
   async unloadWorksheet(_: any, { arrivalNoticeNo }, context: any) {
+    const arrivalNotice: ArrivalNotice = await getRepository(ArrivalNotice).findOne({
+      where: { domain: context.state.domain, name: arrivalNoticeNo },
+      relations: ['bizplace']
+    })
+
+    if (!arrivalNotice) throw new Error('Data is not exisits.')
+
     const worksheet: Worksheet = await getRepository(Worksheet).findOne({
       where: {
         domain: context.state.domain,
-        bizplace: In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id)),
+        bizplace: arrivalNotice.bizplace,
         status: WORKSHEET_STATUS.EXECUTING,
-        arrivalNotice: await getRepository(ArrivalNotice).findOne({
-          domain: context.state.domain,
-          bizplace: In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id)),
-          name: arrivalNoticeNo
-        })
+        arrivalNotice
       },
       relations: [
         'domain',
         'bizplace',
         'arrivalNotice',
         'worksheetDetails',
-        'worksheetDetails.fromLocation',
-        'worksheetDetails.fromLocation.warehouse',
         'worksheetDetails.toLocation',
         'worksheetDetails.toLocation.warehouse',
         'worksheetDetails.targetProduct',
-        'worksheetDetails.targetProduct.product',
-        'creator',
-        'updater'
+        'worksheetDetails.targetProduct.product'
       ]
     })
 

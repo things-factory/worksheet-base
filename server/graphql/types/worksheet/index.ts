@@ -22,18 +22,18 @@ export const Mutation = `
   ): Boolean
 
   generateArrivalNoticeWorksheet (
-    arrivalNotice: ObjectRef!
+    arrivalNoticeNo: String!
     bufferLocation: ObjectRef!
   ): ArrivalNoticeWorksheet
 
   activateUnloading (
     name: String!
-    productWorksheetDetails: [WorksheetDetailPatch]
+    unloadingWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet
 
   completeUnloading (
     arrivalNoticeNo: String!
-    productWorksheetDetails: [WorksheetDetailPatch]!
+    unloadingWorksheetDetails: [WorksheetDetailPatch]!
   ): Worksheet
 `
 
