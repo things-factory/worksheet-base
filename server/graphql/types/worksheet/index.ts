@@ -33,7 +33,7 @@ export const Mutation = `
 
   completeUnloading (
     arrivalNoticeNo: String!
-    worksheetDetails: [WorksheetDetailPatch]!
+    productWorksheetDetails: [WorksheetDetailPatch]!
   ): Worksheet
 `
 

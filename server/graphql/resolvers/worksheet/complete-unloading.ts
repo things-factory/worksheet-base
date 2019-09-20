@@ -4,7 +4,7 @@ import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
 export const completeUnloading = {
-  async completeUnloading(_: any, { arrivalNoticeNo, worksheetDetails }, context: any) {
+  async completeUnloading(_: any, { arrivalNoticeNo, productWorksheetDetails }, context: any) {
     return await getManager().transaction(async transactionalEntityManager => {
       /**
        * 1. Validation for worksheet
@@ -38,7 +38,7 @@ export const completeUnloading = {
        *    - order product: Update actual qty
        */
       await Promise.all(
-        worksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
+        productWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
           await transactionalEntityManager.getRepository(WorksheetDetail).update(
             {
               id: worksheetDetail.id
