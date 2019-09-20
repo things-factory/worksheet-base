@@ -1,5 +1,4 @@
 import { ArrivalNoticeWorksheet } from './arrival-notice-worksheet'
-import { InvalidProduct } from './invalid-product'
 import { NewWorksheet } from './new-worksheet'
 import { UnloadWorksheet } from './unload-worksheet'
 import { UnloadWorksheetDetail } from './unload-worksheet-detail'
@@ -52,6 +51,5 @@ export const Types = [
   UnloadWorksheet,
   UnloadWorksheetInfo,
   UnloadWorksheetDetail,
-  ArrivalNoticeWorksheet,
-  InvalidProduct
+  ArrivalNoticeWorksheet
 ]
