@@ -51,7 +51,8 @@ export const activateUnloading = {
         foundProductWorksheetDetails.map(async (productWorksheetDetail: WorksheetDetail) => {
           await getRepository(OrderProduct).update(
             {
-              id: productWorksheetDetail.targetProduct.id
+              id: productWorksheetDetail.targetProduct.id,
+              status: ORDER_PRODUCT_STATUS.READY_TO_UNLOAD
             },
             {
               status: ORDER_PRODUCT_STATUS.UNLOADING,

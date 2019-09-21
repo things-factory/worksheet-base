@@ -81,6 +81,7 @@ export const generateArrivalNoticeWorksheet = {
           bizplace: arrivalNotice.bizplace,
           name: WorksheetNoGenerator.vas(),
           arrivalNotice: arrivalNotice,
+          toLocation: await getRepository(Location).findOne(bufferLocation.id),
           type: WORKSHEET_TYPE.VAS,
           status: WORKSHEET_STATUS.DEACTIVATED,
           creator: context.state.user,
