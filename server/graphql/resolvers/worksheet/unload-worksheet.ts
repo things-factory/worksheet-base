@@ -43,22 +43,9 @@ export const unloadWorksheetResolver = {
           startedAt: worksheet.startedAt,
           bizplace: worksheet.bizplace
         },
-        unloadWorksheetDetails: worksheet.worksheetDetails
-          .filter((worksheetDetail: WorksheetDetail) => worksheetDetail.targetProduct)
-          .map((worksheetDetail: WorksheetDetail) => {
-            const orderProduct: OrderProduct = worksheetDetail.targetProduct
-            return {
-              name: worksheetDetail.name,
-              product: orderProduct.product,
-              description: worksheetDetail.description,
-              packingType: orderProduct.packingType,
-              weight: orderProduct.weight,
-              unit: orderProduct.unit,
-              packQty: orderProduct.packQty,
-              totalWeight: orderProduct.totalWeight,
-              palletQty: orderProduct.palletQty
-            }
-          })
+        unloadWorksheetDetails: worksheet.worksheetDetails.filter(
+          (worksheetDetail: WorksheetDetail) => worksheetDetail.targetProduct
+        )
       }
     } else {
       throw new Error('Data is not exisits.')
