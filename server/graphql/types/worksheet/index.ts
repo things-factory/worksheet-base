@@ -34,7 +34,7 @@ export const Mutation = `
   activateVas (
     name: String!
     vasWorksheetDetails: [WorksheetDetailPatch]
-  )
+  ): Worksheet
 
   completeUnloading (
     arrivalNoticeNo: String!
