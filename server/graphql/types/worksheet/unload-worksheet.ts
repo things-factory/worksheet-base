@@ -4,6 +4,6 @@ export const UnloadWorksheet = gql`
   type UnloadWorksheet {
     arrivalNotice: ArrivalNotice
     unloadWorksheetInfo: UnloadWorksheetInfo
-    unloadWorksheetDetails: [UnloadWorksheetDetail]
+    unloadWorksheetDetails: [WorksheetDetail]
   }
 `
