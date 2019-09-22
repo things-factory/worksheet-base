@@ -1,11 +1,11 @@
 import { ArrivalNoticeWorksheet } from './arrival-notice-worksheet'
 import { NewWorksheet } from './new-worksheet'
-import { UnloadWorksheet } from './unload-worksheet'
-import { UnloadWorksheetDetail } from './unload-worksheet-detail'
-import { UnloadWorksheetInfo } from './unload-worksheet-info'
 import { Worksheet } from './worksheet'
+import { WorksheetDetailInfo } from './worksheet-detail-info'
+import { WorksheetInfo } from './worksheet-info'
 import { WorksheetList } from './worksheet-list'
 import { WorksheetPatch } from './worksheet-patch'
+import { ExecutingWorksheet } from './executing-worksheet'
 
 export const Mutation = `
   createWorksheet (
@@ -45,7 +45,7 @@ export const Mutation = `
 export const Query = `
   worksheets(filters: [Filter], pagination: Pagination, sortings: [Sorting]): WorksheetList
   worksheet(name: String!): Worksheet
-  unloadWorksheet(arrivalNoticeNo: String!): UnloadWorksheet
+  executingWorksheet(orderNo: String!): ExecutingWorksheet
 `
 
 export const Types = [
@@ -53,8 +53,8 @@ export const Types = [
   NewWorksheet,
   WorksheetPatch,
   WorksheetList,
-  UnloadWorksheet,
-  UnloadWorksheetInfo,
-  UnloadWorksheetDetail,
-  ArrivalNoticeWorksheet
+  ArrivalNoticeWorksheet,
+  WorksheetInfo,
+  WorksheetDetailInfo,
+  ExecutingWorksheet
 ]
