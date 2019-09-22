@@ -13,7 +13,9 @@ export const executingWorksheetResolver = {
       relations: [
         'domain',
         'bizplace',
-        'arrivalNotice, shippingOrder, worksheetDetails',
+        'arrivalNotice',
+        'shippingOrder',
+        'worksheetDetails',
         'worksheetDetails.fromLocation',
         'worksheetDetails.fromLocation.warehouse',
         'worksheetDetails.toLocation',
