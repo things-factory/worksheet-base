@@ -4,7 +4,7 @@ export const WorksheetInfo = gql`
   type WorksheetInfo {
     bizplace: Bizplace
     containerNo: String
-    bufferLocation: Location
+    bufferLocation: String
     startedAt: String
   }
 `
