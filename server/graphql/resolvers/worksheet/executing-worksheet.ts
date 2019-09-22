@@ -39,7 +39,7 @@ export const executingWorksheetResolver = {
           productsWorksheetDetails[0].fromLocation.name,
         startedAt: worksheet.startedAt
       },
-      worksheetDetail: [
+      worksheetDetailInfos: [
         ...productsWorksheetDetails.map((productWD: WorksheetDetail) => {
           const targetProduct: OrderProduct = productWD.targetProduct
           return {
