@@ -1,6 +1,7 @@
 import { OrderProduct, OrderVas } from '@things-factory/sales-base'
 import { getRepository, In } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
+import { ORDER_TYPES } from 'server/enum'
 
 export const executingWorksheetResolver = {
   async executingWorksheet(_: any, { orderNo }, context: any) {
@@ -31,6 +32,7 @@ export const executingWorksheetResolver = {
 
     return {
       worksheetInfo: {
+        orderType: arrivalNotice ? ORDER_TYPES.ARRIVAL_NOTICE : shippingOrder ? ORDER_TYPES.SHIPPING : '',
         bizplace: worksheet.bizplace.name,
         containerNo: (arrivalNotice && arrivalNotice.containerNo) || null,
         bufferLocation:
