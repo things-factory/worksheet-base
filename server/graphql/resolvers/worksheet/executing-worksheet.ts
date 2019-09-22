@@ -1,8 +1,6 @@
-import { getRepository, QueryBuilder, In } from 'typeorm'
-import { ArrivalNotice, ShippingOrder } from '@things-factory/sales-base'
-import { Worksheet } from '../../../entities'
-import { ORDER_TYPES } from '../../../enum'
-import { ArrivalNoticeWorksheet } from 'server/graphql/types/worksheet/arrival-notice-worksheet'
+import { OrderProduct, OrderVas } from '@things-factory/sales-base'
+import { getRepository, In } from 'typeorm'
+import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const executingWorksheetResolver = {
   async executingWorksheet(_: any, { orderNo }, context: any) {
@@ -26,33 +24,43 @@ export const executingWorksheetResolver = {
       ]
     })
 
-    let orderType
-    if (worksheet.arrivalNotice) {
-      orderType = ORDER_TYPES.ARRIVAL_NOTICE
-    } else if (worksheet.shippingOrder) {
-      orderType = ORDER_TYPES.SHIPPING
-    }
+    const productsWorksheetDetails = worksheet.worksheetDetails.filter((wd: WorksheetDetail) => wd.targetProduct)
+    const vasWorksheetDetails = worksheet.worksheetDetails.filter((wd: WorksheetDetail) => wd.targetVas)
+    const arrivalNotice = worksheet.arrivalNotice || null
+    const shippingOrder = worksheet.shippingOrder || null
 
-    if (orderType === ORDER_TYPES.ARRIVAL_NOTICE) {
-      // When current type of worksheet is arrival notice
-      return {
-        worksheetInfo: {
-          bizplace: `${worksheet.bizplace.name} ${
-            worksheet.bizplace.description ? `(${worksheet.bizplace.description})` : ''
-          }`,
-          containerNo: worksheet.arrivalNotice.containerNo,
-          bufferLocation: `${worksheet.worksheetDetails[0].toLocation.name} ${
-            worksheet.worksheetDetails[0].toLocation.description
-              ? `${worksheet.worksheetDetails[0].toLocation.description}`
-              : ''
-          }`,
-          startedAt: worksheet.startedAt
-        },
-        worksheetDetailInfos: worksheet.worksheetDetails
-      }
-    } else if (orderType === ORDER_TYPES.SHIPPING) {
-      // When current type of worksheet is shipping
-      return {}
+    return {
+      worksheetInfo: {
+        bizplace: worksheet.bizplace.name,
+        containerNo: (arrivalNotice && arrivalNotice.containerNo) || null,
+        bufferLocation:
+          productsWorksheetDetails &&
+          productsWorksheetDetails.length > 0 &&
+          productsWorksheetDetails[0].fromLocation.name,
+        startedAt: worksheet.startedAt
+      },
+      worksheetDetail: [
+        ...productsWorksheetDetails.map((productWD: WorksheetDetail) => {
+          const targetProduct: OrderProduct = productWD.targetProduct
+          return {
+            product: targetProduct.product,
+            description: productWD.description,
+            packingType: targetProduct.packingType,
+            palletQty: targetProduct.palletQty,
+            packQty: targetProduct.packQty,
+            remark: targetProduct.remark
+          }
+        }),
+        ...vasWorksheetDetails.map((vasWD: WorksheetDetail) => {
+          const targetVas: OrderVas = vasWD.targetVas
+          return {
+            batchId: targetVas.batchId,
+            vas: targetVas.vas,
+            description: vasWD.description,
+            remark: targetVas.remark
+          }
+        })
+      ]
     }
   }
 }
