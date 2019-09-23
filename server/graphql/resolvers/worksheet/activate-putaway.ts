@@ -1,4 +1,5 @@
 import { ArrivalNotice, OrderProduct } from '@things-factory/sales-base'
+import { Location } from '@things-factory/warehouse-base'
 import { getManager, getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
@@ -27,14 +28,17 @@ export const activatePutaway = {
        * 2. Update description of product worksheet details
        */
       await Promise.all(
-        putawayWorksheetDetails.map(async (productWorksheetDetail: WorksheetDetail) => {
+        putawayWorksheetDetails.map(async (putawayWorksheetDetail: WorksheetDetail) => {
           await getRepository(WorksheetDetail).update(
             {
               domain: context.state.domain,
-              name: productWorksheetDetail.name
+              name: putawayWorksheetDetail.name
             },
             {
-              description: productWorksheetDetail.description,
+              description: putawayWorksheetDetail.description,
+              toLocation: await getRepository(Location).findOne({
+                where: { domain: context.state.domain, id: putawayWorksheetDetail.toLocation.id }
+              }),
               updater: context.state.user
             }
           )
@@ -44,14 +48,14 @@ export const activatePutaway = {
       /**
        * 3. Update order product (status: UNLOADED => READY_TO_PUTAWAY)
        */
-      const foundProductWorksheetDetails: WorksheetDetail[] = foundWorksheet.worksheetDetails.filter(
+      const foundPutawayWorksheetDetails: WorksheetDetail[] = foundWorksheet.worksheetDetails.filter(
         (worksheetDetail: WorksheetDetail) => worksheetDetail.targetProduct
       )
       await Promise.all(
-        foundProductWorksheetDetails.map(async (productWorksheetDetail: WorksheetDetail) => {
+        foundPutawayWorksheetDetails.map(async (putawayWorksheetDetail: WorksheetDetail) => {
           await getRepository(OrderProduct).update(
             {
-              id: productWorksheetDetail.targetProduct.id,
+              id: putawayWorksheetDetail.targetProduct.id,
               status: ORDER_PRODUCT_STATUS.UNLOADED
             },
             {
