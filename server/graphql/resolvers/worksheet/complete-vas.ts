@@ -14,7 +14,7 @@ export const completeVas = {
       let where: any
       if (orderType === ORDER_TYPES.ARRIVAL_NOTICE) {
         arrivalNotice = await getRepository(ArrivalNotice).findOne({
-          where: { domain: context.state.domain, name: orderNo },
+          where: { domain: context.state.domain, name: orderNo, status: ORDER_STATUS.PROCESSING },
           relations: ['bizplace']
         })
 
@@ -38,7 +38,6 @@ export const completeVas = {
       const foundVasWorksheet: Worksheet = await getRepository(Worksheet).findOne({
         where,
         relations: [
-          'domain',
           'bizplace',
           'arrivalNotice',
           'shippingOrder',

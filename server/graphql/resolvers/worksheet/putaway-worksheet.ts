@@ -3,8 +3,8 @@ import { getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
-export const unloadingWorksheetResolver = {
-  async unloadingWorksheet(_: any, { arrivalNoticeNo }, context: any) {
+export const putawayWorksheetResolver = {
+  async putawayWorksheet(_: any, { arrivalNoticeNo }, context: any) {
     const arrivalNotice: ArrivalNotice = await getRepository(ArrivalNotice).findOne({
       where: { domain: context.state.domain, name: arrivalNoticeNo, status: ORDER_STATUS.PROCESSING },
       relations: ['bizplace']
@@ -17,7 +17,7 @@ export const unloadingWorksheetResolver = {
         domain: context.state.domain,
         arrivalNotice,
         bizplace: arrivalNotice.bizplace,
-        type: WORKSHEET_TYPE.UNLOADING,
+        type: WORKSHEET_TYPE.PUTAWAY,
         status: WORKSHEET_STATUS.EXECUTING
       },
       relations: [
@@ -39,13 +39,14 @@ export const unloadingWorksheetResolver = {
         bufferLocation: worksheet.worksheetDetails[0].toLocation.name,
         startedAt: worksheet.startedAt
       },
-      worksheetDetailInfos: worksheet.worksheetDetails.map((productWSD: WorksheetDetail) => {
-        const targetProduct: OrderProduct = productWSD.targetProduct
+      worksheetDetailInfos: worksheet.worksheetDetails.map((putawayWSD: WorksheetDetail) => {
+        const targetProduct: OrderProduct = putawayWSD.targetProduct
         return {
-          name: productWSD.name,
+          name: putawayWSD.name,
           product: targetProduct.product,
-          description: productWSD.description,
+          description: putawayWSD.description,
           targetName: targetProduct.name,
+          toLocation: putawayWSD.toLocation,
           packingType: targetProduct.packingType,
           palletQty: targetProduct.palletQty,
           packQty: targetProduct.packQty,

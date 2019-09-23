@@ -22,7 +22,7 @@ export const activatePutaway = {
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
       if (foundWorksheet.status !== WORKSHEET_STATUS.DEACTIVATED && foundWorksheet.type === WORKSHEET_TYPE.PUTAWAY)
-        throw new Error('Status is not suitable for unloading')
+        throw new Error('Status is not suitable for putaway')
 
       /**
        * 2. Update description of product worksheet details
@@ -59,7 +59,7 @@ export const activatePutaway = {
               status: ORDER_PRODUCT_STATUS.UNLOADED
             },
             {
-              status: ORDER_PRODUCT_STATUS.READY_TO_PUTAWAY,
+              status: ORDER_PRODUCT_STATUS.PUTTING_AWAY,
               updater: context.state.user
             }
           )

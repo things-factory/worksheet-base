@@ -46,6 +46,11 @@ export const Mutation = `
     unloadingWorksheetDetails: [WorksheetDetailPatch]!
   ): Worksheet
 
+  completePutaway (
+    arrivalNoticeNo: String!
+    putawayWorksheetDetails: [WorksheetDetailPatch]!
+  ): Worksheet
+
   completeVas (
     orderNo: String!
     orderType: String!
@@ -57,6 +62,7 @@ export const Query = `
   worksheets(filters: [Filter], pagination: Pagination, sortings: [Sorting]): WorksheetList
   worksheet(name: String!): Worksheet
   unloadingWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
+  putawayWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   vasWorksheet(orderNo: String!, orderType: String!): ExecutingWorksheet
 `
 

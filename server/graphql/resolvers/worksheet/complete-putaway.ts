@@ -1,11 +1,13 @@
 import { ArrivalNotice, OrderProduct } from '@things-factory/sales-base'
 import { Equal, getManager, getRepository, Not } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
-import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
+import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE, INVENTORY_STATUS } from '../../../enum'
+import { Inventory } from '@things-factory/warehouse-base'
+import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
+import { userInfo } from 'os'
 
-export const completeUnloading = {
-  async completeUnloading(_: any, { arrivalNoticeNo, unloadingWorksheetDetails }, context: any) {
+export const completePutaway = {
+  async completePutaway(_: any, { arrivalNoticeNo, putawayWorksheetDetails }, context: any) {
     return await getManager().transaction(async () => {
       /**
        * 1. Validation for worksheet
@@ -18,12 +20,12 @@ export const completeUnloading = {
 
       if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
 
-      const foundUnloadingWorksheet: Worksheet = await getRepository(Worksheet).findOne({
+      const foundPutawayWorksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
           domain: context.state.domain,
           bizplace: arrivalNotice.bizplace,
           status: WORKSHEET_STATUS.EXECUTING,
-          type: WORKSHEET_TYPE.UNLOADING,
+          type: WORKSHEET_TYPE.PUTAWAY,
           arrivalNotice
         },
         relations: [
@@ -38,7 +40,7 @@ export const completeUnloading = {
         ]
       })
 
-      if (!foundUnloadingWorksheet) throw new Error(`Worksheet doesn't exists.`)
+      if (!foundPutawayWorksheet) throw new Error(`Worksheet doesn't exists.`)
 
       /**
        * 2. Update worksheet detail and order product
@@ -46,19 +48,7 @@ export const completeUnloading = {
        *    - order product: Update actual qty & status
        */
       await Promise.all(
-        unloadingWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
-          await getRepository(WorksheetDetail).update(
-            {
-              domain: context.state.domain,
-              name: worksheetDetail.name,
-              bizplace: foundUnloadingWorksheet.bizplace
-            },
-            {
-              remark: worksheetDetail.remark,
-              updater: context.state.user
-            }
-          )
-
+        putawayWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
           await getRepository(OrderProduct).update(
             {
               domain: context.state.domain,
@@ -67,7 +57,7 @@ export const completeUnloading = {
             },
             {
               actualQty: worksheetDetail.targetProduct.actualQty,
-              status: ORDER_PRODUCT_STATUS.UNLOADED,
+              status: ORDER_PRODUCT_STATUS.STORED,
               updater: context.state.user
             }
           )
@@ -78,7 +68,7 @@ export const completeUnloading = {
        * 3. Update worksheet status (status: EXECUTING => DONE)
        */
       await getRepository(Worksheet).save({
-        ...foundUnloadingWorksheet,
+        ...foundPutawayWorksheet,
         status: WORKSHEET_STATUS.DONE,
         endedAt: Date.now(),
         updater: context.state.user
@@ -91,7 +81,7 @@ export const completeUnloading = {
       const relatedWorksheets: Worksheet[] = await getRepository(Worksheet).find({
         where: {
           domain: context.state.domain,
-          bizplace: foundUnloadingWorksheet.bizplace,
+          bizplace: foundPutawayWorksheet.bizplace,
           status: Not(Equal(WORKSHEET_STATUS.DONE)),
           arrivalNotice
         }
@@ -105,45 +95,53 @@ export const completeUnloading = {
             name: arrivalNotice.name
           },
           {
-            status: ORDER_STATUS.READY_TO_PUTAWAY,
+            status: ORDER_STATUS.DONE,
             updater: context.status.user
           }
         )
       }
 
       /**
-       * 5. Create putaway worksheet
-       *
+       * 5. Create inventory data
        */
-
-      const putawayWorksheet = await getRepository(Worksheet).save({
-        domain: context.state.domain,
-        arrivalNotice: arrivalNotice,
-        bizplace: foundUnloadingWorksheet.bizplace,
-        name: WorksheetNoGenerator.putaway(),
-        type: WORKSHEET_TYPE.PUTAWAY,
-        status: WORKSHEET_STATUS.DEACTIVATED,
-        creator: context.state.user,
-        updater: context.state.user
+      const completedPutwayworksheet: Worksheet = await getRepository(Worksheet).findOne({
+        where: {
+          domain: context.state.domain,
+          bizplace: arrivalNotice.bizplace,
+          status: WORKSHEET_STATUS.EXECUTING,
+          type: WORKSHEET_TYPE.PUTAWAY,
+          arrivalNotice
+        },
+        relations: [
+          'bizplace',
+          'worksheetDetails',
+          'worksheetDetails.toLocation',
+          'worksheetDetails.targetProduct',
+          'worksheetDetails.targetProduct.product'
+        ]
       })
 
+      const completedPutwayworksheetDetails: WorksheetDetail[] = completedPutwayworksheet.worksheetDetails
       await Promise.all(
-        foundUnloadingWorksheet.worksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
-          await getRepository(WorksheetDetail).save({
+        completedPutwayworksheetDetails.map(async (completedPutawayWSD: WorksheetDetail) => {
+          await getRepository(Inventory).save({
             domain: context.state.domain,
-            bizplace: worksheetDetail.bizplace,
-            name: WorksheetNoGenerator.putawayDetail(),
-            type: WORKSHEET_TYPE.PUTAWAY,
-            worksheet: putawayWorksheet,
-            fromLocation: worksheetDetail.toLocation,
-            targetProduct: worksheetDetail.targetProduct,
+            bizplace: completedPutawayWSD.bizplace,
+            product: completedPutawayWSD.targetProduct.product,
+            name: InventoryNoGenerator.inventoryName(
+              completedPutawayWSD.toLocation.name,
+              completedPutawayWSD.targetProduct.product.name
+            ),
+            startQty: completedPutawayWSD.targetProduct.packQty,
+            endQty: completedPutawayWSD.targetProduct.actualQty,
+            status: INVENTORY_STATUS.OCCUPIED,
             creator: context.state.user,
             updater: context.state.user
           })
         })
       )
 
-      return foundUnloadingWorksheet
+      return foundPutawayWorksheet
     })
   }
 }

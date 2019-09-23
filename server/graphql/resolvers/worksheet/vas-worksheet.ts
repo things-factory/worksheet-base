@@ -1,14 +1,14 @@
 import { ArrivalNotice, OrderVas } from '@things-factory/sales-base'
 import { getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { ORDER_TYPES, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
+import { ORDER_STATUS, ORDER_TYPES, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
 export const vasWorksheetResolver = {
   async vasWorksheet(_: any, { orderNo, orderType }, context: any) {
     // 1. If it's worksheet which is related with arrival notice
     if (orderType === ORDER_TYPES.ARRIVAL_NOTICE) {
       const arrivalNotice: ArrivalNotice = await getRepository(ArrivalNotice).findOne({
-        where: { domain: context.state.domain, name: orderNo },
+        where: { domain: context.state.domain, name: orderNo, status: ORDER_STATUS.PROCESSING },
         relations: ['bizplace']
       })
 
@@ -23,7 +23,6 @@ export const vasWorksheetResolver = {
           status: WORKSHEET_STATUS.EXECUTING
         },
         relations: [
-          'domain',
           'bizplace',
           'arrivalNotice',
           'worksheetDetails',
