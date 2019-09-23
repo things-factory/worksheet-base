@@ -5,7 +5,7 @@ import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const executingWorksheetResolver = {
   async executingWorksheet(_: any, { orderNo, orderType }, context: any) {
-    let where
+    let where: any
     if (orderType === ORDER_TYPES.ARRIVAL_NOTICE) {
       const arrivalNotice: ArrivalNotice = await getRepository(ArrivalNotice).findOne({
         where: { domain: context.state.domain, name: orderNo },
@@ -51,8 +51,8 @@ export const executingWorksheetResolver = {
       ]
     })
 
-    const productsWorksheetDetails = worksheet.worksheetDetails.filter((wd: WorksheetDetail) => wd.targetProduct)
-    const vasWorksheetDetails = worksheet.worksheetDetails.filter((wd: WorksheetDetail) => wd.targetVas)
+    const productsWSDs = (worksheet.worksheetDetails || []).filter((wd: WorksheetDetail) => wd.targetProduct)
+    const vasWSDs = (worksheet.worksheetDetails || []).filter((wd: WorksheetDetail) => wd.targetVas)
     const arrivalNotice = worksheet.arrivalNotice || null
     const shippingOrder = worksheet.shippingOrder || null
 
@@ -60,15 +60,11 @@ export const executingWorksheetResolver = {
       worksheetInfo: {
         bizplaceName: worksheet.bizplace.name,
         containerNo: (arrivalNotice && arrivalNotice.containerNo) || null,
-        bufferLocation:
-          (productsWorksheetDetails[0] &&
-            productsWorksheetDetails[0].toLocation &&
-            productsWorksheetDetails[0].toLocation.name) ||
-          null,
+        bufferLocation: (productsWSDs[0] && productsWSDs[0].toLocation && productsWSDs[0].toLocation.name) || null,
         startedAt: worksheet.startedAt
       },
       worksheetDetailInfos: [
-        ...productsWorksheetDetails.map((productWD: WorksheetDetail) => {
+        ...productsWSDs.map((productWD: WorksheetDetail) => {
           const targetProduct: OrderProduct = productWD.targetProduct
           return {
             name: productWD.name,
@@ -81,7 +77,7 @@ export const executingWorksheetResolver = {
             remark: targetProduct.remark
           }
         }),
-        ...vasWorksheetDetails.map((vasWD: WorksheetDetail) => {
+        ...vasWSDs.map((vasWD: WorksheetDetail) => {
           const targetVas: OrderVas = vasWD.targetVas
           return {
             name: vasWD.name,

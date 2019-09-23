@@ -58,6 +58,11 @@ export class WorksheetDetail {
   })
   remark: string
 
+  @Column({
+    nullable: true
+  })
+  issue: string
+
   @ManyToOne(type => User, {
     nullable: true
   })

@@ -12,6 +12,7 @@ export const WorksheetDetailPatch = gql`
     targetProduct: OrderProductPatch
     targetVas: OrderVasPatch
     remark: String
+    issue: String
     cuFlag: String
   }
 `

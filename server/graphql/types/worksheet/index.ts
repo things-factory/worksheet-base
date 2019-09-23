@@ -40,6 +40,12 @@ export const Mutation = `
     arrivalNoticeNo: String!
     unloadingWorksheetDetails: [WorksheetDetailPatch]!
   ): Worksheet
+
+  completeVas (
+    orderNo: String!
+    orderType: String!
+    vasWorksheetDetails: [WorksheetDetailPatch]!
+  ): Worksheet
 `
 
 export const Query = `

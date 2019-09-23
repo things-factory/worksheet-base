@@ -42,14 +42,15 @@ export const completeUnloading = {
       /**
        * 2. Update worksheet detail and order product
        *    - worksheet detail: Update remark if it's exists
-       *    - order product: Update actual qty
+       *    - order product: Update actual qty & status
        */
       await Promise.all(
         unloadingWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
           await getRepository(WorksheetDetail).update(
             {
               domain: context.state.domain,
-              name: worksheetDetail.name
+              name: worksheetDetail.name,
+              bizplace: foundUnloadingWorksheet.bizplace
             },
             {
               remark: worksheetDetail.remark,
@@ -73,7 +74,7 @@ export const completeUnloading = {
       )
 
       /**
-       * 3. Update worksheet status (status: UNLOADING => DONE)
+       * 3. Update worksheet status (status: EXECUTING => DONE)
        */
       await getRepository(Worksheet).save({
         ...foundUnloadingWorksheet,
@@ -86,7 +87,7 @@ export const completeUnloading = {
        * 4. Check whether every related worksheet is completed
        *    - if yes => Update Status of arrival notice
        */
-      const foundVasWorksheets: Worksheet[] = await getRepository(Worksheet).find({
+      const relatedWorksheets: Worksheet[] = await getRepository(Worksheet).find({
         where: {
           domain: context.state.domain,
           bizplace: foundUnloadingWorksheet.bizplace,
@@ -95,7 +96,7 @@ export const completeUnloading = {
         }
       })
 
-      if (!foundVasWorksheets || foundVasWorksheets.length === 0) {
+      if (!relatedWorksheets || relatedWorksheets.length === 0) {
         await getRepository(ArrivalNotice).update(
           {
             domain: context.state.domain,

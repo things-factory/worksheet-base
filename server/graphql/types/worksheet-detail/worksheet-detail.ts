@@ -15,6 +15,7 @@ export const WorksheetDetail = gql`
     targetProduct: OrderProduct
     targetVas: OrderVas
     remark: String
+    issue: String
     creator: User
     updater: User
     createdAt: String

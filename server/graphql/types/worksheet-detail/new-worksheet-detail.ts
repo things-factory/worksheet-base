@@ -12,5 +12,6 @@ export const NewWorksheetDetail = gql`
     targetProduct: ObjectRef
     targetVas: ObjectRef
     remark: String
+    issue: String
   }
 `
