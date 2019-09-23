@@ -1,14 +1,25 @@
-import { OrderProduct, OrderVas } from '@things-factory/sales-base'
+import { OrderProduct, OrderVas, ArrivalNotice, ShippingOrder } from '@things-factory/sales-base'
 import { getRepository, In } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_TYPES } from 'server/enum'
 
 export const executingWorksheetResolver = {
-  async executingWorksheet(_: any, { orderNo }, context: any) {
+  async executingWorksheet(_: any, { orderNo, orderType }, context: any) {
+    let order
+    if (orderType === ORDER_TYPES.ARRIVAL_NOTICE) {
+      order = await getRepository(ArrivalNotice).findOne({
+        where: { domain: context.state.domain, name: orderNo }
+      })
+    } else if (orderType === ORDER_TYPES.SHIPPING) {
+      order = await getRepository(ShippingOrder).findOne({
+        where: { domain: context.state.domain, name: orderNo }
+      })
+    }
+
     const worksheet: Worksheet = await getRepository(Worksheet).findOne({
       where: {
         domain: context.state.domain,
-        [orderNo]: In(['arrivalNotice', 'shippingOrder'])
+        [order.id]: In(['arrivalNotice', 'shippingOrder'])
       },
       relations: [
         'domain',
@@ -34,7 +45,7 @@ export const executingWorksheetResolver = {
 
     return {
       worksheetInfo: {
-        orderType: arrivalNotice ? ORDER_TYPES.ARRIVAL_NOTICE : shippingOrder ? ORDER_TYPES.SHIPPING : '',
+        orderType: orderType,
         bizplace: worksheet.bizplace.name,
         containerNo: (arrivalNotice && arrivalNotice.containerNo) || null,
         bufferLocation:
