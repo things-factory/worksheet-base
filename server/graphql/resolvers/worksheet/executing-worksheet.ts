@@ -56,8 +56,7 @@ export const executingWorksheetResolver = {
 
     return {
       worksheetInfo: {
-        orderType: orderType,
-        bizplace: worksheet.bizplace.name,
+        bizplaceName: worksheet.bizplace.name,
         containerNo: (arrivalNotice && arrivalNotice.containerNo) || null,
         bufferLocation:
           productsWorksheetDetails &&
