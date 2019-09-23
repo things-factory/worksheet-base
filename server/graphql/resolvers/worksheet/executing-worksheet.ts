@@ -1,5 +1,5 @@
 import { ArrivalNotice, OrderProduct, OrderVas, ShippingOrder } from '@things-factory/sales-base'
-import { ORDER_TYPES } from 'server/enum'
+import { ORDER_TYPES, WORKSHEET_STATUS } from 'server/enum'
 import { getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -15,6 +15,7 @@ export const executingWorksheetResolver = {
       where = {
         domain: context.state.domain,
         bizplace: arrivalNotice.bizplace,
+        status: WORKSHEET_STATUS.EXECUTING,
         arrivalNotice: arrivalNotice
       }
     } else if (orderType === ORDER_TYPES.SHIPPING) {
@@ -26,6 +27,7 @@ export const executingWorksheetResolver = {
       where = {
         domain: context.state.domain,
         bizplace: shippingOrder.bizplace,
+        status: WORKSHEET_STATUS.EXECUTING,
         shippingOrder: shippingOrder
       }
     }
@@ -72,6 +74,7 @@ export const executingWorksheetResolver = {
             name: productWD.name,
             product: targetProduct.product,
             description: productWD.description,
+            targetName: targetProduct.name,
             packingType: targetProduct.packingType,
             palletQty: targetProduct.palletQty,
             packQty: targetProduct.packQty,
@@ -83,6 +86,7 @@ export const executingWorksheetResolver = {
           return {
             name: vasWD.name,
             batchId: targetVas.batchId,
+            targetName: targetVas.name,
             vas: targetVas.vas,
             description: vasWD.description,
             remark: targetVas.remark
