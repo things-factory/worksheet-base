@@ -51,7 +51,8 @@ export const Mutation = `
 export const Query = `
   worksheets(filters: [Filter], pagination: Pagination, sortings: [Sorting]): WorksheetList
   worksheet(name: String!): Worksheet
-  executingWorksheet(orderNo: String!, orderType: String): ExecutingWorksheet
+  unloadingWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
+  vasWorksheet(orderNo: String!, orderType: String!): ExecutingWorksheet
 `
 
 export const Types = [
