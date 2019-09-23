@@ -5,22 +5,33 @@ import { ORDER_TYPES } from 'server/enum'
 
 export const executingWorksheetResolver = {
   async executingWorksheet(_: any, { orderNo, orderType }, context: any) {
-    let order
+    let where
     if (orderType === ORDER_TYPES.ARRIVAL_NOTICE) {
-      order = await getRepository(ArrivalNotice).findOne({
-        where: { domain: context.state.domain, name: orderNo }
+      const arrivalNotice: ArrivalNotice = await getRepository(ArrivalNotice).findOne({
+        where: { domain: context.state.domain, name: orderNo },
+        relations: ['bizplace']
       })
+
+      where = {
+        domain: context.state.domain,
+        bizplace: arrivalNotice.bizplace,
+        arrivalNotice: arrivalNotice
+      }
     } else if (orderType === ORDER_TYPES.SHIPPING) {
-      order = await getRepository(ShippingOrder).findOne({
-        where: { domain: context.state.domain, name: orderNo }
+      const shippingOrder: ShippingOrder = await getRepository(ShippingOrder).findOne({
+        where: { domain: context.state.domain, name: orderNo },
+        relations: ['bizplace']
       })
+
+      where = {
+        domain: context.state.domain,
+        bizplace: shippingOrder.bizplace,
+        shippingOrder: shippingOrder
+      }
     }
 
     const worksheet: Worksheet = await getRepository(Worksheet).findOne({
-      where: {
-        domain: context.state.domain,
-        [order.id]: In(['arrivalNotice', 'shippingOrder'])
-      },
+      where,
       relations: [
         'domain',
         'bizplace',
