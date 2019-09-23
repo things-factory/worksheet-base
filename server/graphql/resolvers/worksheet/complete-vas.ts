@@ -1,14 +1,14 @@
-import { ArrivalNotice, OrderProduct, ShippingOrder, DeliveryOrder } from '@things-factory/sales-base'
-import { Equal, getManager, getRepository, Not } from 'typeorm'
+import { ArrivalNotice, DeliveryOrder, OrderVas, ShippingOrder } from '@things-factory/sales-base'
+import { Equal, getManager, getRepository, Not, IsNull } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { ORDER_VAS_STATUS, ORDER_STATUS, ORDER_TYPES, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
+import { ORDER_STATUS, ORDER_TYPES, ORDER_VAS_STATUS, WORKSHEET_STATUS } from '../../../enum'
 
 export const completeVas = {
   async completeVas(_: any, { orderNo, orderType, vasWorksheetDetails }, context: any) {
     return await getManager().transaction(async () => {
       let arrivalNotice: ArrivalNotice
       let deliveryOrder: DeliveryOrder
-      // let releaseOfGoods ReleaseOfGoods
+      // let releaseOfGoods: ReleaseOfGoods
       let shippingOrder: ShippingOrder
 
       let where: any
@@ -74,14 +74,13 @@ export const completeVas = {
             }
           )
 
-          await getRepository(OrderProduct).update(
+          await getRepository(OrderVas).update(
             {
               domain: context.state.domain,
               name: worksheetDetail.targetVas.name,
-              arrivalNotice,
-              deliveryOrder,
-              // releaseOfGoods,
-              shippingOrder
+              arrivalNotice: arrivalNotice ? arrivalNotice : IsNull(),
+              deliveryOrder: deliveryOrder ? deliveryOrder : IsNull(),
+              shippingOrder: shippingOrder ? shippingOrder : IsNull()
             },
             {
               status: worksheetDetail.issue ? ORDER_VAS_STATUS.UNCOMPLETED : ORDER_VAS_STATUS.COMPLETED,
@@ -110,8 +109,8 @@ export const completeVas = {
           domain: context.state.domain,
           bizplace: foundVasWorksheet.bizplace,
           status: Not(Equal(WORKSHEET_STATUS.DONE)),
-          arrivalNotice,
-          shippingOrder
+          arrivalNotice: arrivalNotice ? arrivalNotice : IsNull(),
+          shippingOrder: shippingOrder ? shippingOrder : IsNull()
         }
       })
 
