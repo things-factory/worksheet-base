@@ -77,7 +77,7 @@ export const completeVas = {
           await getRepository(OrderProduct).update(
             {
               domain: context.state.domain,
-              name: worksheetDetail.targetProduct.name,
+              name: worksheetDetail.targetVas.name,
               arrivalNotice,
               deliveryOrder,
               // releaseOfGoods,
