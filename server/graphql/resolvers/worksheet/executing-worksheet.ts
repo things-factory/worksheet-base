@@ -57,11 +57,8 @@ export const executingWorksheetResolver = {
     return {
       worksheetInfo: {
         bizplaceName: worksheet.bizplace.name,
-        containerNo: (arrivalNotice && arrivalNotice.containerNo) || null,
-        bufferLocation:
-          productsWorksheetDetails &&
-          productsWorksheetDetails.length > 0 &&
-          productsWorksheetDetails[0].fromLocation.name,
+        containerNo: arrivalNotice.containerNo || null,
+        bufferLocation: productsWorksheetDetails[0].fromLocation.name || null,
         startedAt: worksheet.startedAt
       },
       worksheetDetailInfos: [
