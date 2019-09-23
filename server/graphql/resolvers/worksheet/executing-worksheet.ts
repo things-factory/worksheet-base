@@ -60,8 +60,8 @@ export const executingWorksheetResolver = {
         containerNo: (arrivalNotice && arrivalNotice.containerNo) || null,
         bufferLocation:
           (productsWorksheetDetails[0] &&
-            productsWorksheetDetails[0].fromLocation &&
-            productsWorksheetDetails[0].fromLocation.name) ||
+            productsWorksheetDetails[0].toLocation &&
+            productsWorksheetDetails[0].toLocation.name) ||
           null,
         startedAt: worksheet.startedAt
       },
