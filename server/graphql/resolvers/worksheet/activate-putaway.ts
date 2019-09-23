@@ -3,8 +3,8 @@ import { getManager, getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
-export const activateUnloading = {
-  async activateUnloading(_: any, { name, unloadingWorksheetDetails }, context: any) {
+export const activatePutaway = {
+  async activatePutaway(_: any, { name, putawayWorksheetDetails }, context: any) {
     return await getManager().transaction(async () => {
       /**
        * 1. Validation for worksheet
@@ -20,14 +20,14 @@ export const activateUnloading = {
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
-      if (foundWorksheet.status !== WORKSHEET_STATUS.DEACTIVATED && foundWorksheet.type === WORKSHEET_TYPE.UNLOADING)
+      if (foundWorksheet.status !== WORKSHEET_STATUS.DEACTIVATED && foundWorksheet.type === WORKSHEET_TYPE.PUTAWAY)
         throw new Error('Status is not suitable for unloading')
 
       /**
        * 2. Update description of product worksheet details
        */
       await Promise.all(
-        unloadingWorksheetDetails.map(async (productWorksheetDetail: WorksheetDetail) => {
+        putawayWorksheetDetails.map(async (productWorksheetDetail: WorksheetDetail) => {
           await getRepository(WorksheetDetail).update(
             {
               domain: context.state.domain,
@@ -42,7 +42,7 @@ export const activateUnloading = {
       )
 
       /**
-       * 3. Update order product (status: READY_TO_UNLOAD => UNLOADING)
+       * 3. Update order product (status: UNLOADED => READY_TO_PUTAWAY)
        */
       const foundProductWorksheetDetails: WorksheetDetail[] = foundWorksheet.worksheetDetails.filter(
         (worksheetDetail: WorksheetDetail) => worksheetDetail.targetProduct
@@ -52,10 +52,10 @@ export const activateUnloading = {
           await getRepository(OrderProduct).update(
             {
               id: productWorksheetDetail.targetProduct.id,
-              status: ORDER_PRODUCT_STATUS.READY_TO_UNLOAD
+              status: ORDER_PRODUCT_STATUS.UNLOADED
             },
             {
-              status: ORDER_PRODUCT_STATUS.UNLOADING,
+              status: ORDER_PRODUCT_STATUS.READY_TO_PUTAWAY,
               updater: context.state.user
             }
           )
@@ -63,7 +63,7 @@ export const activateUnloading = {
       )
 
       /**
-       * 4. Update Arrival Notice (status: READY_TO_UNLOAD => PROCESSING)
+       * 4. Update Arrival Notice (status: READY_TO_PUTAWAY => PROCESSING)
        */
       const arrivalNotice: ArrivalNotice = foundWorksheet.arrivalNotice
       await getRepository(ArrivalNotice).save({

@@ -31,6 +31,11 @@ export const Mutation = `
     unloadingWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet
 
+  activatePutaway (
+    name: String!
+    putawayWorksheetDetails: [WorksheetDetailPatch]
+  ): Worksheet
+
   activateVas (
     name: String!
     vasWorksheetDetails: [WorksheetDetailPatch]

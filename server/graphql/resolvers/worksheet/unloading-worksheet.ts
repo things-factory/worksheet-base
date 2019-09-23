@@ -37,6 +37,7 @@ export const unloadingWorksheetResolver = {
       worksheetInfo: {
         bizplaceName: worksheet.bizplace.name,
         containerNo: arrivalNotice.containerNo,
+        bufferLocation: worksheet.worksheetDetails[0].toLocation.name,
         startedAt: worksheet.startedAt
       },
       worksheetDetailInfos: worksheet.worksheetDetails.map((productWSD: WorksheetDetail) => {

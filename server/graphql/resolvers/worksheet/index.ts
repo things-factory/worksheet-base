@@ -1,3 +1,4 @@
+import { activatePutaway } from './activate-putaway'
 import { activateUnloading } from './activate-unloading'
 import { activateVas } from './activate-vas'
 import { completeUnloading } from './complete-unloading'
@@ -24,6 +25,7 @@ export const Mutation = {
   ...deleteWorksheet,
   ...generateArrivalNoticeWorksheet,
   ...activateUnloading,
+  ...activatePutaway,
   ...activateVas,
   ...completeUnloading,
   ...completeVas

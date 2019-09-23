@@ -31,6 +31,7 @@ export const completeUnloading = {
           'bizplace',
           'arrivalNotice',
           'worksheetDetails',
+          'worksheetDetails.toLocation',
           'worksheetDetails.targetProduct',
           'worksheetDetails.targetProduct.product',
           'creator',
@@ -118,6 +119,7 @@ export const completeUnloading = {
 
       const putawayWorksheet = await getRepository(Worksheet).save({
         domain: context.state.domain,
+        arrivalNotice: arrivalNotice,
         bizplace: foundUnloadingWorksheet.bizplace,
         name: WorksheetNoGenerator.putaway(),
         type: WORKSHEET_TYPE.PUTAWAY,
@@ -125,7 +127,7 @@ export const completeUnloading = {
       })
 
       await Promise.all(
-        await unloadingWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
+        await foundUnloadingWorksheet.worksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
           await getRepository(WorksheetDetail).save({
             domain: context.state.domain,
             bizplace: worksheetDetail.bizplace,
