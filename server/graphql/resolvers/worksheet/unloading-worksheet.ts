@@ -16,7 +16,7 @@ export const unloadingWorksheetResolver = {
       where: {
         domain: context.state.domain,
         arrivalNotice,
-        bizplace: arrivalNoticeNo.bizplace,
+        bizplace: arrivalNotice.bizplace,
         type: WORKSHEET_TYPE.UNLOADING,
         status: WORKSHEET_STATUS.EXECUTING
       },
@@ -25,7 +25,7 @@ export const unloadingWorksheetResolver = {
         'bizplace',
         'arrivalNotice',
         'worksheetDetails',
-        'worksheetDetails.fromLocation',
+        'worksheetDetails.toLocation',
         'worksheetDetails.targetProduct',
         'worksheetDetails.targetProduct.product',
         'creator',
@@ -36,8 +36,7 @@ export const unloadingWorksheetResolver = {
     return {
       worksheetInfo: {
         bizplaceName: worksheet.bizplace.name,
-        containerNo: worksheet.bizplace.containerNo,
-        bufferLocation: worksheet.worksheetDetails[0].toLocation.name,
+        containerNo: arrivalNotice.containerNo,
         startedAt: worksheet.startedAt
       },
       worksheetDetailInfos: worksheet.worksheetDetails.map((productWSD: WorksheetDetail) => {

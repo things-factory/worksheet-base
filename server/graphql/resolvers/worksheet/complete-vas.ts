@@ -1,7 +1,7 @@
 import { ArrivalNotice, DeliveryOrder, OrderVas, ShippingOrder } from '@things-factory/sales-base'
 import { Equal, getManager, getRepository, Not, IsNull } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { ORDER_STATUS, ORDER_TYPES, ORDER_VAS_STATUS, WORKSHEET_STATUS } from '../../../enum'
+import { ORDER_STATUS, ORDER_TYPES, ORDER_VAS_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
 export const completeVas = {
   async completeVas(_: any, { orderNo, orderType, vasWorksheetDetails }, context: any) {
@@ -22,6 +22,7 @@ export const completeVas = {
           domain: context.state.domain,
           bizplace: arrivalNotice.bizplace,
           status: WORKSHEET_STATUS.EXECUTING,
+          type: WORKSHEET_TYPE.VAS,
           arrivalNotice: arrivalNotice
         }
       } else if (orderType === ORDER_TYPES.COLLECTION) {

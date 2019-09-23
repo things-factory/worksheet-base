@@ -4,13 +4,15 @@ import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_TYPES, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
 export const vasWorksheetResolver = {
-  async vasWorksheet(_: any, { orderName, orderType }, context: any) {
+  async vasWorksheet(_: any, { orderNo, orderType }, context: any) {
     // 1. If it's worksheet which is related with arrival notice
     if (orderType === ORDER_TYPES.ARRIVAL_NOTICE) {
       const arrivalNotice: ArrivalNotice = await getRepository(ArrivalNotice).findOne({
-        where: { domain: context.state.domain, name: orderName },
-        relations: ['bizplace`']
+        where: { domain: context.state.domain, name: orderNo },
+        relations: ['bizplace']
       })
+
+      if (!arrivalNotice) throw new Error(`Arrival notice dosen't exist.`)
 
       const worksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
@@ -25,7 +27,7 @@ export const vasWorksheetResolver = {
           'bizplace',
           'arrivalNotice',
           'worksheetDetails',
-          'worksheetDetails.fromLocation',
+          'worksheetDetails.toLocation',
           'worksheetDetails.targetVas',
           'worksheetDetails.targetVas.vas',
           'creator',
@@ -36,7 +38,7 @@ export const vasWorksheetResolver = {
       return {
         worksheetInfo: {
           bizplaceName: worksheet.bizplace.name,
-          containerNo: worksheet.bizplace.containerNo,
+          containerNo: arrivalNotice.containerNo,
           bufferLocation: worksheet.worksheetDetails[0].toLocation.name,
           startedAt: worksheet.startedAt
         },
