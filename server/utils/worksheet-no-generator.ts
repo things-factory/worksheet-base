@@ -5,12 +5,20 @@ export class WorksheetNoGenerator {
     return `ULD-${uuid()}`
   }
 
+  static putaway() {
+    return `PUTAWAY-${uuid()}`
+  }
+
   static vas() {
     return `VAS-${uuid()}`
   }
 
   static unloadingDetail() {
     return `ULD-DETAIL-${uuid()}`
+  }
+
+  static putawayDetail() {
+    return `PUTAWAY-DETAIL-${uuid()}`
   }
 
   static vasDetail() {

@@ -2,6 +2,7 @@ import { ArrivalNotice, OrderProduct } from '@things-factory/sales-base'
 import { Equal, getManager, getRepository, Not } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
+import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
 
 export const completeUnloading = {
   async completeUnloading(_: any, { arrivalNoticeNo, unloadingWorksheetDetails }, context: any) {
@@ -109,6 +110,33 @@ export const completeUnloading = {
           }
         )
       }
+
+      /**
+       * 5. Create putaway worksheet
+       *
+       */
+
+      const putawayWorksheet = await getRepository(Worksheet).save({
+        domain: context.state.domain,
+        bizplace: foundUnloadingWorksheet.bizplace,
+        name: WorksheetNoGenerator.putaway(),
+        type: WORKSHEET_TYPE.PUTAWAY,
+        status: WORKSHEET_STATUS.DEACTIVATED
+      })
+
+      await Promise.all(
+        await unloadingWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
+          await getRepository(WorksheetDetail).save({
+            domain: context.state.domain,
+            bizplace: worksheetDetail.bizplace,
+            name: WorksheetNoGenerator.putawayDetail(),
+            type: WORKSHEET_TYPE.PUTAWAY,
+            worksheet: putawayWorksheet,
+            fromLocation: worksheetDetail.toLocation,
+            targetProduct: worksheetDetail.targetProduct
+          })
+        })
+      )
 
       return foundUnloadingWorksheet
     })
