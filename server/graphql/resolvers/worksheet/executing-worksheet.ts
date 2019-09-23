@@ -1,7 +1,7 @@
-import { OrderProduct, OrderVas, ArrivalNotice, ShippingOrder } from '@things-factory/sales-base'
-import { getRepository, In } from 'typeorm'
-import { Worksheet, WorksheetDetail } from '../../../entities'
+import { ArrivalNotice, OrderProduct, OrderVas, ShippingOrder } from '@things-factory/sales-base'
 import { ORDER_TYPES } from 'server/enum'
+import { getRepository } from 'typeorm'
+import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const executingWorksheetResolver = {
   async executingWorksheet(_: any, { orderNo, orderType }, context: any) {
