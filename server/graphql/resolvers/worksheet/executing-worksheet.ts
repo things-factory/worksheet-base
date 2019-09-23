@@ -69,6 +69,7 @@ export const executingWorksheetResolver = {
         ...productsWorksheetDetails.map((productWD: WorksheetDetail) => {
           const targetProduct: OrderProduct = productWD.targetProduct
           return {
+            name: productWD.name,
             product: targetProduct.product,
             description: productWD.description,
             packingType: targetProduct.packingType,
@@ -80,6 +81,7 @@ export const executingWorksheetResolver = {
         ...vasWorksheetDetails.map((vasWD: WorksheetDetail) => {
           const targetVas: OrderVas = vasWD.targetVas
           return {
+            name: vasWD.name,
             batchId: targetVas.batchId,
             vas: targetVas.vas,
             description: vasWD.description,
