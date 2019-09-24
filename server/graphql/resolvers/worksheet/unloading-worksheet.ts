@@ -43,6 +43,7 @@ export const unloadingWorksheetResolver = {
         const targetProduct: OrderProduct = productWSD.targetProduct
         return {
           name: productWSD.name,
+          batchId: targetProduct.batchId,
           product: targetProduct.product,
           description: productWSD.description,
           targetName: targetProduct.name,

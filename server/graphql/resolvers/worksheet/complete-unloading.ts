@@ -66,6 +66,7 @@ export const completeUnloading = {
               arrivalNotice
             },
             {
+              actualPalletQty: worksheetDetail.targetProduct.actualPalletQty,
               actualQty: worksheetDetail.targetProduct.actualQty,
               status: ORDER_PRODUCT_STATUS.UNLOADED,
               updater: context.state.user
