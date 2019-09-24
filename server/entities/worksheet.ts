@@ -59,12 +59,12 @@ export class Worksheet {
   @Column()
   status: string
 
-  @Column('timestamp', {
+  @Column('datetime', {
     nullable: true
   })
   startedAt: Date
 
-  @Column('timestamp', {
+  @Column('datetime', {
     nullable: true
   })
   endedAt: Date
