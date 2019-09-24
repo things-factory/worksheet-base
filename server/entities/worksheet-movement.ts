@@ -19,10 +19,10 @@ export class WorksheetMovement {
   @ManyToOne(type => Worksheet)
   worksheet: Worksheet
 
-  @Column('datetime')
+  @Column('timestamp')
   startTime: Date
 
-  @Column('datetime')
+  @Column('timestamp')
   endTime: Date
 
   @Column('text', {
