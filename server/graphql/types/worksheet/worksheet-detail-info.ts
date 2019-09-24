@@ -7,6 +7,7 @@ export const WorksheetDetailInfo = gql`
     product: Product
     packingType: String
     palletQty: Int
+    actualPalletQty: Int
     packQty: Int
     actualQty: Int
     toLocation: Location

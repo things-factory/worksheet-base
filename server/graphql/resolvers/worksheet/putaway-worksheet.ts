@@ -49,6 +49,7 @@ export const putawayWorksheetResolver = {
           toLocation: putawayWSD.toLocation,
           packingType: targetProduct.packingType,
           palletQty: targetProduct.palletQty,
+          actualPalletQty: targetProduct.actualPalletQty,
           packQty: targetProduct.packQty,
           actualQty: targetProduct.actualQty,
           remark: targetProduct.remark
