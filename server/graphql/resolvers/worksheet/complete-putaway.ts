@@ -65,17 +65,7 @@ export const completePutaway = {
       )
 
       /**
-       * 3. Update worksheet status (status: EXECUTING => DONE)
-       */
-      await getRepository(Worksheet).save({
-        ...foundPutawayWorksheet,
-        status: WORKSHEET_STATUS.DONE,
-        endedAt: Date.now(),
-        updater: context.state.user
-      })
-
-      /**
-       * 4. Check whether every related worksheet is completed
+       * 3. Check whether every related worksheet is completed
        *    - if yes => Update Status of arrival notice
        */
       const relatedWorksheets: Worksheet[] = await getRepository(Worksheet).find({
@@ -102,7 +92,7 @@ export const completePutaway = {
       }
 
       /**
-       * 5. Create inventory data
+       * 4. Create inventory data
        */
       const completedPutwayworksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
@@ -132,6 +122,7 @@ export const completePutaway = {
               completedPutawayWSD.toLocation.name,
               completedPutawayWSD.targetProduct.product.name
             ),
+            location: completedPutawayWSD.toLocation,
             startQty: completedPutawayWSD.targetProduct.packQty,
             endQty: completedPutawayWSD.targetProduct.actualQty,
             status: INVENTORY_STATUS.OCCUPIED,
@@ -140,6 +131,16 @@ export const completePutaway = {
           })
         })
       )
+
+      /**
+       * 5. Update worksheet status (status: EXECUTING => DONE)
+       */
+      await getRepository(Worksheet).save({
+        ...foundPutawayWorksheet,
+        status: WORKSHEET_STATUS.DONE,
+        endedAt: Date.now(),
+        updater: context.state.user
+      })
 
       return foundPutawayWorksheet
     })
