@@ -1,10 +1,10 @@
-import { ArrivalNotice, OrderProduct } from '@things-factory/sales-base'
+import { ArrivalNotice, Bizplace, OrderProduct } from '@things-factory/sales-base'
 import { Inventory, InventoryHistory } from '@things-factory/warehouse-base'
 import { Equal, getManager, getRepository, Not } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE, INVENTORY_STATUS } from '../../../enum'
-import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
+import { INVENTORY_STATUS, ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
+import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
 
 export const completeUnloading = {
   async completeUnloading(_: any, { arrivalNoticeNo, unloadingWorksheetDetails, unloadedPallets }, context: any) {
@@ -17,26 +17,23 @@ export const completeUnloading = {
         where: { domain: context.state.domain, name: arrivalNoticeNo, status: ORDER_STATUS.PROCESSING },
         relations: ['bizplace']
       })
+      const customerBizplace: Bizplace = arrivalNotice.bizplace
 
       if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
 
       const foundUnloadingWorksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
           domain: context.state.domain,
-          bizplace: arrivalNotice.bizplace,
+          bizplace: customerBizplace,
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.UNLOADING,
           arrivalNotice
         },
         relations: [
-          'bizplace',
-          'arrivalNotice',
           'bufferLocation',
           'worksheetDetails',
           'worksheetDetails.targetProduct',
-          'worksheetDetails.targetProduct.product',
-          'creator',
-          'updater'
+          'worksheetDetails.targetProduct.product'
         ]
       })
 
@@ -48,12 +45,21 @@ export const completeUnloading = {
        */
       await getRepository(Inventory).insert(
         unloadedPallets.map((unloadedPallet: Inventory) => {
+          const worksheetDetails: WorksheetDetail[] = foundUnloadingWorksheet.worksheetDetails
+          const orderProduct: OrderProduct = worksheetDetails.filter(
+            (wd: WorksheetDetail) => wd.targetProduct.batchId === unloadedPallet.batchId
+          )[0]
+
           return {
             ...unloadedPallet,
+            domain: context.state.domain,
+            bizplace: customerBizplace,
             name: InventoryNoGenerator.inventoryName(
               foundUnloadingWorksheet.bufferLocation.name,
               unloadedPallet.batchId
             ),
+            product: orderProduct.product,
+            location: foundUnloadingWorksheet.bufferLocation,
             lastSeq: 0,
             status: INVENTORY_STATUS.OCCUPIED,
             creator: context.state.user,
@@ -68,9 +74,18 @@ export const completeUnloading = {
        */
       await getRepository(InventoryHistory).insert(
         unloadedPallets.map((unloadedPallet: InventoryHistory) => {
+          const worksheetDetails: WorksheetDetail[] = foundUnloadingWorksheet.worksheetDetails
+          const orderProduct: OrderProduct = worksheetDetails.filter(
+            (worksheetDetail: WorksheetDetail) => worksheetDetail.targetProduct.batchId === unloadedPallet.batchId
+          )[0]
+
           return {
             ...unloadedPallet,
+            domain: context.state.domain,
+            bizplace: customerBizplace,
             name: InventoryNoGenerator.inventoryHistoryName(),
+            product: orderProduct.product,
+            location: foundUnloadingWorksheet.bufferLocation,
             status: INVENTORY_STATUS.OCCUPIED,
             creator: context.state.user,
             updater: context.state.user
@@ -116,7 +131,7 @@ export const completeUnloading = {
       const relatedWorksheets: Worksheet[] = await getRepository(Worksheet).find({
         where: {
           domain: context.state.domain,
-          bizplace: foundUnloadingWorksheet.bizplace,
+          bizplace: customerBizplace,
           status: Not(Equal(WORKSHEET_STATUS.DONE)),
           arrivalNotice
         }
@@ -126,7 +141,7 @@ export const completeUnloading = {
         await getRepository(ArrivalNotice).update(
           {
             domain: context.state.domain,
-            bizplace: arrivalNotice.bizplace,
+            bizplace: customerBizplace,
             name: arrivalNotice.name
           },
           {
@@ -144,7 +159,7 @@ export const completeUnloading = {
       const putawayWorksheet = await getRepository(Worksheet).save({
         domain: context.state.domain,
         arrivalNotice: arrivalNotice,
-        bizplace: foundUnloadingWorksheet.bizplace,
+        bizplace: customerBizplace,
         name: WorksheetNoGenerator.putaway(),
         type: WORKSHEET_TYPE.PUTAWAY,
         status: WORKSHEET_STATUS.DEACTIVATED,
