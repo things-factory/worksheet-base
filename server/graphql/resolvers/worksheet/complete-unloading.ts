@@ -1,6 +1,6 @@
 import { ArrivalNotice, Bizplace, OrderProduct } from '@things-factory/sales-base'
 import { Inventory, InventoryHistory } from '@things-factory/warehouse-base'
-import { Equal, getManager, getRepository, Not } from 'typeorm'
+import { Equal, getManager, getRepository, Not, In } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { INVENTORY_STATUS, ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
@@ -31,6 +31,7 @@ export const completeUnloading = {
         },
         relations: [
           'bufferLocation',
+          'bufferLocation.warehouse',
           'worksheetDetails',
           'worksheetDetails.targetProduct',
           'worksheetDetails.targetProduct.product'
@@ -43,7 +44,8 @@ export const completeUnloading = {
        * 2.1) Assign pallets into inventories
        *    - Insert new inventory records
        */
-      await getRepository(Inventory).insert(
+
+      const inventories = await getRepository(Inventory).insert(
         unloadedPallets.map((unloadedPallet: Inventory) => {
           const worksheetDetails: WorksheetDetail[] = foundUnloadingWorksheet.worksheetDetails
           const orderProduct: OrderProduct = worksheetDetails.filter(
@@ -59,7 +61,9 @@ export const completeUnloading = {
               unloadedPallet.batchId
             ),
             product: orderProduct.product,
+            warehouse: foundUnloadingWorksheet.bufferLocation.warehouse,
             location: foundUnloadingWorksheet.bufferLocation,
+            zone: foundUnloadingWorksheet.bufferLocation.zone,
             lastSeq: 0,
             status: INVENTORY_STATUS.OCCUPIED,
             creator: context.state.user,
@@ -84,8 +88,10 @@ export const completeUnloading = {
             domain: context.state.domain,
             bizplace: customerBizplace,
             name: InventoryNoGenerator.inventoryHistoryName(),
-            product: orderProduct.product,
-            location: foundUnloadingWorksheet.bufferLocation,
+            productId: orderProduct.product.id,
+            warehouseId: foundUnloadingWorksheet.bufferLocation.warehouse.id,
+            locationId: foundUnloadingWorksheet.bufferLocation.id,
+            zone: foundUnloadingWorksheet.bufferLocation.zone,
             status: INVENTORY_STATUS.OCCUPIED,
             creator: context.state.user,
             updater: context.state.user
@@ -133,6 +139,7 @@ export const completeUnloading = {
           domain: context.state.domain,
           bizplace: customerBizplace,
           status: Not(Equal(WORKSHEET_STATUS.DONE)),
+          type: Not(In([WORKSHEET_TYPE.VAS])),
           arrivalNotice
         }
       })
@@ -153,9 +160,7 @@ export const completeUnloading = {
 
       /**
        * 6. Create putaway worksheet
-       *
        */
-
       const putawayWorksheet = await getRepository(Worksheet).save({
         domain: context.state.domain,
         arrivalNotice: arrivalNotice,
@@ -168,14 +173,14 @@ export const completeUnloading = {
       })
 
       await Promise.all(
-        foundUnloadingWorksheet.worksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
+        ((inventories as unknown) as Inventory[]).map(async (unloadedPallet: Inventory) => {
           await getRepository(WorksheetDetail).save({
             domain: context.state.domain,
-            bizplace: worksheetDetail.bizplace,
+            bizplace: customerBizplace,
             name: WorksheetNoGenerator.putawayDetail(),
             type: WORKSHEET_TYPE.PUTAWAY,
             worksheet: putawayWorksheet,
-            targetProduct: worksheetDetail.targetProduct,
+            targetInventory: unloadedPallet,
             creator: context.state.user,
             updater: context.state.user
           })

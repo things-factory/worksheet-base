@@ -9,6 +9,7 @@ export const WorksheetDetailPatch = gql`
     worker: ObjectRef
     targetProduct: OrderProductPatch
     targetVas: OrderVasPatch
+    targetInventory: ObjectRef
     remark: String
     issue: String
     cuFlag: String

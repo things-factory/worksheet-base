@@ -2,6 +2,7 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace, Worker } from '@things-factory/biz-base'
 import { OrderProduct, OrderVas } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
+import { Inventory } from '@things-factory/warehouse-base'
 import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import { Worksheet } from './worksheet'
 
@@ -45,6 +46,9 @@ export class WorksheetDetail {
 
   @ManyToOne(type => OrderVas)
   targetVas: OrderVas
+
+  @ManyToOne(type => Inventory)
+  targetInventory: Inventory
 
   @Column({
     nullable: true

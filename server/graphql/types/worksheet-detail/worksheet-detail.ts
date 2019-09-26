@@ -12,6 +12,7 @@ export const WorksheetDetail = gql`
     worker: Worker
     targetProduct: OrderProduct
     targetVas: OrderVas
+    targetInventory: Inventory
     remark: String
     issue: String
     creator: User

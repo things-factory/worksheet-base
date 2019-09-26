@@ -33,6 +33,8 @@ export const unloadingWorksheetResolver = {
       ]
     })
 
+    if (!worksheet) throw new Error(`Worksheet dosen't exist.`)
+
     return {
       worksheetInfo: {
         bizplaceName: worksheet.bizplace.name,
