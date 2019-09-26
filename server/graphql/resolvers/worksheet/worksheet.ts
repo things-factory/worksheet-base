@@ -13,6 +13,8 @@ export const worksheetResolver = {
       relations: [
         'domain',
         'bizplace',
+        'bufferLocation',
+        'bufferLocation.warehouse',
         'arrivalNotice',
         'shippingOrder',
         'worksheetDetails',

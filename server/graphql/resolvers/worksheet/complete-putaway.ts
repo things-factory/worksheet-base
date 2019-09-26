@@ -55,7 +55,7 @@ export const completePutaway = {
               arrivalNotice
             },
             {
-              actualQty: worksheetDetail.targetProduct.actualQty,
+              actualPackQty: worksheetDetail.targetProduct.actualPackQty,
               status: ORDER_PRODUCT_STATUS.STORED,
               updater: context.state.user
             }
@@ -117,7 +117,7 @@ export const completePutaway = {
             bizplace: completedPutawayWSD.bizplace,
             product: completedPutawayWSD.targetProduct.product,
             startQty: completedPutawayWSD.targetProduct.packQty,
-            endQty: completedPutawayWSD.targetProduct.actualQty,
+            endQty: completedPutawayWSD.targetProduct.actualPackQty,
             status: INVENTORY_STATUS.OCCUPIED,
             creator: context.state.user,
             updater: context.state.user

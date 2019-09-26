@@ -22,6 +22,8 @@ export const unloadingWorksheetResolver = {
       },
       relations: [
         'bizplace',
+        'bufferLocation',
+        'bufferLocation.warehouse',
         'arrivalNotice',
         'worksheetDetails',
         'worksheetDetails.targetProduct',

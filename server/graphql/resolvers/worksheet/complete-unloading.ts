@@ -31,6 +31,7 @@ export const completeUnloading = {
         relations: [
           'bizplace',
           'arrivalNotice',
+          'bufferLocation',
           'worksheetDetails',
           'worksheetDetails.targetProduct',
           'worksheetDetails.targetProduct.product',
@@ -49,7 +50,7 @@ export const completeUnloading = {
           return {
             ...unloadedPallet,
             name: InventoryNoGenerator.inventoryName(
-              arrivalNotice.worksheetDetail.location.name,
+              arrivalNotice.worksheet.bufferLocation.name,
               unloadedPallet.product.name
             ),
             status: INVENTORY_STATUS.OCCUPIED,

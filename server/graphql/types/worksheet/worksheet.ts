@@ -5,6 +5,7 @@ export const Worksheet = gql`
     id: String
     domain: Domain
     bizplace: Bizplace
+    bufferLocation: Location
     arrivalNotice: ArrivalNotice
     shippingOrder: ShippingOrder
     name: String

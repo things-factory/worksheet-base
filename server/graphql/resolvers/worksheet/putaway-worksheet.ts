@@ -50,7 +50,7 @@ export const putawayWorksheetResolver = {
           palletQty: targetProduct.palletQty,
           actualPalletQty: targetProduct.actualPalletQty,
           packQty: targetProduct.packQty,
-          actualQty: targetProduct.actualQty,
+          actualPackQty: targetProduct.actualPackQty,
           remark: targetProduct.remark
         }
       })
