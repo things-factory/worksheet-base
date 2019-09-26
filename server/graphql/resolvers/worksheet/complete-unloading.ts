@@ -50,7 +50,7 @@ export const completeUnloading = {
           return {
             ...unloadedPallet,
             name: InventoryNoGenerator.inventoryName(
-              arrivalNotice.worksheet.bufferLocation.name,
+              foundUnloadingWorksheet.bufferLocation.name,
               unloadedPallet.product.name
             ),
             status: INVENTORY_STATUS.OCCUPIED,
