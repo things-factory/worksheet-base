@@ -72,6 +72,7 @@ export const completePutaway = {
           domain: context.state.domain,
           bizplace: foundPutawayWorksheet.bizplace,
           status: Not(Equal(WORKSHEET_STATUS.DONE)),
+          type: Not(Equal(WORKSHEET_TYPE.VAS)),
           arrivalNotice
         }
       })

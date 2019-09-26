@@ -1,5 +1,5 @@
 import { ArrivalNotice, OrderProduct } from '@things-factory/sales-base'
-import { Inventory } from '@things-factory/warehouse-base'
+import { Inventory, InventoryHistory } from '@things-factory/warehouse-base'
 import { Equal, getManager, getRepository, Not } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE, INVENTORY_STATUS } from '../../../enum'
@@ -43,7 +43,8 @@ export const completeUnloading = {
       if (!foundUnloadingWorksheet) throw new Error(`Worksheet doesn't exists.`)
 
       /**
-       * 2. Assign pallets into inventories
+       * 2.1) Assign pallets into inventories
+       *    - Insert new inventory records
        */
       await getRepository(Inventory).insert(
         unloadedPallets.map((unloadedPallet: Inventory) => {
@@ -51,8 +52,25 @@ export const completeUnloading = {
             ...unloadedPallet,
             name: InventoryNoGenerator.inventoryName(
               foundUnloadingWorksheet.bufferLocation.name,
-              unloadedPallet.product.name
+              unloadedPallet.batchId
             ),
+            lastSeq: 0,
+            status: INVENTORY_STATUS.OCCUPIED,
+            creator: context.state.user,
+            updater: context.state.user
+          }
+        })
+      )
+
+      /**
+       * 2.2) Assign pallets into inventories
+       *    - Insert new inventory history records
+       */
+      await getRepository(InventoryHistory).insert(
+        unloadedPallets.map((unloadedPallet: InventoryHistory) => {
+          return {
+            ...unloadedPallet,
+            name: InventoryNoGenerator.inventoryHistoryName(),
             status: INVENTORY_STATUS.OCCUPIED,
             creator: context.state.user,
             updater: context.state.user
