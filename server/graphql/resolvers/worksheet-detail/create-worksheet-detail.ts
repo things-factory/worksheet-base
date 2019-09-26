@@ -14,14 +14,6 @@ export const createWorksheetDetail = {
       worksheetDetail.worker = await getRepository(Worker).findOne(worksheetDetail.worker.id)
     }
 
-    if (worksheetDetail.fromLocation && worksheetDetail.fromLocation.id) {
-      worksheetDetail.fromLocation = await getRepository(Location).findOne(worksheetDetail.fromLocation.id)
-    }
-
-    if (worksheetDetail.toLocation && worksheetDetail.toLocation.id) {
-      worksheetDetail.toLocation = await getRepository(Location).findOne(worksheetDetail.toLocation.id)
-    }
-
     if (worksheetDetail.targetProduct && worksheetDetail.targetProduct.id) {
       worksheetDetail.targetProduct = await getRepository(OrderProduct).findOne(worksheetDetail.targetProduct.id)
     }

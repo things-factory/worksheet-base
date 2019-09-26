@@ -1,5 +1,4 @@
 import { ArrivalNotice, OrderProduct } from '@things-factory/sales-base'
-import { Location } from '@things-factory/warehouse-base'
 import { getManager, getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
@@ -36,9 +35,6 @@ export const activatePutaway = {
             },
             {
               description: putawayWorksheetDetail.description,
-              toLocation: await getRepository(Location).findOne({
-                where: { domain: context.state.domain, id: putawayWorksheetDetail.toLocation.id }
-              }),
               updater: context.state.user
             }
           )

@@ -26,7 +26,6 @@ export const vasWorksheetResolver = {
           'bizplace',
           'arrivalNotice',
           'worksheetDetails',
-          'worksheetDetails.toLocation',
           'worksheetDetails.targetVas',
           'worksheetDetails.targetVas.vas',
           'creator',
@@ -38,7 +37,7 @@ export const vasWorksheetResolver = {
         worksheetInfo: {
           bizplaceName: worksheet.bizplace.name,
           containerNo: arrivalNotice.containerNo,
-          bufferLocation: worksheet.worksheetDetails[0].toLocation.name,
+          bufferLocation: worksheet.bufferLocation.name,
           startedAt: worksheet.startedAt
         },
         worksheetDetailInfos: worksheet.worksheetDetails.map((vasWSD: WorksheetDetail) => {

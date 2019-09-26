@@ -32,7 +32,6 @@ export const completePutaway = {
           'bizplace',
           'arrivalNotice',
           'worksheetDetails',
-          'worksheetDetails.toLocation',
           'worksheetDetails.targetProduct',
           'worksheetDetails.targetProduct.product',
           'creator',
@@ -105,7 +104,6 @@ export const completePutaway = {
         relations: [
           'bizplace',
           'worksheetDetails',
-          'worksheetDetails.toLocation',
           'worksheetDetails.targetProduct',
           'worksheetDetails.targetProduct.product'
         ]
@@ -118,11 +116,6 @@ export const completePutaway = {
             domain: context.state.domain,
             bizplace: completedPutawayWSD.bizplace,
             product: completedPutawayWSD.targetProduct.product,
-            name: InventoryNoGenerator.inventoryName(
-              completedPutawayWSD.toLocation.name,
-              completedPutawayWSD.targetProduct.product.name
-            ),
-            location: completedPutawayWSD.toLocation,
             startQty: completedPutawayWSD.targetProduct.packQty,
             endQty: completedPutawayWSD.targetProduct.actualQty,
             status: INVENTORY_STATUS.OCCUPIED,

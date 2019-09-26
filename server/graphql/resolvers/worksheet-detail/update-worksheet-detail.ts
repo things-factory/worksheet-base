@@ -18,14 +18,6 @@ export const updateWorksheetDetail = {
       patch.worker = await getRepository(Worker).findOne(patch.worker.id)
     }
 
-    if (patch.fromLocation && patch.fromLocation.id) {
-      patch.fromLocation = await getRepository(Location).findOne(patch.fromLocation.id)
-    }
-
-    if (patch.toLocation && patch.toLocation.id) {
-      patch.toLocation = await getRepository(Location).findOne(patch.toLocation.id)
-    }
-
     if (patch.targetProduct && patch.targetProduct.id) {
       patch.targetProduct = await getRepository(OrderProduct).findOne(patch.targetProduct.id)
     }

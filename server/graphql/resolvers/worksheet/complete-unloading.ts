@@ -1,11 +1,13 @@
 import { ArrivalNotice, OrderProduct } from '@things-factory/sales-base'
+import { Inventory } from '@things-factory/warehouse-base'
 import { Equal, getManager, getRepository, Not } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
+import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE, INVENTORY_STATUS } from '../../../enum'
 import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
+import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
 
 export const completeUnloading = {
-  async completeUnloading(_: any, { arrivalNoticeNo, unloadingWorksheetDetails }, context: any) {
+  async completeUnloading(_: any, { arrivalNoticeNo, unloadingWorksheetDetails, unloadedPallets }, context: any) {
     return await getManager().transaction(async () => {
       /**
        * 1. Validation for worksheet
@@ -30,7 +32,6 @@ export const completeUnloading = {
           'bizplace',
           'arrivalNotice',
           'worksheetDetails',
-          'worksheetDetails.toLocation',
           'worksheetDetails.targetProduct',
           'worksheetDetails.targetProduct.product',
           'creator',
@@ -41,33 +42,37 @@ export const completeUnloading = {
       if (!foundUnloadingWorksheet) throw new Error(`Worksheet doesn't exists.`)
 
       /**
-       * 2. Update worksheet detail and order product
-       *    - worksheet detail: Update remark if it's exists
+       * 2. Assign pallets into inventories
+       */
+      await getRepository(Inventory).insert(
+        unloadedPallets.map((unloadedPallet: Inventory) => {
+          return {
+            ...unloadedPallet,
+            name: InventoryNoGenerator.inventoryName(
+              arrivalNotice.worksheetDetail.location.name,
+              unloadedPallet.product.name
+            ),
+            status: INVENTORY_STATUS.OCCUPIED,
+            creator: context.state.user,
+            updater: context.state.user
+          }
+        })
+      )
+
+      /**
+       * 3. Update worksheet detail and order product
        *    - order product: Update actual qty & status
        */
       await Promise.all(
         unloadingWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
-          await getRepository(WorksheetDetail).update(
-            {
-              domain: context.state.domain,
-              name: worksheetDetail.name,
-              bizplace: foundUnloadingWorksheet.bizplace
-            },
-            {
-              remark: worksheetDetail.remark,
-              updater: context.state.user
-            }
-          )
-
           await getRepository(OrderProduct).update(
             {
-              domain: context.state.domain,
-              name: worksheetDetail.targetProduct.name,
-              arrivalNotice
+              arrivalNotice,
+              name: worksheetDetail.targetProduct.name
             },
             {
               actualPalletQty: worksheetDetail.targetProduct.actualPalletQty,
-              actualQty: worksheetDetail.targetProduct.actualQty,
+              actualPackQty: worksheetDetail.targetProduct.actualPackQty,
               status: ORDER_PRODUCT_STATUS.UNLOADED,
               updater: context.state.user
             }
@@ -76,7 +81,7 @@ export const completeUnloading = {
       )
 
       /**
-       * 3. Update worksheet status (status: EXECUTING => DONE)
+       * 4. Update worksheet status (status: EXECUTING => DONE)
        */
       await getRepository(Worksheet).save({
         ...foundUnloadingWorksheet,
@@ -86,7 +91,7 @@ export const completeUnloading = {
       })
 
       /**
-       * 4. Check whether every related worksheet is completed
+       * 5. Check whether every related worksheet is completed
        *    - if yes => Update Status of arrival notice
        */
       const relatedWorksheets: Worksheet[] = await getRepository(Worksheet).find({
@@ -113,7 +118,7 @@ export const completeUnloading = {
       }
 
       /**
-       * 5. Create putaway worksheet
+       * 6. Create putaway worksheet
        *
        */
 
@@ -136,7 +141,6 @@ export const completeUnloading = {
             name: WorksheetNoGenerator.putawayDetail(),
             type: WORKSHEET_TYPE.PUTAWAY,
             worksheet: putawayWorksheet,
-            fromLocation: worksheetDetail.toLocation,
             targetProduct: worksheetDetail.targetProduct,
             creator: context.state.user,
             updater: context.state.user

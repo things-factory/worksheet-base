@@ -10,8 +10,6 @@ export const WorksheetDetail = gql`
     type: String
     worksheet: Worksheet
     worker: Worker
-    fromLocation: Location
-    toLocation: Location
     targetProduct: OrderProduct
     targetVas: OrderVas
     remark: String

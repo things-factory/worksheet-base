@@ -24,7 +24,6 @@ export const unloadingWorksheetResolver = {
         'bizplace',
         'arrivalNotice',
         'worksheetDetails',
-        'worksheetDetails.toLocation',
         'worksheetDetails.targetProduct',
         'worksheetDetails.targetProduct.product',
         'creator',
@@ -36,7 +35,7 @@ export const unloadingWorksheetResolver = {
       worksheetInfo: {
         bizplaceName: worksheet.bizplace.name,
         containerNo: arrivalNotice.containerNo,
-        bufferLocation: worksheet.worksheetDetails[0].toLocation.name,
+        bufferLocation: worksheet.bufferLocation.name,
         startedAt: worksheet.startedAt
       },
       worksheetDetailInfos: worksheet.worksheetDetails.map((productWSD: WorksheetDetail) => {

@@ -44,6 +44,7 @@ export const Mutation = `
   completeUnloading (
     arrivalNoticeNo: String!
     unloadingWorksheetDetails: [WorksheetDetailPatch]!
+    unloadedPallets: [InventoryPatch]!
   ): Worksheet
 
   completePutaway (

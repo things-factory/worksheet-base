@@ -2,7 +2,6 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace, Worker } from '@things-factory/biz-base'
 import { OrderProduct, OrderVas } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Location } from '@things-factory/warehouse-base'
 import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm'
 import { Worksheet } from './worksheet'
 
@@ -40,12 +39,6 @@ export class WorksheetDetail {
 
   @ManyToOne(type => Worker)
   worker: Worker
-
-  @ManyToOne(type => Location)
-  fromLocation: Location
-
-  @ManyToOne(type => Location)
-  toLocation: Location
 
   @ManyToOne(type => OrderProduct)
   targetProduct: OrderProduct

@@ -24,7 +24,6 @@ export const putawayWorksheetResolver = {
         'bizplace',
         'arrivalNotice',
         'worksheetDetails',
-        'worksheetDetails.toLocation',
         'worksheetDetails.targetProduct',
         'worksheetDetails.targetProduct.product',
         'creator',
@@ -36,17 +35,17 @@ export const putawayWorksheetResolver = {
       worksheetInfo: {
         bizplaceName: worksheet.bizplace.name,
         containerNo: arrivalNotice.containerNo,
-        bufferLocation: worksheet.worksheetDetails[0].toLocation.name,
+        bufferLocation: worksheet.bufferLocation.name,
         startedAt: worksheet.startedAt
       },
       worksheetDetailInfos: worksheet.worksheetDetails.map((putawayWSD: WorksheetDetail) => {
         const targetProduct: OrderProduct = putawayWSD.targetProduct
         return {
           name: putawayWSD.name,
+          batchId: targetProduct.batchId,
           product: targetProduct.product,
           description: putawayWSD.description,
           targetName: targetProduct.name,
-          toLocation: putawayWSD.toLocation,
           packingType: targetProduct.packingType,
           palletQty: targetProduct.palletQty,
           actualPalletQty: targetProduct.actualPalletQty,

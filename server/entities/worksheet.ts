@@ -2,7 +2,7 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, ShippingOrder } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Warehouse } from '@things-factory/warehouse-base'
+import { Location } from '@things-factory/warehouse-base'
 import {
   Column,
   CreateDateColumn,
@@ -39,8 +39,8 @@ export class Worksheet {
   @ManyToOne(type => ShippingOrder)
   shippingOrder: ShippingOrder
 
-  @ManyToOne(type => Warehouse)
-  warehouse: Warehouse
+  @ManyToOne(type => Location)
+  bufferLocation: Location
 
   @Column()
   name: string
