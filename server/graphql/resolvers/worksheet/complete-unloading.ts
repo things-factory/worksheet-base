@@ -1,6 +1,6 @@
 import { ArrivalNotice, Bizplace, OrderProduct } from '@things-factory/sales-base'
 import { Inventory, InventoryHistory } from '@things-factory/warehouse-base'
-import { Equal, getManager, getRepository, Not, In } from 'typeorm'
+import { Equal, getManager, getRepository, In, InsertResult, Not } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { INVENTORY_STATUS, ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
@@ -17,9 +17,9 @@ export const completeUnloading = {
         where: { domain: context.state.domain, name: arrivalNoticeNo, status: ORDER_STATUS.PROCESSING },
         relations: ['bizplace']
       })
-      const customerBizplace: Bizplace = arrivalNotice.bizplace
 
       if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
+      const customerBizplace: Bizplace = arrivalNotice.bizplace
 
       const foundUnloadingWorksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
@@ -45,7 +45,7 @@ export const completeUnloading = {
        *    - Insert new inventory records
        */
 
-      const inventories = await getRepository(Inventory).insert(
+      const insertResult: InsertResult = await getRepository(Inventory).insert(
         unloadedPallets.map((unloadedPallet: Inventory) => {
           const worksheetDetails: WorksheetDetail[] = foundUnloadingWorksheet.worksheetDetails
           const orderProduct: OrderProduct = worksheetDetails.filter(
@@ -60,7 +60,7 @@ export const completeUnloading = {
               foundUnloadingWorksheet.bufferLocation.name,
               unloadedPallet.batchId
             ),
-            product: orderProduct.product,
+            product: orderProduct.targetProduct.product,
             warehouse: foundUnloadingWorksheet.bufferLocation.warehouse,
             location: foundUnloadingWorksheet.bufferLocation,
             zone: foundUnloadingWorksheet.bufferLocation.zone,
@@ -88,7 +88,7 @@ export const completeUnloading = {
             domain: context.state.domain,
             bizplace: customerBizplace,
             name: InventoryNoGenerator.inventoryHistoryName(),
-            productId: orderProduct.product.id,
+            productId: orderProduct.targetProduct.product.id,
             warehouseId: foundUnloadingWorksheet.bufferLocation.warehouse.id,
             locationId: foundUnloadingWorksheet.bufferLocation.id,
             zone: foundUnloadingWorksheet.bufferLocation.zone,
@@ -172,8 +172,11 @@ export const completeUnloading = {
         updater: context.state.user
       })
 
+      const inventories: Inventory[] = await getRepository(Inventory).findByIds(
+        insertResult.identifiers.map(identifier => identifier.id)
+      )
       await Promise.all(
-        ((inventories as unknown) as Inventory[]).map(async (unloadedPallet: Inventory) => {
+        inventories.map(async (unloadedPallet: Inventory) => {
           await getRepository(WorksheetDetail).save({
             domain: context.state.domain,
             bizplace: customerBizplace,
