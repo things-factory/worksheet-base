@@ -31,10 +31,12 @@ export const activateUnloading = {
           await getRepository(WorksheetDetail).update(
             {
               domain: context.state.domain,
-              name: productWorksheetDetail.name
+              name: productWorksheetDetail.name,
+              status: WORKSHEET_STATUS.DEACTIVATED
             },
             {
               description: productWorksheetDetail.description,
+              status: WORKSHEET_STATUS.DEACTIVATED,
               updater: context.state.user
             }
           )

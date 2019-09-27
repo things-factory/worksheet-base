@@ -33,6 +33,9 @@ export class WorksheetDetail {
   @Column()
   type: string
 
+  @Column()
+  status: string
+
   @ManyToOne(type => Worksheet, {
     nullable: false
   })

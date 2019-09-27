@@ -31,10 +31,12 @@ export const activateVas = {
           await getRepository(WorksheetDetail).update(
             {
               domain: context.state.domain,
-              name: vasWorksheetDetail.name
+              name: vasWorksheetDetail.name,
+              status: WORKSHEET_STATUS.DEACTIVATED
             },
             {
               description: vasWorksheetDetail.description,
+              status: WORKSHEET_STATUS.EXECUTING,
               updater: context.state.user
             }
           )

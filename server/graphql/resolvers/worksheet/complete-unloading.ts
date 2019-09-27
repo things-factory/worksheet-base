@@ -64,7 +64,7 @@ export const completeUnloading = {
             warehouse: foundUnloadingWorksheet.bufferLocation.warehouse,
             location: foundUnloadingWorksheet.bufferLocation,
             zone: foundUnloadingWorksheet.bufferLocation.zone,
-            packingType: orderProduct.packingType,
+            packingType: orderProduct.targetProduct.packingType,
             lastSeq: 0,
             status: INVENTORY_STATUS.OCCUPIED,
             creator: context.state.user,
@@ -93,7 +93,7 @@ export const completeUnloading = {
             warehouseId: foundUnloadingWorksheet.bufferLocation.warehouse.id,
             locationId: foundUnloadingWorksheet.bufferLocation.id,
             zone: foundUnloadingWorksheet.bufferLocation.zone,
-            packingType: orderProduct.packingType,
+            packingType: orderProduct.targetProduct.packingType,
             status: INVENTORY_STATUS.OCCUPIED,
             creator: context.state.user,
             updater: context.state.user

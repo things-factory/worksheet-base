@@ -31,13 +31,15 @@ export const activatePutaway = {
           await getRepository(WorksheetDetail).update(
             {
               domain: context.state.domain,
-              name: putawayWorksheetDetail.name
+              name: putawayWorksheetDetail.name,
+              status: WORKSHEET_STATUS.DEACTIVATED
             },
             {
               description: putawayWorksheetDetail.description,
               toLocation: await getRepository(Location).findOne({
                 where: { domain: context.state.domain, id: putawayWorksheetDetail.toLocation.id }
               }),
+              status: WORKSHEET_STATUS.EXECUTING,
               updater: context.state.user
             }
           )

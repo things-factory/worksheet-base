@@ -15,6 +15,7 @@ export const WorksheetDetail = gql`
     targetInventory: Inventory
     fromLocation: Location
     toLocation: Location
+    status: String
     remark: String
     issue: String
     creator: User

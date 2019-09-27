@@ -49,6 +49,7 @@ export const generateArrivalNoticeWorksheet = {
               name: WorksheetNoGenerator.unloadingDetail(),
               targetProduct: orderProduct,
               type: WORKSHEET_TYPE.UNLOADING,
+              status: WORKSHEET_STATUS.DEACTIVATED,
               creator: context.state.user,
               updater: context.state.user
             })
@@ -96,6 +97,7 @@ export const generateArrivalNoticeWorksheet = {
               name: WorksheetNoGenerator.vasDetail(),
               targetVas: orderVas,
               type: WORKSHEET_TYPE.VAS,
+              status: WORKSHEET_STATUS.DEACTIVATED,
               creator: context.state.user,
               updater: context.state.user
             })
