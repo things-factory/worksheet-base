@@ -188,6 +188,7 @@ export const completeUnloading = {
             worksheet: putawayWorksheet,
             targetInventory: unloadedPallet,
             fromLocation: foundUnloadingWorksheet.bufferLocation,
+            status: WORKSHEET_STATUS.DEACTIVATED,
             creator: context.state.user,
             updater: context.state.user
           })

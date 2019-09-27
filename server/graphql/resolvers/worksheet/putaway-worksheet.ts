@@ -22,16 +22,18 @@ export const putawayWorksheetResolver = {
         status: WORKSHEET_STATUS.EXECUTING
       },
       relations: [
+        'bizplace',
         'arrivalNotice',
         'worksheetDetails',
         'worksheetDetails.targetInventory',
-        'worksheetDetails.targetInventory.product'
+        'worksheetDetails.targetInventory.product',
+        'worksheetDetails.toLocation'
       ]
     })
 
     return {
       worksheetInfo: {
-        bizplaceName: worksheet.bizplace.name,
+        bizplaceName: arrivalNotice.bizplace.name,
         startedAt: worksheet.startedAt
       },
       worksheetDetailInfos: worksheet.worksheetDetails.map((putawayWSD: WorksheetDetail) => {
@@ -45,7 +47,7 @@ export const putawayWorksheetResolver = {
           description: putawayWSD.description,
           targetName: targetInventory.name,
           packingType: targetInventory.packingType,
-          toLocation: targetInventory.toLocation
+          toLocation: putawayWSD.toLocation
         }
       })
     }

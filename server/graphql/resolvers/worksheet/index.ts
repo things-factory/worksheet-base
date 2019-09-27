@@ -13,6 +13,8 @@ import { updateWorksheet } from './update-worksheet'
 import { vasWorksheetResolver } from './vas-worksheet'
 import { worksheetResolver } from './worksheet'
 import { worksheetsResolver } from './worksheets'
+import { putaway } from './putaway'
+import { undoPutaway } from './undo-putaway'
 
 export const Query = {
   ...worksheetsResolver,
@@ -32,5 +34,7 @@ export const Mutation = {
   ...activateVas,
   ...completeUnloading,
   ...completePutaway,
-  ...completeVas
+  ...completeVas,
+  ...putaway,
+  ...undoPutaway
 }

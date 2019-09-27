@@ -47,6 +47,16 @@ export const Mutation = `
     unloadedPallets: [InventoryPatch]!
   ): Worksheet
 
+  putaway (
+    worksheetDetail: WorksheetDetailPatch!
+    inventory: InventoryPatch!
+  ): Boolean
+
+  undoPutaway (
+    worksheetDetail: WorksheetDetailPatch!
+    inventory: InventoryPatch!
+  ): Boolean
+
   completePutaway (
     arrivalNoticeNo: String!
     putawayWorksheetDetails: [WorksheetDetailPatch]!
