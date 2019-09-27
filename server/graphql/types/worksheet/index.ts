@@ -59,8 +59,7 @@ export const Mutation = `
 
   completePutaway (
     arrivalNoticeNo: String!
-    putawayWorksheetDetails: [WorksheetDetailPatch]!
-  ): Worksheet
+  ): Boolean
 
   completeVas (
     orderNo: String!
