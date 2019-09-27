@@ -29,7 +29,7 @@ export const putaway = {
         where: { domain: context.state.domain, palletId, location: foundWorksheetDetail.fromLocation }
       })
 
-      return await getRepository(Inventory).save({
+      await getRepository(Inventory).save({
         ...targetInventory,
         location: await getRepository(Location).findOne({
           where: { domain: context.state.domain, name: toLocationName }
