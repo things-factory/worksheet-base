@@ -119,6 +119,7 @@ export const completePutaway = {
             product: completedPutawayWSD.targetProduct.product,
             startQty: completedPutawayWSD.targetProduct.packQty,
             endQty: completedPutawayWSD.targetProduct.actualPackQty,
+            packingType: completedPutawayWSD.targetProduct.packingType,
             status: INVENTORY_STATUS.OCCUPIED,
             creator: context.state.user,
             updater: context.state.user
