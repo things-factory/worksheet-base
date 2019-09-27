@@ -13,6 +13,8 @@ export const WorksheetDetail = gql`
     targetProduct: OrderProduct
     targetVas: OrderVas
     targetInventory: Inventory
+    fromLocation: Location
+    toLocation: Location
     remark: String
     issue: String
     creator: User

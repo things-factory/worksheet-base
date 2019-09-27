@@ -64,6 +64,7 @@ export const completeUnloading = {
             warehouse: foundUnloadingWorksheet.bufferLocation.warehouse,
             location: foundUnloadingWorksheet.bufferLocation,
             zone: foundUnloadingWorksheet.bufferLocation.zone,
+            packingType: orderProduct.packingType,
             lastSeq: 0,
             status: INVENTORY_STATUS.OCCUPIED,
             creator: context.state.user,
@@ -92,6 +93,7 @@ export const completeUnloading = {
             warehouseId: foundUnloadingWorksheet.bufferLocation.warehouse.id,
             locationId: foundUnloadingWorksheet.bufferLocation.id,
             zone: foundUnloadingWorksheet.bufferLocation.zone,
+            packingType: orderProduct.packingType,
             status: INVENTORY_STATUS.OCCUPIED,
             creator: context.state.user,
             updater: context.state.user
@@ -168,6 +170,7 @@ export const completeUnloading = {
         name: WorksheetNoGenerator.putaway(),
         type: WORKSHEET_TYPE.PUTAWAY,
         status: WORKSHEET_STATUS.DEACTIVATED,
+        bufferLocation: foundUnloadingWorksheet.bufferLocation,
         creator: context.state.user,
         updater: context.state.user
       })
@@ -184,6 +187,7 @@ export const completeUnloading = {
             type: WORKSHEET_TYPE.PUTAWAY,
             worksheet: putawayWorksheet,
             targetInventory: unloadedPallet,
+            fromLocation: foundUnloadingWorksheet.bufferLocation,
             creator: context.state.user,
             updater: context.state.user
           })

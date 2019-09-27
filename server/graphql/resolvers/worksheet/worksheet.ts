@@ -22,6 +22,10 @@ export const worksheetResolver = {
         'worksheetDetails.targetProduct.product',
         'worksheetDetails.targetVas',
         'worksheetDetails.targetVas.vas',
+        'worksheetDetails.targetInventory',
+        'worksheetDetails.targetInventory.product',
+        'worksheetDetails.targetInventory.warehouse',
+        'worksheetDetails.targetInventory.location',
         'creator',
         'updater'
       ]

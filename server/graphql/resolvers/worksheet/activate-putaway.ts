@@ -2,9 +2,10 @@ import { ArrivalNotice, OrderProduct } from '@things-factory/sales-base'
 import { getManager, getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
+import { Location } from '@things-factory/warehouse-base'
 
 export const activatePutaway = {
-  async activatePutaway(_: any, { name, putawayWorksheetDetails }, context: any) {
+  async activatePutaway(_: any, { worksheetNo, putawayWorksheetDetails }, context: any) {
     return await getManager().transaction(async () => {
       /**
        * 1. Validation for worksheet
@@ -14,14 +15,13 @@ export const activatePutaway = {
       const foundWorksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
           domain: context.state.domain,
-          name
+          name: worksheetNo,
+          status: WORKSHEET_STATUS.DEACTIVATED
         },
-        relations: ['arrivalNotice', 'worksheetDetails', 'worksheetDetails.targetProduct']
+        relations: ['arrivalNotice', 'worksheetDetails', 'worksheetDetails.targetInventory']
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
-      if (foundWorksheet.status !== WORKSHEET_STATUS.DEACTIVATED && foundWorksheet.type === WORKSHEET_TYPE.PUTAWAY)
-        throw new Error('Status is not suitable for putaway')
 
       /**
        * 2. Update description of product worksheet details
@@ -35,27 +35,9 @@ export const activatePutaway = {
             },
             {
               description: putawayWorksheetDetail.description,
-              updater: context.state.user
-            }
-          )
-        })
-      )
-
-      /**
-       * 3. Update order product (status: UNLOADED => READY_TO_PUTAWAY)
-       */
-      const foundPutawayWorksheetDetails: WorksheetDetail[] = foundWorksheet.worksheetDetails.filter(
-        (worksheetDetail: WorksheetDetail) => worksheetDetail.targetProduct
-      )
-      await Promise.all(
-        foundPutawayWorksheetDetails.map(async (putawayWorksheetDetail: WorksheetDetail) => {
-          await getRepository(OrderProduct).update(
-            {
-              id: putawayWorksheetDetail.targetProduct.id,
-              status: ORDER_PRODUCT_STATUS.UNLOADED
-            },
-            {
-              status: ORDER_PRODUCT_STATUS.PUTTING_AWAY,
+              toLocation: await getRepository(Location).findOne({
+                where: { domain: context.state.domain, id: putawayWorksheetDetail.toLocation.id }
+              }),
               updater: context.state.user
             }
           )

@@ -27,17 +27,17 @@ export const Mutation = `
   ): ArrivalNoticeWorksheet
 
   activateUnloading (
-    name: String!
+    worksheetNo: String!
     unloadingWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet
 
   activatePutaway (
-    name: String!
+    worksheetNo: String!
     putawayWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet
 
   activateVas (
-    name: String!
+    worksheetNo: String!
     vasWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet
 

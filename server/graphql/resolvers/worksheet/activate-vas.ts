@@ -4,7 +4,7 @@ import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_STATUS, ORDER_VAS_STATUS, WORKSHEET_STATUS } from '../../../enum'
 
 export const activateVas = {
-  async activateVas(_: any, { name, vasWorksheetDetails }, context: any) {
+  async activateVas(_: any, { worksheetNo, vasWorksheetDetails }, context: any) {
     return await getManager().transaction(async () => {
       /**
        * 1. Validation for worksheet
@@ -14,7 +14,7 @@ export const activateVas = {
       const foundWorksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
           domain: context.state.domain,
-          name
+          name: worksheetNo
         },
         relations: ['arrivalNotice', 'shippingOrder', 'worksheetDetails', 'worksheetDetails.targetVas']
       })

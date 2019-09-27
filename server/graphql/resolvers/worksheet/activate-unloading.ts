@@ -4,7 +4,7 @@ import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
 export const activateUnloading = {
-  async activateUnloading(_: any, { name, unloadingWorksheetDetails }, context: any) {
+  async activateUnloading(_: any, { worksheetNo, unloadingWorksheetDetails }, context: any) {
     return await getManager().transaction(async () => {
       /**
        * 1. Validation for worksheet
@@ -14,7 +14,7 @@ export const activateUnloading = {
       const foundWorksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
           domain: context.state.domain,
-          name
+          name: worksheetNo
         },
         relations: ['arrivalNotice', 'worksheetDetails', 'worksheetDetails.targetProduct']
       })

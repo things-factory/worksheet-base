@@ -10,6 +10,8 @@ export const NewWorksheetDetail = gql`
     targetProduct: ObjectRef
     targetVas: ObjectRef
     targetInventory: ObjectRef
+    fromLocation: ObjectRef
+    toLocation: ObjectRef
     remark: String
     issue: String
   }
