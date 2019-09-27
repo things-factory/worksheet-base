@@ -17,7 +17,6 @@ export const putaway = {
       })
 
       if (!foundWorksheetDetail) throw new Error("Worksheet doesn't exists")
-      if (foundWorksheetDetail.toLocation.name !== toLocationName) throw new Error('Wrong location selected')
 
       await getRepository(WorksheetDetail).save({
         ...foundWorksheetDetail,
@@ -29,13 +28,17 @@ export const putaway = {
         where: { domain: context.state.domain, palletId, location: foundWorksheetDetail.fromLocation }
       })
 
-      await getRepository(Inventory).save({
-        ...targetInventory,
-        location: await getRepository(Location).findOne({
-          where: { domain: context.state.domain, name: toLocationName }
-        }),
-        updater: context.state.user
-      })
+      await getRepository(Inventory).update(
+        {
+          ...targetInventory
+        },
+        {
+          location: await getRepository(Location).findOne({
+            where: { domain: context.state.domain, name: toLocationName }
+          }),
+          updater: context.state.user
+        }
+      )
     })
   }
 }

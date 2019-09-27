@@ -24,16 +24,22 @@ export const undoPutaway = {
 
       // 2. update inventory from shelf location to buffer location
       const targetInventory: Inventory = await getRepository(Inventory).findOne({
-        where: { domain: context.state.domain, palletId, location: foundWorksheetDetail.toLocation }
+        where: { domain: context.state.domain, palletId }
       })
 
-      await getRepository(Inventory).save({
-        ...targetInventory,
-        location: await getRepository(Location).findOne({
-          where: { domain: context.state.domain, name: foundWorksheetDetail.fromLocation.name }
-        }),
-        updater: context.state.user
-      })
+      await getRepository(Inventory).update(
+        {
+          ...targetInventory
+        },
+        {
+          location: await getRepository(Location).findOne({
+            where: { domain: context.state.domain, name: foundWorksheetDetail.fromLocation.name }
+          }),
+          updater: context.state.user
+        }
+      )
+
+      return true
     })
   }
 }
