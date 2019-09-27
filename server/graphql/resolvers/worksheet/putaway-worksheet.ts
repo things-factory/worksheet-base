@@ -1,4 +1,5 @@
-import { ArrivalNotice, OrderProduct } from '@things-factory/sales-base'
+import { ArrivalNotice } from '@things-factory/sales-base'
+import { Inventory } from '@things-factory/warehouse-base'
 import { getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
@@ -21,37 +22,30 @@ export const putawayWorksheetResolver = {
         status: WORKSHEET_STATUS.EXECUTING
       },
       relations: [
-        'bizplace',
         'arrivalNotice',
         'worksheetDetails',
-        'worksheetDetails.targetProduct',
-        'worksheetDetails.targetProduct.product',
-        'creator',
-        'updater'
+        'worksheetDetails.targetInventory',
+        'worksheetDetails.targetInventory.product'
       ]
     })
 
     return {
       worksheetInfo: {
         bizplaceName: worksheet.bizplace.name,
-        containerNo: arrivalNotice.containerNo,
-        bufferLocation: worksheet.bufferLocation.name,
         startedAt: worksheet.startedAt
       },
       worksheetDetailInfos: worksheet.worksheetDetails.map((putawayWSD: WorksheetDetail) => {
-        const targetProduct: OrderProduct = putawayWSD.targetProduct
+        const targetInventory: Inventory = putawayWSD.targetInventory
         return {
           name: putawayWSD.name,
-          batchId: targetProduct.batchId,
-          product: targetProduct.product,
+          palletId: targetInventory.palletId,
+          batchId: targetInventory.batchId,
+          product: targetInventory.product,
+          status: putawayWSD.status,
           description: putawayWSD.description,
-          targetName: targetProduct.name,
-          packingType: targetProduct.packingType,
-          palletQty: targetProduct.palletQty,
-          actualPalletQty: targetProduct.actualPalletQty,
-          packQty: targetProduct.packQty,
-          actualPackQty: targetProduct.actualPackQty,
-          remark: targetProduct.remark
+          targetName: targetInventory.name,
+          packingType: targetInventory.packingType,
+          toLocation: targetInventory.toLocation
         }
       })
     }
