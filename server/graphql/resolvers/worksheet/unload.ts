@@ -56,6 +56,7 @@ export const unload = {
           ...foundWorksheetDetail.targetProduct
         },
         {
+          actualPalletQty: foundWorksheetDetail.targetProduct.actualPalletQty + 1,
           actualPackQty: foundWorksheetDetail.targetProduct.actualPackQty + qty
         }
       )
