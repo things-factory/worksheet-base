@@ -1,7 +1,7 @@
 import { Bizplace } from '@things-factory/sales-base'
 import { getRepository, In } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { WORKSHEET_STATUS, INVENTORY_STATUS } from '../../../enum'
+import { WORKSHEET_STATUS, INVENTORY_STATUS, WORKSHEET_TYPE } from '../../../enum'
 import { Inventory } from '@things-factory/warehouse-base'
 
 export const unloadedInventories = {
@@ -10,14 +10,15 @@ export const unloadedInventories = {
       where: {
         domain: context.state.domain,
         name: worksheetDetailName,
-        status: WORKSHEET_STATUS.EXECUTING
+        type: WORKSHEET_TYPE.UNLOADING,
+        status: WORKSHEET_STATUS.DONE
       },
       relations: ['bizplace', 'targetProduct', 'worksheet', 'worksheet.bufferLocation']
     })
 
-    if (!foundWorksheetDetail) throw new Error(`WorksheetDetail doesn't exist`)
-    const customerBizplace: Bizplace = foundWorksheetDetail.bizplace
+    if (!foundWorksheetDetail) return []
 
+    const customerBizplace: Bizplace = foundWorksheetDetail.bizplace
     return await getRepository(Inventory).find({
       where: {
         domain: context.state.domain,

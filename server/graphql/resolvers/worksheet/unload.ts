@@ -4,11 +4,11 @@ import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
 import { getManager, getRepository } from 'typeorm'
 import { WorksheetDetail } from '../../../entities'
 import { INVENTORY_STATUS, WORKSHEET_STATUS } from '../../../enum'
+import { OrderProduct } from '@things-factory/sales-base'
 
 export const unload = {
-  async unload(_: any, { worksheetDetail, inventory }, context: any) {
+  async unload(_: any, { worksheetDetailName, inventory }, context: any) {
     return await getManager().transaction(async () => {
-      const worksheetDetailName = worksheetDetail.name
       const palletId = inventory.palletId
       const qty = inventory.qty
 
@@ -38,6 +38,7 @@ export const unload = {
         bizplace: customerBizplace,
         name: InventoryNoGenerator.inventoryName(),
         palletId: palletId,
+        batchId: foundWorksheetDetail.targetProduct.batchId,
         qty: qty,
         product: foundWorksheetDetail.targetProduct.product,
         packingType: foundWorksheetDetail.targetProduct.packingType,
@@ -49,7 +50,17 @@ export const unload = {
         updater: context.state.user
       })
 
-      // 3. update status of worksheetDetail (EXECUTING => DONE)
+      // 3. Update qty of targetProduct
+      await getRepository(OrderProduct).update(
+        {
+          ...foundWorksheetDetail.targetProduct
+        },
+        {
+          actualPackQty: foundWorksheetDetail.targetProduct.actualPackQty + qty
+        }
+      )
+
+      // 4. update status of worksheetDetail (EXECUTING => DONE)
       await getRepository(WorksheetDetail).save({
         ...foundWorksheetDetail,
         status: WORKSHEET_STATUS.DONE,

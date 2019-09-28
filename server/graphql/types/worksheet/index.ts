@@ -41,16 +41,19 @@ export const Mutation = `
     vasWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet
 
-  completeUnloading (
-    arrivalNoticeNo: String!
-    unloadingWorksheetDetails: [WorksheetDetailPatch]!
-    unloadedPallets: [InventoryPatch]!
-  ): Worksheet
-
   unload (
-    worksheetDetail: WorksheetDetailPatch!
+    worksheetDetailName: String!
     inventory: InventoryPatch!
   ): Boolean
+
+  undoUnloading (
+    worksheetDetailName: String!
+    palletId: String!
+  ): Boolean
+
+  completeUnloading (
+    arrivalNoticeNo: String!
+  ): Worksheet
 
   putaway (
     worksheetDetail: WorksheetDetailPatch!
@@ -84,9 +87,9 @@ export const Query = `
   worksheets(filters: [Filter], pagination: Pagination, sortings: [Sorting]): WorksheetList
   worksheet(name: String!): Worksheet
   unloadingWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
+  unloadedInventories(worksheetDetailName: String!): [Inventory]
   putawayWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   vasWorksheet(orderNo: String!, orderType: String!): ExecutingWorksheet
-  unloadedInventories(worksheetDetailName: String!): [Inventory]
 `
 
 export const Types = [

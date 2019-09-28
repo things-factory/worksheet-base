@@ -2,6 +2,8 @@ import { ArrivalNotice, OrderProduct } from '@things-factory/sales-base'
 import { getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
+import { Inventory } from '@things-factory/warehouse-base'
+import { Bizplace } from '@things-factory/biz-base'
 
 export const unloadingWorksheetResolver = {
   async unloadingWorksheet(_: any, { arrivalNoticeNo }, context: any) {
@@ -11,12 +13,13 @@ export const unloadingWorksheetResolver = {
     })
 
     if (!arrivalNotice) throw new Error(`Arrival notice dosen't exist.`)
+    const customerBizplace: Bizplace = arrivalNotice.bizplace
 
     const worksheet: Worksheet = await getRepository(Worksheet).findOne({
       where: {
         domain: context.state.domain,
         arrivalNotice,
-        bizplace: arrivalNotice.bizplace,
+        bizplace: customerBizplace,
         type: WORKSHEET_TYPE.UNLOADING,
         status: WORKSHEET_STATUS.EXECUTING
       },
@@ -37,13 +40,14 @@ export const unloadingWorksheetResolver = {
 
     return {
       worksheetInfo: {
-        bizplaceName: worksheet.bizplace.name,
+        bizplaceName: customerBizplace.name,
         containerNo: arrivalNotice.containerNo,
         bufferLocation: worksheet.bufferLocation.name,
         startedAt: worksheet.startedAt
       },
-      worksheetDetailInfos: worksheet.worksheetDetails.map((productWSD: WorksheetDetail) => {
+      worksheetDetailInfos: worksheet.worksheetDetails.map(async (productWSD: WorksheetDetail) => {
         const targetProduct: OrderProduct = productWSD.targetProduct
+
         return {
           name: productWSD.name,
           batchId: targetProduct.batchId,
@@ -52,7 +56,16 @@ export const unloadingWorksheetResolver = {
           targetName: targetProduct.name,
           packingType: targetProduct.packingType,
           palletQty: targetProduct.palletQty,
+          actualPalletQty: await getRepository(Inventory).count({
+            where: {
+              domain: context.state.domain,
+              bizplace: customerBizplace,
+              batchId: targetProduct.batchId,
+              location: worksheet.bufferLocation
+            }
+          }),
           packQty: targetProduct.packQty,
+          actualPackQty: 10,
           remark: targetProduct.remark,
           status: productWSD.status
         }

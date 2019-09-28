@@ -13,8 +13,9 @@ import { updateWorksheet } from './update-worksheet'
 import { vasWorksheetResolver } from './vas-worksheet'
 import { worksheetResolver } from './worksheet'
 import { worksheetsResolver } from './worksheets'
-import { unloadedInventories } from './unloaded-inventories'
 import { unload } from './unload'
+import { unloadedInventories } from './unloaded-inventories'
+import { undoUnloading } from './undo-unloading'
 import { putaway } from './putaway'
 import { undoPutaway } from './undo-putaway'
 import { executeVas } from './execute-vas'
@@ -38,6 +39,7 @@ export const Mutation = {
   ...activatePutaway,
   ...activateVas,
   ...unload,
+  ...undoUnloading,
   ...completeUnloading,
   ...putaway,
   ...undoPutaway,
