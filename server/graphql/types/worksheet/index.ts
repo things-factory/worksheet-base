@@ -61,6 +61,14 @@ export const Mutation = `
     arrivalNoticeNo: String!
   ): Boolean
 
+  executeVas (
+    worksheetDetail: WorksheetDetailPatch!
+  ): Boolean
+
+  undoVas (
+    worksheetDetail: WorksheetDetailPatch!
+  ): Boolean
+
   completeVas (
     orderNo: String!
     orderType: String!

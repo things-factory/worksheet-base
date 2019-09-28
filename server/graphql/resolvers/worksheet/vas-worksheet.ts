@@ -14,6 +14,7 @@ export const vasWorksheetResolver = {
       })
 
       if (!arrivalNotice) throw new Error(`Arrival notice dosen't exist.`)
+      const customerBizplace: Bizplace = arrivalNotice.bizplace
 
       const worksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
@@ -34,7 +35,7 @@ export const vasWorksheetResolver = {
 
       return {
         worksheetInfo: {
-          bizplaceName: worksheet.bizplace.name,
+          bizplaceName: customerBizplace,
           containerNo: arrivalNotice.containerNo,
           startedAt: worksheet.startedAt
         },
