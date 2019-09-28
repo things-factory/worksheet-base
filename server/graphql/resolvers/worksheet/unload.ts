@@ -3,7 +3,7 @@ import { Inventory } from '@things-factory/warehouse-base'
 import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
 import { getManager, getRepository } from 'typeorm'
 import { WorksheetDetail } from '../../../entities'
-import { INVENTORY_STATUS, WORKSHEET_STATUS } from '../../../enum'
+import { INVENTORY_STATUS, WORKSHEET_STATUS, ORDER_PRODUCT_STATUS } from '../../../enum'
 import { OrderProduct } from '@things-factory/sales-base'
 
 export const unload = {
@@ -57,7 +57,9 @@ export const unload = {
         },
         {
           actualPalletQty: foundWorksheetDetail.targetProduct.actualPalletQty + 1,
-          actualPackQty: foundWorksheetDetail.targetProduct.actualPackQty + qty
+          actualPackQty: foundWorksheetDetail.targetProduct.actualPackQty + qty,
+          status: ORDER_PRODUCT_STATUS.UNLOADED,
+          updater: context.state.user
         }
       )
 
