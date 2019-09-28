@@ -1,8 +1,10 @@
-import { ArrivalNotice, OrderProduct } from '@things-factory/sales-base'
+import { Bizplace } from '@things-factory/biz-base'
+import { ArrivalNotice } from '@things-factory/sales-base'
 import { Inventory, InventoryHistory } from '@things-factory/warehouse-base'
-import { Equal, getManager, getRepository, Not, UpdateResult } from 'typeorm'
+import { InventoryNoGenerator } from 'server/utils/inventory-no-generator'
+import { getManager, getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { INVENTORY_STATUS, ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
+import { INVENTORY_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
 export const completePutaway = {
   async completePutaway(_: any, { arrivalNoticeNo }, context: any) {
@@ -17,16 +19,23 @@ export const completePutaway = {
       })
 
       if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
+      const customerBizplace: Bizplace = arrivalNotice.bizplace
 
       const foundPutawayWorksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
           domain: context.state.domain,
-          bizplace: arrivalNotice.bizplace,
+          bizplace: customerBizplace,
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.PUTAWAY,
           arrivalNotice
         },
-        relations: ['worksheetDetails', 'worksheetDetails.targetInventory']
+        relations: [
+          'worksheetDetails',
+          'worksheetDetails.targetInventory',
+          'worksheetDetails.targetInventory.product',
+          'worksheetDetails.targetInventory.warehouse',
+          'worksheetDetails.targetInventory.location'
+        ]
       })
 
       if (!foundPutawayWorksheet) throw new Error(`Worksheet doesn't exists.`)
@@ -44,12 +53,25 @@ export const completePutaway = {
 
       await getRepository(InventoryHistory).insert(
         worksheetDetails.map((worksheetDetail: WorksheetDetail) => {
-          const inventory: any = worksheetDetail.targetInventory
-          let inventoryHistory = new InventoryHistory()
-          delete inventory.id
-          inventory.seq = inventory.lastSeq++
-          inventoryHistory = { ...inventory }
-          return inventoryHistory
+          const inventory: Inventory = worksheetDetail.targetInventory
+
+          return {
+            domain: context.state.domain,
+            bizplace: customerBizplace,
+            seq: inventory.lastSeq++,
+            name: InventoryNoGenerator.inventoryHistoryName(),
+            palletId: inventory.palletId,
+            batchId: inventory.batchId,
+            productId: inventory.product.id,
+            warehouseId: inventory.warehouse.id,
+            locationId: inventory.location.id,
+            zone: inventory.zone,
+            packingType: inventory.packingType,
+            qty: inventory.qty,
+            status: INVENTORY_STATUS.OCCUPIED,
+            creator: context.state.user,
+            updater: context.state.user
+          }
         })
       )
     })
