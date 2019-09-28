@@ -35,7 +35,7 @@ export const vasWorksheetResolver = {
 
       return {
         worksheetInfo: {
-          bizplaceName: customerBizplace,
+          bizplaceName: customerBizplace.name,
           containerNo: arrivalNotice.containerNo,
           startedAt: worksheet.startedAt
         },
