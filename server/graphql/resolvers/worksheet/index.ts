@@ -36,9 +36,9 @@ export const Mutation = {
   ...activateVas,
   ...completeUnloading,
   ...completePutaway,
-  ...completeVas,
   ...putaway,
   ...undoPutaway,
   ...executeVas,
-  ...undoVas
+  ...undoVas,
+  ...completeVas
 }

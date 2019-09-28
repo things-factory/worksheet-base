@@ -1,9 +1,7 @@
-import { Inventory, Location } from '@things-factory/warehouse-base'
+import { OrderVas } from '@things-factory/sales-base'
 import { getManager, getRepository } from 'typeorm'
 import { WorksheetDetail } from '../../../entities'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE, ORDER_VAS_STATUS } from '../../../enum'
-import { OrderVas } from '@things-factory/sales-base'
-import { Bizplace } from '@things-factory/biz-base'
+import { ORDER_VAS_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
 export const executeVas = {
   async executeVas(_: any, { worksheetDetail }, context: any) {
@@ -18,7 +16,7 @@ export const executeVas = {
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.VAS
         },
-        relations: ['bizplace', 'targetVas']
+        relations: ['targetVas']
       })
 
       if (!foundWorksheetDetail) throw new Error("Worksheet doesn't exists")

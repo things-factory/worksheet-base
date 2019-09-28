@@ -72,8 +72,7 @@ export const Mutation = `
   completeVas (
     orderNo: String!
     orderType: String!
-    vasWorksheetDetails: [WorksheetDetailPatch]!
-  ): Worksheet
+  ): Boolean
 `
 
 export const Query = `

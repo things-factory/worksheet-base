@@ -1,10 +1,10 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice } from '@things-factory/sales-base'
 import { Inventory, InventoryHistory } from '@things-factory/warehouse-base'
-import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
 import { getManager, getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { INVENTORY_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
+import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
 
 export const completePutaway = {
   async completePutaway(_: any, { arrivalNoticeNo }, context: any) {
@@ -51,31 +51,39 @@ export const completePutaway = {
       const worksheetDetails: WorksheetDetail[] = foundPutawayWorksheet.worksheetDetails
 
       // 3. insert new inventory history & update lastSeq of inventory
-      worksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
-        const inventory: Inventory = worksheetDetail.targetInventory
-        const inventoryHistory: InventoryHistory = await getRepository(InventoryHistory).save({
-          domain: context.state.domain,
-          bizplace: customerBizplace,
-          seq: inventory.lastSeq++,
-          name: InventoryNoGenerator.inventoryHistoryName(),
-          palletId: inventory.palletId,
-          batchId: inventory.batchId,
-          productId: inventory.product.id,
-          warehouseId: inventory.warehouse.id,
-          locationId: inventory.location.id,
-          zone: inventory.zone,
-          packingType: inventory.packingType,
-          qty: inventory.qty,
-          status: INVENTORY_STATUS.OCCUPIED,
-          creator: context.state.user,
-          updater: context.state.user
-        })
+      await Promise.all(
+        worksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
+          const inventory: Inventory = worksheetDetail.targetInventory
+          const inventoryHistory: InventoryHistory = await getRepository(InventoryHistory).save({
+            domain: context.state.domain,
+            bizplace: customerBizplace,
+            seq: inventory.lastSeq++,
+            name: InventoryNoGenerator.inventoryHistoryName(),
+            palletId: inventory.palletId,
+            batchId: inventory.batchId,
+            productId: inventory.product.id,
+            warehouseId: inventory.warehouse.id,
+            locationId: inventory.location.id,
+            zone: inventory.zone,
+            packingType: inventory.packingType,
+            qty: inventory.qty,
+            status: INVENTORY_STATUS.OCCUPIED,
+            creator: context.state.user,
+            updater: context.state.user
+          })
 
-        await getRepository(Inventory).save({
-          ...inventory,
-          lastSeq: inventoryHistory.seq,
-          updater: context.state.updater
+          await getRepository(Inventory).save({
+            ...inventory,
+            lastSeq: inventoryHistory.seq,
+            updater: context.state.updater
+          })
         })
+      )
+
+      await getRepository(ArrivalNotice).save({
+        ...arrivalNotice,
+        status: ORDER_STATUS.DONE,
+        updater: context.state.user
       })
     })
   }
