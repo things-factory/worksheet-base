@@ -8,7 +8,7 @@ export const undoUnloading = {
   async undoUnloading(_: any, { worksheetDetailName, palletId }, context: any) {
     return await getManager().transaction(async () => {
       const foundWorksheetDetail: WorksheetDetail = await getRepository(WorksheetDetail).findOne({
-        where: { domain: context.state.domain, name: worksheetDetailName, status: WORKSHEET_STATUS.DONE },
+        where: { domain: context.state.domain, name: worksheetDetailName, status: WORKSHEET_STATUS.EXECUTING },
         relations: ['bizplace', 'fromLocation', 'toLocation', 'targetProduct']
       })
 

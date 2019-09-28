@@ -62,13 +62,6 @@ export const unload = {
           updater: context.state.user
         }
       )
-
-      // 4. update status of worksheetDetail (EXECUTING => DONE)
-      await getRepository(WorksheetDetail).save({
-        ...foundWorksheetDetail,
-        status: WORKSHEET_STATUS.DONE,
-        updater: context.state.user
-      })
     })
   }
 }
