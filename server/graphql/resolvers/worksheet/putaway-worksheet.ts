@@ -26,6 +26,7 @@ export const putawayWorksheetResolver = {
         'arrivalNotice',
         'worksheetDetails',
         'worksheetDetails.targetInventory',
+        'worksheetDetails.targetInventory.location',
         'worksheetDetails.targetInventory.product',
         'worksheetDetails.toLocation'
       ]
@@ -47,6 +48,7 @@ export const putawayWorksheetResolver = {
           description: putawayWSD.description,
           targetName: targetInventory.name,
           packingType: targetInventory.packingType,
+          location: targetInventory.location,
           toLocation: putawayWSD.toLocation
         }
       })
