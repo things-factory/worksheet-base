@@ -10,7 +10,7 @@ export const putaway = {
       const toLocationName = worksheetDetail.toLocation.name
       const palletId = inventory.palletId
 
-      // 1. update status of worksheetDetail (EXECUTING => DONE)
+      // 1. find worksheetDetail
       const foundWorksheetDetail: WorksheetDetail = await getRepository(WorksheetDetail).findOne({
         where: {
           domain: context.state.domain,
@@ -23,12 +23,6 @@ export const putaway = {
 
       if (!foundWorksheetDetail) throw new Error("Worksheet doesn't exists")
 
-      await getRepository(WorksheetDetail).save({
-        ...foundWorksheetDetail,
-        status: WORKSHEET_STATUS.DONE,
-        updater: context.state.user
-      })
-
       // 2. update inventory from buffer location to shelf location
       const targetInventory: Inventory = await getRepository(Inventory).findOne({
         where: { domain: context.state.domain, palletId }
@@ -37,6 +31,13 @@ export const putaway = {
       await getRepository(Inventory).save({
         ...targetInventory,
         location: await getRepository(Location).findOne({ domain: context.state.domain, name: toLocationName }),
+        updater: context.state.user
+      })
+
+      // 3. update status of worksheetDetail (EXECUTING => DONE)
+      await getRepository(WorksheetDetail).save({
+        ...foundWorksheetDetail,
+        status: WORKSHEET_STATUS.DONE,
         updater: context.state.user
       })
     })

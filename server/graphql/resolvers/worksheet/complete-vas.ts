@@ -28,6 +28,7 @@ export const completeVas = {
         await getRepository(Worksheet).save({
           ...worksheet,
           status: WORKSHEET_STATUS.DONE,
+          endedAt: Date.now(),
           updater: context.state.user
         })
       } else if (orderType === ORDER_TYPES.COLLECTION) {

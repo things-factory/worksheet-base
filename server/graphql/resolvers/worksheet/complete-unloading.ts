@@ -56,10 +56,7 @@ export const completeUnloading = {
             ...unloadedPallet,
             domain: context.state.domain,
             bizplace: customerBizplace,
-            name: InventoryNoGenerator.inventoryName(
-              foundUnloadingWorksheet.bufferLocation.name,
-              unloadedPallet.batchId
-            ),
+            name: InventoryNoGenerator.inventoryName(),
             product: orderProduct.targetProduct.product,
             warehouse: foundUnloadingWorksheet.bufferLocation.warehouse,
             location: foundUnloadingWorksheet.bufferLocation,

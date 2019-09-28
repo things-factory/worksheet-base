@@ -47,6 +47,11 @@ export const Mutation = `
     unloadedPallets: [InventoryPatch]!
   ): Worksheet
 
+  unload (
+    worksheetDetail: WorksheetDetailPatch!
+    inventory: InventoryPatch!
+  ): Boolean
+
   putaway (
     worksheetDetail: WorksheetDetailPatch!
     inventory: InventoryPatch!
@@ -81,6 +86,7 @@ export const Query = `
   unloadingWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   putawayWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   vasWorksheet(orderNo: String!, orderType: String!): ExecutingWorksheet
+  unloadedInventories(worksheetDetailName: String!): [Inventory]
 `
 
 export const Types = [

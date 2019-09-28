@@ -36,7 +36,7 @@ export const activateUnloading = {
             },
             {
               description: productWorksheetDetail.description,
-              status: WORKSHEET_STATUS.DEACTIVATED,
+              status: WORKSHEET_STATUS.EXECUTING,
               updater: context.state.user
             }
           )
