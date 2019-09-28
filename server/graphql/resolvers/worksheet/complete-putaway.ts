@@ -1,7 +1,7 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice } from '@things-factory/sales-base'
 import { Inventory, InventoryHistory } from '@things-factory/warehouse-base'
-import { InventoryNoGenerator } from 'server/utils/inventory-no-generator'
+import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
 import { getManager, getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { INVENTORY_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
