@@ -2,6 +2,7 @@ import { ArrivalNotice, OrderVas } from '@things-factory/sales-base'
 import { getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { ORDER_STATUS, ORDER_TYPES, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
+import { Bizplace } from '@things-factory/biz-base'
 
 export const vasWorksheetResolver = {
   async vasWorksheet(_: any, { orderNo, orderType }, context: any) {
@@ -16,14 +17,12 @@ export const vasWorksheetResolver = {
 
       const worksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
-          domain: context.state.domain,
           arrivalNotice,
-          bizplace: arrivalNotice.bizplace,
+          domain: context.state.domain,
           type: WORKSHEET_TYPE.VAS,
           status: WORKSHEET_STATUS.EXECUTING
         },
         relations: [
-          'bizplace',
           'arrivalNotice',
           'worksheetDetails',
           'worksheetDetails.targetVas',
@@ -37,7 +36,6 @@ export const vasWorksheetResolver = {
         worksheetInfo: {
           bizplaceName: worksheet.bizplace.name,
           containerNo: arrivalNotice.containerNo,
-          bufferLocation: worksheet.bufferLocation.name,
           startedAt: worksheet.startedAt
         },
         worksheetDetailInfos: worksheet.worksheetDetails.map((vasWSD: WorksheetDetail) => {
@@ -48,7 +46,8 @@ export const vasWorksheetResolver = {
             targetName: targetVas.name,
             vas: targetVas.vas,
             description: vasWSD.description,
-            remark: targetVas.remark
+            remark: targetVas.remark,
+            status: vasWSD.status
           }
         })
       }

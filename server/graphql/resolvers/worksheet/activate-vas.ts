@@ -14,14 +14,13 @@ export const activateVas = {
       const foundWorksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
           domain: context.state.domain,
-          name: worksheetNo
+          name: worksheetNo,
+          status: WORKSHEET_STATUS.DEACTIVATED
         },
         relations: ['arrivalNotice', 'shippingOrder', 'worksheetDetails', 'worksheetDetails.targetVas']
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
-      if (foundWorksheet.status !== WORKSHEET_STATUS.DEACTIVATED)
-        throw new Error('Status is not suitable for unloading')
 
       /**
        * 2. Update description of vas worksheet details

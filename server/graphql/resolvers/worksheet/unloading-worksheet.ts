@@ -53,7 +53,8 @@ export const unloadingWorksheetResolver = {
           packingType: targetProduct.packingType,
           palletQty: targetProduct.palletQty,
           packQty: targetProduct.packQty,
-          remark: targetProduct.remark
+          remark: targetProduct.remark,
+          status: productWSD.status
         }
       })
     }
