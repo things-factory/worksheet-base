@@ -48,32 +48,35 @@ export const completePutaway = {
         updater: context.state.user
       })
 
-      // 3. insert inventory history table
       const worksheetDetails: WorksheetDetail[] = foundPutawayWorksheet.worksheetDetails
 
-      await getRepository(InventoryHistory).insert(
-        worksheetDetails.map((worksheetDetail: WorksheetDetail) => {
-          const inventory: Inventory = worksheetDetail.targetInventory
-
-          return {
-            domain: context.state.domain,
-            bizplace: customerBizplace,
-            seq: inventory.lastSeq++,
-            name: InventoryNoGenerator.inventoryHistoryName(),
-            palletId: inventory.palletId,
-            batchId: inventory.batchId,
-            productId: inventory.product.id,
-            warehouseId: inventory.warehouse.id,
-            locationId: inventory.location.id,
-            zone: inventory.zone,
-            packingType: inventory.packingType,
-            qty: inventory.qty,
-            status: INVENTORY_STATUS.OCCUPIED,
-            creator: context.state.user,
-            updater: context.state.user
-          }
+      // 3. insert new inventory history & update lastSeq of inventory
+      worksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
+        const inventory: Inventory = worksheetDetail.targetInventory
+        const inventoryHistory: InventoryHistory = await getRepository(InventoryHistory).save({
+          domain: context.state.domain,
+          bizplace: customerBizplace,
+          seq: inventory.lastSeq++,
+          name: InventoryNoGenerator.inventoryHistoryName(),
+          palletId: inventory.palletId,
+          batchId: inventory.batchId,
+          productId: inventory.product.id,
+          warehouseId: inventory.warehouse.id,
+          locationId: inventory.location.id,
+          zone: inventory.zone,
+          packingType: inventory.packingType,
+          qty: inventory.qty,
+          status: INVENTORY_STATUS.OCCUPIED,
+          creator: context.state.user,
+          updater: context.state.user
         })
-      )
+
+        await getRepository(Inventory).save({
+          ...inventory,
+          lastSeq: inventoryHistory.seq,
+          updater: context.state.updater
+        })
+      })
     })
   }
 }
