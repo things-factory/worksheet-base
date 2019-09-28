@@ -51,17 +51,13 @@ export const unload = {
       })
 
       // 3. Update qty of targetProduct
-      await getRepository(OrderProduct).update(
-        {
-          ...foundWorksheetDetail.targetProduct
-        },
-        {
-          actualPalletQty: foundWorksheetDetail.targetProduct.actualPalletQty + 1,
-          actualPackQty: foundWorksheetDetail.targetProduct.actualPackQty + qty,
-          status: ORDER_PRODUCT_STATUS.UNLOADED,
-          updater: context.state.user
-        }
-      )
+      await getRepository(OrderProduct).save({
+        ...foundWorksheetDetail.targetProduct,
+        actualPalletQty: foundWorksheetDetail.targetProduct.actualPalletQty + 1,
+        actualPackQty: foundWorksheetDetail.targetProduct.actualPackQty + qty,
+        status: ORDER_PRODUCT_STATUS.UNLOADED,
+        updater: context.state.user
+      })
     })
   }
 }
