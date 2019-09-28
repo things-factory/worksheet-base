@@ -1,8 +1,8 @@
 import { Bizplace } from '@things-factory/sales-base'
-import { getRepository, In } from 'typeorm'
-import { Worksheet, WorksheetDetail } from '../../../entities'
-import { WORKSHEET_STATUS, INVENTORY_STATUS, WORKSHEET_TYPE } from '../../../enum'
 import { Inventory } from '@things-factory/warehouse-base'
+import { getRepository } from 'typeorm'
+import { WorksheetDetail } from '../../../entities'
+import { INVENTORY_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
 export const unloadedInventories = {
   async unloadedInventories(_: any, { worksheetDetailName }, context: any) {
@@ -11,7 +11,7 @@ export const unloadedInventories = {
         domain: context.state.domain,
         name: worksheetDetailName,
         type: WORKSHEET_TYPE.UNLOADING,
-        status: WORKSHEET_STATUS.DONE
+        status: WORKSHEET_STATUS.EXECUTING
       },
       relations: ['bizplace', 'targetProduct', 'worksheet', 'worksheet.bufferLocation']
     })

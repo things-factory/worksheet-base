@@ -56,16 +56,9 @@ export const unloadingWorksheetResolver = {
           targetName: targetProduct.name,
           packingType: targetProduct.packingType,
           palletQty: targetProduct.palletQty,
-          actualPalletQty: await getRepository(Inventory).count({
-            where: {
-              domain: context.state.domain,
-              bizplace: customerBizplace,
-              batchId: targetProduct.batchId,
-              location: worksheet.bufferLocation
-            }
-          }),
+          actualPalletQty: targetProduct.actualPalletQty,
           packQty: targetProduct.packQty,
-          actualPackQty: 10,
+          actualPackQty: targetProduct.actualPackQty,
           remark: targetProduct.remark,
           status: productWSD.status
         }
