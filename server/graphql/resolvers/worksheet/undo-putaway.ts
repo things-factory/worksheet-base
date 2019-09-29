@@ -27,19 +27,13 @@ export const undoPutaway = {
         where: { domain: context.state.domain, palletId }
       })
 
-      await getRepository(Inventory).update(
-        {
-          ...targetInventory
-        },
-        {
-          location: await getRepository(Location).findOne({
-            where: { domain: context.state.domain, name: foundWorksheetDetail.fromLocation.name }
-          }),
-          updater: context.state.user
-        }
-      )
-
-      return true
+      await getRepository(Inventory).save({
+        ...targetInventory,
+        location: await getRepository(Location).findOne({
+          where: { domain: context.state.domain, name: foundWorksheetDetail.fromLocation.name }
+        }),
+        updater: context.state.user
+      })
     })
   }
 }

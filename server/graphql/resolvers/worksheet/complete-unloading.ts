@@ -54,11 +54,12 @@ export const completeUnloading = {
         foundWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
           const inventories: Inventory[] = await getRepository(Inventory).find({
             where: {
-              domain: context.statef.domain,
+              domain: context.state.domain,
               bizplace: customerBizplace,
               batchId: worksheetDetail.targetProduct.batchId,
               location: foundWorksheet.bufferLocation
-            }
+            },
+            relations: ['product', 'warehouse', 'location']
           })
 
           await getRepository(InventoryHistory).insert(
@@ -154,43 +155,45 @@ export const completeUnloading = {
         foundWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
           const inventories: Inventory[] = await getRepository(Inventory).find({
             where: {
-              domain: context.statef.domain,
+              domain: context.state.domain,
               bizplace: customerBizplace,
               batchId: worksheetDetail.targetProduct.batchId,
               location: foundWorksheet.bufferLocation
             }
           })
 
-          inventories.map(async (inventory: Inventory) => {
-            await getRepository(WorksheetDetail).save({
-              domain: context.state.domain,
-              bizplace: customerBizplace,
-              name: WorksheetNoGenerator.putawayDetail(),
-              type: WORKSHEET_TYPE.PUTAWAY,
-              worksheet: putawayWorksheet,
-              targetInventory: inventory,
-              fromLocation: foundWorksheet.bufferLocation,
-              status: WORKSHEET_STATUS.DEACTIVATED,
-              creator: context.state.user,
-              updater: context.state.user
-            })
+          await Promise.all(
+            inventories.map(async (inventory: Inventory) => {
+              await getRepository(WorksheetDetail).save({
+                domain: context.state.domain,
+                bizplace: customerBizplace,
+                name: WorksheetNoGenerator.putawayDetail(),
+                type: WORKSHEET_TYPE.PUTAWAY,
+                worksheet: putawayWorksheet,
+                targetInventory: inventory,
+                fromLocation: foundWorksheet.bufferLocation,
+                status: WORKSHEET_STATUS.DEACTIVATED,
+                creator: context.state.user,
+                updater: context.state.user
+              })
 
-            await getRepository(InventoryHistory).insert({
-              domain: context.state.domain,
-              bizplace: customerBizplace,
-              name: inventory.name,
-              palletId: inventory.palletId,
-              batchId: inventory.batchId,
-              qty: inventory.qty,
-              productId: inventory.product.id,
-              warehouseId: inventory.warehouse.id,
-              locationId: inventory.location.id,
-              zone: inventory.zone,
-              status: inventory.status,
-              creator: inventory.creator,
-              updater: inventory.updater
+              await getRepository(InventoryHistory).insert({
+                domain: context.state.domain,
+                bizplace: customerBizplace,
+                name: inventory.name,
+                palletId: inventory.palletId,
+                batchId: inventory.batchId,
+                qty: inventory.qty,
+                productId: inventory.product.id,
+                warehouseId: inventory.warehouse.id,
+                locationId: inventory.location.id,
+                zone: inventory.zone,
+                status: inventory.status,
+                creator: inventory.creator,
+                updater: inventory.updater
+              })
             })
-          })
+          )
         })
       )
 
