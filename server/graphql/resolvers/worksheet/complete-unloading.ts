@@ -67,7 +67,6 @@ export const completeUnloading = {
               return {
                 ...inventory,
                 seq: inventory.lastSeq,
-                name: InventoryNoGenerator.inventoryHistoryName(),
                 productId: inventory.product.id,
                 warehouseId: inventory.warehouse.id,
                 locationId: inventory.location.id,

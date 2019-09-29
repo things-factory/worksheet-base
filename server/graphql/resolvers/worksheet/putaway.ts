@@ -6,8 +6,15 @@ import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 export const putaway = {
   async putaway(_: any, { worksheetDetail, inventory }, context: any) {
     return await getManager().transaction(async () => {
+      const toLocation: Location = await getRepository(Location).findOne({
+        domain: context.state.domain,
+        name: worksheetDetail.toLocation.name
+      })
+
+      // 1. validity of location
+      if (!toLocation) throw new Error('Location is not valid')
+
       const worksheetDetailName = worksheetDetail.name
-      const toLocationName = worksheetDetail.toLocation.name
       const palletId = inventory.palletId
 
       // 1. find worksheetDetail
@@ -30,7 +37,7 @@ export const putaway = {
 
       await getRepository(Inventory).save({
         ...targetInventory,
-        location: await getRepository(Location).findOne({ domain: context.state.domain, name: toLocationName }),
+        location: toLocation,
         updater: context.state.user
       })
 
