@@ -7,7 +7,7 @@ import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
 import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
 
 export const completeUnloading = {
-  async completeUnloading(_: any, { arrivalNoticeNo }, context: any) {
+  async completeUnloading(_: any, { arrivalNoticeNo, worksheetDetails }, context: any) {
     return await getManager().transaction(async () => {
       /**
        * 1. Validation for worksheet
@@ -18,17 +18,10 @@ export const completeUnloading = {
         relations: ['bizplace']
       })
 
-      // arrival notice
-      // worksheet detail
-      // worksheet
-      // order product
-      // inventory
-      // inventory history
-
       if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
       const customerBizplace: Bizplace = arrivalNotice.bizplace
 
-      const foundUnloadingWorksheet: Worksheet = await getRepository(Worksheet).findOne({
+      const foundWorksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
           domain: context.state.domain,
           bizplace: customerBizplace,
@@ -51,20 +44,20 @@ export const completeUnloading = {
         ]
       })
 
-      if (!foundUnloadingWorksheet) throw new Error(`Worksheet doesn't exists.`)
+      if (!foundWorksheet) throw new Error(`Worksheet doesn't exists.`)
 
       /**
        * 2) Insert new inventory history records
        */
-      const worksheetDetails: WorksheetDetail[] = foundUnloadingWorksheet.worksheetDetails
+      const foundWorksheetDetails: WorksheetDetail[] = foundWorksheet.worksheetDetails
       await Promise.all(
-        worksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
+        foundWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
           const inventories: Inventory[] = await getRepository(Inventory).find({
             where: {
               domain: context.statef.domain,
               bizplace: customerBizplace,
               batchId: worksheetDetail.targetProduct.batchId,
-              location: foundUnloadingWorksheet.bufferLocation
+              location: foundWorksheet.bufferLocation
             }
           })
 
@@ -89,11 +82,29 @@ export const completeUnloading = {
        * 3. Update worksheet status (status: EXECUTING => DONE)
        */
       await getRepository(Worksheet).save({
-        ...foundUnloadingWorksheet,
+        ...foundWorksheet,
         status: WORKSHEET_STATUS.DONE,
         endedAt: Date.now(),
         updater: context.state.user
       })
+
+      /**
+       * 4. Update worksheet detail status (EXECUTING => DONE) & issue note
+       */
+      await Promise.all(
+        foundWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
+          const patchedWD: WorksheetDetail = worksheetDetails.filter(
+            (patchedWD: WorksheetDetail) => patchedWD.name === worksheetDetail.name
+          )[0]
+          if (patchedWD.issue) worksheetDetail.issue = patchedWD.issue
+
+          await getRepository(WorksheetDetail).save({
+            ...worksheetDetail,
+            status: WORKSHEET_STATUS.DONE,
+            updater: context.state.user
+          })
+        })
+      )
 
       /**
        * 4. Check whether every related worksheet is completed
@@ -134,19 +145,19 @@ export const completeUnloading = {
         name: WorksheetNoGenerator.putaway(),
         type: WORKSHEET_TYPE.PUTAWAY,
         status: WORKSHEET_STATUS.DEACTIVATED,
-        bufferLocation: foundUnloadingWorksheet.bufferLocation,
+        bufferLocation: foundWorksheet.bufferLocation,
         creator: context.state.user,
         updater: context.state.user
       })
 
       await Promise.all(
-        worksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
+        foundWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
           const inventories: Inventory[] = await getRepository(Inventory).find({
             where: {
               domain: context.statef.domain,
               bizplace: customerBizplace,
               batchId: worksheetDetail.targetProduct.batchId,
-              location: foundUnloadingWorksheet.bufferLocation
+              location: foundWorksheet.bufferLocation
             }
           })
 
@@ -158,7 +169,7 @@ export const completeUnloading = {
               type: WORKSHEET_TYPE.PUTAWAY,
               worksheet: putawayWorksheet,
               targetInventory: inventory,
-              fromLocation: foundUnloadingWorksheet.bufferLocation,
+              fromLocation: foundWorksheet.bufferLocation,
               status: WORKSHEET_STATUS.DEACTIVATED,
               creator: context.state.user,
               updater: context.state.user
@@ -183,7 +194,7 @@ export const completeUnloading = {
         })
       )
 
-      return foundUnloadingWorksheet
+      return foundWorksheet
     })
   }
 }
