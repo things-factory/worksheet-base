@@ -1,3 +1,4 @@
+import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderProduct } from '@things-factory/sales-base'
 import { getManager, getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -16,12 +17,14 @@ export const activateUnloading = {
           domain: context.state.domain,
           name: worksheetNo
         },
-        relations: ['arrivalNotice', 'worksheetDetails', 'worksheetDetails.targetProduct']
+        relations: ['bizplace', 'arrivalNotice', 'worksheetDetails', 'worksheetDetails.targetProduct']
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
-      if (foundWorksheet.status !== WORKSHEET_STATUS.DEACTIVATED && foundWorksheet.type === WORKSHEET_TYPE.UNLOADING)
+      if (foundWorksheet.status !== WORKSHEET_STATUS.DEACTIVATED && foundWorksheet.type === WORKSHEET_TYPE.UNLOADING) {
         throw new Error('Status is not suitable for unloading')
+      }
+      const customerBizplace: Bizplace = foundWorksheet.bizplace
 
       /**
        * 2. Update description of product worksheet details
@@ -31,8 +34,10 @@ export const activateUnloading = {
           await getRepository(WorksheetDetail).update(
             {
               domain: context.state.domain,
+              bizplace: customerBizplace,
               name: productWorksheetDetail.name,
-              status: WORKSHEET_STATUS.DEACTIVATED
+              status: WORKSHEET_STATUS.DEACTIVATED,
+              worksheet: foundWorksheet
             },
             {
               description: productWorksheetDetail.description,
