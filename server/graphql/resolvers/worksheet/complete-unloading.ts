@@ -18,6 +18,13 @@ export const completeUnloading = {
         relations: ['bizplace']
       })
 
+      // arrival notice
+      // worksheet detail
+      // worksheet
+      // order product
+      // inventory
+      // inventory history
+
       if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
       const customerBizplace: Bizplace = arrivalNotice.bizplace
 
@@ -34,7 +41,13 @@ export const completeUnloading = {
           'bufferLocation.warehouse',
           'worksheetDetails',
           'worksheetDetails.targetProduct',
-          'worksheetDetails.targetProduct.product'
+          'worksheetDetails.targetProduct.product',
+          'worksheetDetails.targetInventory',
+          'worksheetDetails.targetInventory.product',
+          'worksheetDetails.targetInventory.warehouse',
+          'worksheetDetails.targetInventory.location',
+          'worksheetDetails.updater',
+          'worksheetDetails.creator'
         ]
       })
 
@@ -96,7 +109,7 @@ export const completeUnloading = {
         }
       })
 
-      if (!relatedWorksheets || relatedWorksheets.length === 0) {
+      if (relatedWorksheets.length === 0) {
         await getRepository(ArrivalNotice).update(
           {
             domain: context.state.domain,
@@ -137,18 +150,34 @@ export const completeUnloading = {
             }
           })
 
-          inventories.map(async (unloadedPallet: Inventory) => {
+          inventories.map(async (inventory: Inventory) => {
             await getRepository(WorksheetDetail).save({
               domain: context.state.domain,
               bizplace: customerBizplace,
               name: WorksheetNoGenerator.putawayDetail(),
               type: WORKSHEET_TYPE.PUTAWAY,
               worksheet: putawayWorksheet,
-              targetInventory: unloadedPallet,
+              targetInventory: inventory,
               fromLocation: foundUnloadingWorksheet.bufferLocation,
               status: WORKSHEET_STATUS.DEACTIVATED,
               creator: context.state.user,
               updater: context.state.user
+            })
+
+            await getRepository(InventoryHistory).insert({
+              domain: context.state.domain,
+              bizplace: customerBizplace,
+              name: inventory.name,
+              palletId: inventory.palletId,
+              batchId: inventory.batchId,
+              qty: inventory.qty,
+              productId: inventory.product.id,
+              warehouseId: inventory.warehouse.id,
+              locationId: inventory.location.id,
+              zone: inventory.zone,
+              status: inventory.status,
+              creator: inventory.creator,
+              updater: inventory.updater
             })
           })
         })
