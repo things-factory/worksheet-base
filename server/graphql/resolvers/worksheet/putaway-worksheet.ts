@@ -1,8 +1,8 @@
-import { ArrivalNotice } from '@things-factory/sales-base'
+import { ArrivalNotice, ORDER_STATUS } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
 import { getRepository } from 'typeorm'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
 export const putawayWorksheetResolver = {
   async putawayWorksheet(_: any, { arrivalNoticeNo }, context: any) {

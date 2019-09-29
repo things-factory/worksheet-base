@@ -1,8 +1,8 @@
-import { ArrivalNotice, OrderProduct } from '@things-factory/sales-base'
-import { getManager, getRepository } from 'typeorm'
-import { Worksheet, WorksheetDetail } from '../../../entities'
-import { ORDER_PRODUCT_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
+import { ArrivalNotice, ORDER_STATUS } from '@things-factory/sales-base'
 import { Location } from '@things-factory/warehouse-base'
+import { getManager, getRepository } from 'typeorm'
+import { WORKSHEET_STATUS } from '../../../constants'
+import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const activatePutaway = {
   async activatePutaway(_: any, { worksheetNo, putawayWorksheetDetails }, context: any) {

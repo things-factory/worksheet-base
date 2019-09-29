@@ -1,8 +1,8 @@
-import { OrderProduct } from '@things-factory/sales-base'
-import { Inventory } from '@things-factory/warehouse-base'
+import { OrderProduct, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
+import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { getManager, getRepository } from 'typeorm'
+import { WORKSHEET_STATUS } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
-import { INVENTORY_STATUS, WORKSHEET_STATUS, ORDER_PRODUCT_STATUS } from '../../../enum'
 
 export const undoUnloading = {
   async undoUnloading(_: any, { worksheetDetailName, palletId }, context: any) {

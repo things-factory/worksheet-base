@@ -1,8 +1,8 @@
 import { Bizplace } from '@things-factory/sales-base'
-import { Inventory } from '@things-factory/warehouse-base'
+import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { getRepository } from 'typeorm'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
-import { INVENTORY_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
 export const unloadedInventories = {
   async unloadedInventories(_: any, { worksheetDetailName }, context: any) {

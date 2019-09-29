@@ -1,7 +1,7 @@
 import { Inventory, Location } from '@things-factory/warehouse-base'
 import { getManager, getRepository } from 'typeorm'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
 export const putaway = {
   async putaway(_: any, { worksheetDetail, inventory }, context: any) {

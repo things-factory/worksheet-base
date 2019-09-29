@@ -1,7 +1,7 @@
-import { OrderVas } from '@things-factory/sales-base'
+import { OrderVas, ORDER_VAS_STATUS } from '@things-factory/sales-base'
 import { getManager, getRepository } from 'typeorm'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
-import { ORDER_VAS_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
 export const executeVas = {
   async executeVas(_: any, { worksheetDetail }, context: any) {

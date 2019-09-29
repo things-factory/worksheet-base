@@ -1,7 +1,7 @@
-import { ArrivalNotice, OrderVas, ShippingOrder } from '@things-factory/sales-base'
+import { ArrivalNotice, OrderVas, ORDER_STATUS, ORDER_VAS_STATUS, ShippingOrder } from '@things-factory/sales-base'
 import { getManager, getRepository } from 'typeorm'
+import { WORKSHEET_STATUS } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { ORDER_STATUS, ORDER_VAS_STATUS, WORKSHEET_STATUS } from '../../../enum'
 
 export const activateVas = {
   async activateVas(_: any, { worksheetNo, vasWorksheetDetails }, context: any) {

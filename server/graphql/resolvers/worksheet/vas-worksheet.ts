@@ -1,8 +1,8 @@
-import { ArrivalNotice, OrderVas } from '@things-factory/sales-base'
-import { getRepository } from 'typeorm'
-import { Worksheet, WorksheetDetail } from '../../../entities'
-import { ORDER_STATUS, ORDER_TYPES, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 import { Bizplace } from '@things-factory/biz-base'
+import { ArrivalNotice, OrderVas, ORDER_STATUS, ORDER_TYPES } from '@things-factory/sales-base'
+import { getRepository } from 'typeorm'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
+import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const vasWorksheetResolver = {
   async vasWorksheet(_: any, { orderNo, orderType }, context: any) {

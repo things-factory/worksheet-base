@@ -1,7 +1,7 @@
 import { Inventory, Location } from '@things-factory/warehouse-base'
 import { getManager, getRepository } from 'typeorm'
+import { WORKSHEET_STATUS } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
-import { WORKSHEET_STATUS } from '../../../enum'
 
 export const undoPutaway = {
   async undoPutaway(_: any, { worksheetDetail, inventory }, context: any) {

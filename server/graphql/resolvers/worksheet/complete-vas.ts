@@ -1,7 +1,7 @@
-import { ArrivalNotice } from '@things-factory/sales-base'
+import { ArrivalNotice, ORDER_TYPES } from '@things-factory/sales-base'
 import { getManager, getRepository } from 'typeorm'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet } from '../../../entities'
-import { ORDER_TYPES, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 
 export const completeVas = {
   async completeVas(_: any, { orderNo, orderType }, context: any) {

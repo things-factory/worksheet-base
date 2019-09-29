@@ -1,9 +1,9 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice } from '@things-factory/sales-base'
-import { Inventory, InventoryHistory } from '@things-factory/warehouse-base'
+import { ArrivalNotice, ORDER_STATUS } from '@things-factory/sales-base'
+import { Inventory, InventoryHistory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { getManager, getRepository } from 'typeorm'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { INVENTORY_STATUS, ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
 
 export const completePutaway = {

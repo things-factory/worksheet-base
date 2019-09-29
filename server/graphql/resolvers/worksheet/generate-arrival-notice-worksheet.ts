@@ -1,8 +1,15 @@
-import { ArrivalNotice, OrderProduct, OrderVas } from '@things-factory/sales-base'
+import {
+  ArrivalNotice,
+  OrderProduct,
+  OrderVas,
+  ORDER_PRODUCT_STATUS,
+  ORDER_STATUS,
+  ORDER_VAS_STATUS
+} from '@things-factory/sales-base'
 import { Location } from '@things-factory/warehouse-base'
 import { getManager, getRepository } from 'typeorm'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { ORDER_PRODUCT_STATUS, ORDER_STATUS, ORDER_VAS_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
 import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
 
 export const generateArrivalNoticeWorksheet = {

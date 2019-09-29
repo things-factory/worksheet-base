@@ -1,9 +1,8 @@
-import { ArrivalNotice, OrderProduct } from '@things-factory/sales-base'
-import { getRepository } from 'typeorm'
-import { Worksheet, WorksheetDetail } from '../../../entities'
-import { ORDER_STATUS, WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../enum'
-import { Inventory } from '@things-factory/warehouse-base'
 import { Bizplace } from '@things-factory/biz-base'
+import { ArrivalNotice, OrderProduct, ORDER_STATUS } from '@things-factory/sales-base'
+import { getRepository } from 'typeorm'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
+import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const unloadingWorksheetResolver = {
   async unloadingWorksheet(_: any, { arrivalNoticeNo }, context: any) {
