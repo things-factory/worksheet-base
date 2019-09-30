@@ -157,7 +157,8 @@ export const completeUnloading = {
               bizplace: customerBizplace,
               batchId: worksheetDetail.targetProduct.batchId,
               location: foundWorksheet.bufferLocation
-            }
+            },
+            relations: ['product', 'warehouse', 'location']
           })
 
           await Promise.all(
