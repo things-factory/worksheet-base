@@ -182,6 +182,7 @@ export const completeUnloading = {
                 name: inventory.name,
                 palletId: inventory.palletId,
                 batchId: inventory.batchId,
+                packingType: inventory.packingType,
                 qty: inventory.qty,
                 productId: inventory.product.id,
                 warehouseId: inventory.warehouse.id,
