@@ -6,6 +6,7 @@ import { WorksheetDetailInfo } from './worksheet-detail-info'
 import { WorksheetInfo } from './worksheet-info'
 import { WorksheetList } from './worksheet-list'
 import { WorksheetPatch } from './worksheet-patch'
+import { VasOrderWorksheet } from './vas-order-worksheet'
 
 export const Mutation = `
   createWorksheet (
@@ -25,6 +26,10 @@ export const Mutation = `
     arrivalNoticeNo: String!
     bufferLocation: ObjectRef!
   ): ArrivalNoticeWorksheet
+
+  generateVasOrderWorksheet (
+    vasNo: String!
+  ): VasOrderWorksheet
 
   activateUnloading (
     worksheetNo: String!
@@ -99,6 +104,7 @@ export const Types = [
   WorksheetPatch,
   WorksheetList,
   ArrivalNoticeWorksheet,
+  VasOrderWorksheet,
   WorksheetInfo,
   WorksheetDetailInfo,
   ExecutingWorksheet

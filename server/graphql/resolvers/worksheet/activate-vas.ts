@@ -1,4 +1,11 @@
-import { ArrivalNotice, OrderVas, ORDER_STATUS, ORDER_VAS_STATUS, ShippingOrder } from '@things-factory/sales-base'
+import {
+  ArrivalNotice,
+  VasOrder,
+  OrderVas,
+  ORDER_STATUS,
+  ORDER_VAS_STATUS,
+  ShippingOrder
+} from '@things-factory/sales-base'
 import { getManager, getRepository } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -17,7 +24,7 @@ export const activateVas = {
           name: worksheetNo,
           status: WORKSHEET_STATUS.DEACTIVATED
         },
-        relations: ['arrivalNotice', 'shippingOrder', 'worksheetDetails', 'worksheetDetails.targetVas']
+        relations: ['arrivalNotice', 'vasOrder', 'shippingOrder', 'worksheetDetails', 'worksheetDetails.targetVas']
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
@@ -79,6 +86,14 @@ export const activateVas = {
 
         await getRepository(ShippingOrder).save({
           ...shippingOrder,
+          status: ORDER_STATUS.PROCESSING,
+          updater: context.state.user
+        })
+      } else if (foundWorksheet.vasOrder && foundWorksheet.vasOrder.id) {
+        const vasOrder: VasOrder = foundWorksheet.vasOrder
+
+        await getRepository(VasOrder).save({
+          ...vasOrder,
           status: ORDER_STATUS.PROCESSING,
           updater: context.state.user
         })

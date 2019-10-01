@@ -7,6 +7,7 @@ import { completeVas } from './complete-vas'
 import { createWorksheet } from './create-worksheet'
 import { deleteWorksheet } from './delete-worksheet'
 import { generateArrivalNoticeWorksheet } from './generate-arrival-notice-worksheet'
+import { generateVasOrderWorksheet } from './generate-vas-order-worksheet'
 import { putawayWorksheetResolver } from './putaway-worksheet'
 import { unloadingWorksheetResolver } from './unloading-worksheet'
 import { updateWorksheet } from './update-worksheet'
@@ -35,6 +36,7 @@ export const Mutation = {
   ...createWorksheet,
   ...deleteWorksheet,
   ...generateArrivalNoticeWorksheet,
+  ...generateVasOrderWorksheet,
   ...activateUnloading,
   ...activatePutaway,
   ...activateVas,

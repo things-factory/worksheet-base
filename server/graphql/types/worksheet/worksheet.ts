@@ -8,6 +8,7 @@ export const Worksheet = gql`
     bufferLocation: Location
     arrivalNotice: ArrivalNotice
     shippingOrder: ShippingOrder
+    vasOrder: VasOrder
     name: String
     description: String
     type: String
