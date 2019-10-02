@@ -33,22 +33,47 @@ export const unload = {
       const customerBizplace: Bizplace = foundWorksheetDetail.bizplace
 
       // 2. Create new inventory data
-      await getRepository(Inventory).save({
+      // Find previous pallet ( Same batchId, Same product, Same pallet id)
+      let inventoryData: Inventory = {
         domain: context.state.domain,
         bizplace: customerBizplace,
-        name: InventoryNoGenerator.inventoryName(),
         palletId: palletId,
         batchId: foundWorksheetDetail.targetProduct.batchId,
-        qty: qty,
         product: foundWorksheetDetail.targetProduct.product,
         packingType: foundWorksheetDetail.targetProduct.packingType,
         warehouse: foundWorksheetDetail.worksheet.bufferLocation.warehouse,
         location: foundWorksheetDetail.worksheet.bufferLocation,
         zone: foundWorksheetDetail.worksheet.bufferLocation.zone,
-        status: INVENTORY_STATUS.OCCUPIED,
-        creator: context.state.user,
-        updater: context.state.user
-      })
+        status: INVENTORY_STATUS.OCCUPIED
+      }
+      inventoryData = await getRepository(Inventory).findOne(inventoryData)
+
+      if (inventoryData) {
+        // If there's previous inventory => qty has to be merged.
+        inventoryData = {
+          ...inventoryData,
+          qty: inventoryData.qty + qty,
+          updater: context.state.user
+        }
+      } else {
+        // If there's no previous inventory
+        inventoryData = {
+          domain: context.state.domain,
+          bizplace: customerBizplace,
+          palletId: palletId,
+          batchId: foundWorksheetDetail.targetProduct.batchId,
+          product: foundWorksheetDetail.targetProduct.product,
+          packingType: foundWorksheetDetail.targetProduct.packingType,
+          qty,
+          warehouse: foundWorksheetDetail.worksheet.bufferLocation.warehouse,
+          location: foundWorksheetDetail.worksheet.bufferLocation,
+          zone: foundWorksheetDetail.worksheet.bufferLocation.zone,
+          status: INVENTORY_STATUS.OCCUPIED
+        }
+      }
+
+      // 2. Create new inventory data
+      await getRepository(Inventory).save(inventoryData)
 
       // 3. Update qty of targetProduct
       await getRepository(OrderProduct).save({
