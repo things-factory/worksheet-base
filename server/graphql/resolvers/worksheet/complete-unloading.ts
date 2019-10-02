@@ -108,6 +108,7 @@ export const completeUnloading = {
       /**
        * 4. Check whether every related worksheet is completed
        *    - if yes => Update Status of arrival notice
+       *    - VAS doesn't affect to status of arrival notice
        */
       const relatedWorksheets: Worksheet[] = await getRepository(Worksheet).find({
         where: {
