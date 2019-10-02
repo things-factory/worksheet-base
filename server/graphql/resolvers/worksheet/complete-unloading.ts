@@ -1,6 +1,6 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderProduct, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
-import { Inventory, InventoryHistory } from '@things-factory/warehouse-base'
+import { Inventory } from '@things-factory/warehouse-base'
 import { Equal, getManager, getRepository, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -33,40 +33,9 @@ export const completeUnloading = {
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists.`)
-
-      /**
-       * 2) Insert new inventory history records
-       */
       const foundWorksheetDetails: WorksheetDetail[] = foundWorksheet.worksheetDetails
       let targetProducts: OrderProduct[] = foundWorksheetDetails.map(
         (foundWSD: WorksheetDetail) => foundWSD.targetProduct
-      )
-      await Promise.all(
-        foundWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
-          const inventories: Inventory[] = await getRepository(Inventory).find({
-            where: {
-              domain: context.state.domain,
-              bizplace: customerBizplace,
-              batchId: worksheetDetail.targetProduct.batchId,
-              location: foundWorksheet.bufferLocation
-            },
-            relations: ['product', 'warehouse', 'location']
-          })
-
-          await getRepository(InventoryHistory).insert(
-            inventories.map((inventory: Inventory) => {
-              return {
-                ...inventory,
-                seq: inventory.lastSeq,
-                productId: inventory.product.id,
-                warehouseId: inventory.warehouse.id,
-                locationId: inventory.location.id,
-                creator: context.state.user,
-                updater: context.state.user
-              }
-            })
-          )
-        })
       )
 
       /**
@@ -179,23 +148,6 @@ export const completeUnloading = {
                 status: WORKSHEET_STATUS.DEACTIVATED,
                 creator: context.state.user,
                 updater: context.state.user
-              })
-
-              await getRepository(InventoryHistory).insert({
-                domain: context.state.domain,
-                bizplace: customerBizplace,
-                name: inventory.name,
-                palletId: inventory.palletId,
-                batchId: inventory.batchId,
-                packingType: inventory.packingType,
-                qty: inventory.qty,
-                productId: inventory.product.id,
-                warehouseId: inventory.warehouse.id,
-                locationId: inventory.location.id,
-                zone: inventory.zone,
-                status: inventory.status,
-                creator: inventory.creator,
-                updater: inventory.updater
               })
             })
           )

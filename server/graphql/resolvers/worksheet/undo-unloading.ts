@@ -1,5 +1,5 @@
 import { OrderProduct, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
-import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
+import { Inventory, INVENTORY_STATUS, InventoryHistory, InventoryNoGenerator } from '@things-factory/warehouse-base'
 import { getManager, getRepository } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
@@ -14,13 +14,12 @@ export const undoUnloading = {
 
       if (!foundWorksheetDetail) throw new Error("Worksheet doesn't exists")
 
-      const inventory: Inventory = await getRepository(Inventory).findOne({
+      // 1. find inventory
+      let inventory: Inventory = await getRepository(Inventory).findOne({
         domain: context.state.domain,
         status: INVENTORY_STATUS.OCCUPIED,
         palletId
       })
-
-      await getRepository(Inventory).delete(inventory.id)
 
       await getRepository(OrderProduct).save({
         ...foundWorksheetDetail.targetProduct,
@@ -35,6 +34,33 @@ export const undoUnloading = {
         status: WORKSHEET_STATUS.EXECUTING,
         updater: context.state.user
       })
+
+      // update inventory qty to 0
+      await getRepository(Inventory).save({
+        ...inventory,
+        lastSeq: inventory.lastSeq + 1,
+        qty: 0,
+        updater: context.state.user
+      })
+
+      inventory = await getRepository(Inventory).findOne({
+        where: { id: inventory.id },
+        relations: ['bizplace', 'product', 'warehouse', 'location']
+      })
+      delete inventory.id
+      await getRepository(InventoryHistory).save({
+        ...inventory,
+        domain: context.state.domain,
+        name: InventoryNoGenerator.inventoryHistoryName(),
+        seq: inventory.lastSeq,
+        productId: inventory.product.id,
+        warehouseId: inventory.warehouse.id,
+        locationId: inventory.location.id,
+        creator: context.state.user,
+        updater: context.state.user
+      })
+
+      await getRepository(Inventory).delete(inventory.id)
     })
   }
 }

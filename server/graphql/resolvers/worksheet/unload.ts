@@ -1,6 +1,6 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderProduct, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
-import { Inventory, InventoryNoGenerator, INVENTORY_STATUS } from '@things-factory/warehouse-base'
+import { Inventory, InventoryNoGenerator, INVENTORY_STATUS, InventoryHistory } from '@things-factory/warehouse-base'
 import { getManager, getRepository } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
@@ -45,7 +45,7 @@ export const unload = {
       if (prevInventory) throw new Error('pallet id is duplicated')
 
       // 2. Create new inventory data
-      await getRepository(Inventory).save({
+      let newInventory: Inventory = await getRepository(Inventory).save({
         domain: context.state.domain,
         bizplace: customerBizplace,
         palletId: palletId,
@@ -58,6 +58,24 @@ export const unload = {
         location: foundWorksheetDetail.worksheet.bufferLocation,
         zone: foundWorksheetDetail.worksheet.bufferLocation.zone,
         status: INVENTORY_STATUS.OCCUPIED,
+        creator: context.state.user,
+        updater: context.state.user
+      })
+
+      // 3. Create new inventory history data
+      newInventory = await getRepository(Inventory).find({
+        where: { id: newInventory.id },
+        relations: ['bizplace', 'product', 'warehouse', 'location']
+      })
+      delete newInventory.id
+      await getRepository(InventoryHistory).save({
+        ...newInventory,
+        domain: context.state.domain,
+        name: InventoryNoGenerator.inventoryHistoryName(),
+        seq: newInventory.lastSeq,
+        productId: newInventory.product.id,
+        warehouseId: newInventory.warehouse.id,
+        locationId: newInventory.location.id,
         creator: context.state.user,
         updater: context.state.user
       })

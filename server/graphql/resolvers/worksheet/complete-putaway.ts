@@ -1,9 +1,8 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, ORDER_STATUS } from '@things-factory/sales-base'
-import { Inventory, InventoryHistory, InventoryNoGenerator, INVENTORY_STATUS } from '@things-factory/warehouse-base'
-import { getManager, getRepository, Not, Equal } from 'typeorm'
+import { Equal, getManager, getRepository, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { Worksheet, WorksheetDetail } from '../../../entities'
+import { Worksheet } from '../../../entities'
 
 export const completePutaway = {
   async completePutaway(_: any, { arrivalNoticeNo }, context: any) {
