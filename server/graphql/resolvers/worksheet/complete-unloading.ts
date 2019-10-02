@@ -1,4 +1,5 @@
-import { ArrivalNotice, Bizplace, ORDER_STATUS } from '@things-factory/sales-base'
+import { Bizplace } from '@things-factory/biz-base'
+import { ArrivalNotice, OrderProduct, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { Inventory, InventoryHistory } from '@things-factory/warehouse-base'
 import { Equal, getManager, getRepository, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -28,19 +29,7 @@ export const completeUnloading = {
           type: WORKSHEET_TYPE.UNLOADING,
           arrivalNotice
         },
-        relations: [
-          'bufferLocation',
-          'bufferLocation.warehouse',
-          'worksheetDetails',
-          'worksheetDetails.targetProduct',
-          'worksheetDetails.targetProduct.product',
-          'worksheetDetails.targetInventory',
-          'worksheetDetails.targetInventory.product',
-          'worksheetDetails.targetInventory.warehouse',
-          'worksheetDetails.targetInventory.location',
-          'worksheetDetails.updater',
-          'worksheetDetails.creator'
-        ]
+        relations: ['bufferLocation', 'worksheetDetails', 'worksheetDetails.targetProduct']
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists.`)
@@ -49,6 +38,9 @@ export const completeUnloading = {
        * 2) Insert new inventory history records
        */
       const foundWorksheetDetails: WorksheetDetail[] = foundWorksheet.worksheetDetails
+      let targetProducts: OrderProduct[] = foundWorksheetDetails.map(
+        (foundWSD: WorksheetDetail) => foundWSD.targetProduct
+      )
       await Promise.all(
         foundWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
           const inventories: Inventory[] = await getRepository(Inventory).find({
@@ -106,7 +98,19 @@ export const completeUnloading = {
       )
 
       /**
-       * 4. Check whether every related worksheet is completed
+       * 5. Update target products status (UNLOADING => DONE)
+       */
+      targetProducts = targetProducts.map((targetProduct: OrderProduct) => {
+        return {
+          ...targetProduct,
+          status: ORDER_PRODUCT_STATUS.DONE,
+          updater: context.state.user
+        }
+      })
+      await getRepository(OrderProduct).save(targetProducts)
+
+      /**
+       * 6. Check whether every related worksheet is completed
        *    - if yes => Update Status of arrival notice
        *    - VAS doesn't affect to status of arrival notice
        */
@@ -136,7 +140,7 @@ export const completeUnloading = {
       }
 
       /**
-       * 5. Create putaway worksheet
+       * 7. Create putaway worksheet
        */
       const putawayWorksheet = await getRepository(Worksheet).save({
         domain: context.state.domain,

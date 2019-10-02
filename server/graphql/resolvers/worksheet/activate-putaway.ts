@@ -24,7 +24,7 @@ export const activatePutaway = {
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
 
       /**
-       * 2. Update description of product worksheet details
+       * 2. Update description of putaway worksheet details
        */
       await Promise.all(
         putawayWorksheetDetails.map(async (putawayWorksheetDetail: WorksheetDetail) => {
@@ -36,9 +36,6 @@ export const activatePutaway = {
             },
             {
               description: putawayWorksheetDetail.description,
-              toLocation: await getRepository(Location).findOne({
-                where: { domain: context.state.domain, id: putawayWorksheetDetail.toLocation.id }
-              }),
               status: WORKSHEET_STATUS.EXECUTING,
               updater: context.state.user
             }
@@ -47,24 +44,26 @@ export const activatePutaway = {
       )
 
       /**
-       * 4. Update Arrival Notice (status: READY_TO_PUTAWAY => PROCESSING)
+       * 4. Update putaway Worksheet (status: DEACTIVATED => EXECUTING)
        */
-      const arrivalNotice: ArrivalNotice = foundWorksheet.arrivalNotice
-      await getRepository(ArrivalNotice).save({
-        ...arrivalNotice,
-        status: ORDER_STATUS.PROCESSING,
-        updater: context.state.user
-      })
-
-      /**
-       * 5. Update Worksheet (status: DEACTIVATED => EXECUTING)
-       */
-      return await getRepository(Worksheet).save({
+      const worksheet: Worksheet = await getRepository(Worksheet).save({
         ...foundWorksheet,
         status: WORKSHEET_STATUS.EXECUTING,
         startedAt: Date.now(),
         updater: context.state.user
       })
+
+      /**
+       * 5. Update Arrival Notice (status: READY_TO_PUTAWAY => PUTTING_AWAY)
+       */
+      const arrivalNotice: ArrivalNotice = foundWorksheet.arrivalNotice
+      await getRepository(ArrivalNotice).save({
+        ...arrivalNotice,
+        status: ORDER_STATUS.PUTTING_AWAY,
+        updater: context.state.user
+      })
+
+      return worksheet
     })
   }
 }

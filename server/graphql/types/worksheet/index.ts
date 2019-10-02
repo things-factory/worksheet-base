@@ -69,6 +69,8 @@ export const Mutation = `
   undoPutaway (
     worksheetDetail: WorksheetDetailPatch!
     inventory: InventoryPatch!
+    qty: Number!
+    isLocationFull: Boolean
   ): Boolean
 
   completePutaway (

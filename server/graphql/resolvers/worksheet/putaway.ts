@@ -4,7 +4,7 @@ import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
 
 export const putaway = {
-  async putaway(_: any, { worksheetDetail, inventory }, context: any) {
+  async putaway(_: any, { worksheetDetail, inventory, qty, isLocationFull }, context: any) {
     return await getManager().transaction(async () => {
       const toLocation: Location = await getRepository(Location).findOne({
         domain: context.state.domain,
@@ -35,18 +35,44 @@ export const putaway = {
         where: { domain: context.state.domain, palletId }
       })
 
-      await getRepository(Inventory).save({
-        ...targetInventory,
-        location: toLocation,
-        updater: context.state.user
-      })
+      const remainQty = targetInventory.qty - qty
+      if (remainQty > 0) {
+        // save removed value of buffer inventory
+        await getRepository(Inventory).save({
+          ...targetInventory,
+          qty: remainQty,
+          updater: context.state.user
+        })
+
+        delete targetInventory.id
+
+        // create new shelf inventory
+        await getRepository(Inventory).save({
+          ...targetInventory,
+          qty,
+          location: toLocation,
+          creator: context.state.user,
+          updater: context.state.user
+        })
+      } else if (remainQty === 0) {
+        await getRepository(Inventory).save({
+          ...targetInventory,
+          location: toLocation,
+          creator: context.state.user,
+          updater: context.state.user
+        })
+      } else if (remainQty < 0) {
+        throw new Error('Invalid input value of qty')
+      }
 
       // 3. update status of worksheetDetail (EXECUTING => DONE)
-      await getRepository(WorksheetDetail).save({
-        ...foundWorksheetDetail,
-        status: WORKSHEET_STATUS.DONE,
-        updater: context.state.user
-      })
+      if (remainQty === 0) {
+        await getRepository(WorksheetDetail).save({
+          ...foundWorksheetDetail,
+          status: WORKSHEET_STATUS.DONE,
+          updater: context.state.user
+        })
+      }
     })
   }
 }
