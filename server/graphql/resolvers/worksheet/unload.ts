@@ -62,6 +62,7 @@ export const unload = {
           bizplace: customerBizplace,
           palletId: palletId,
           batchId: foundWorksheetDetail.targetProduct.batchId,
+          name: InventoryNoGenerator.inventoryName(),
           product: foundWorksheetDetail.targetProduct.product,
           packingType: foundWorksheetDetail.targetProduct.packingType,
           qty,
