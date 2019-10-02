@@ -7,14 +7,14 @@ export const transfer = {
   async transfer(_: any, { palletId, toPalletId, qty }, context: any) {
     return await getManager().transaction(async () => {
       // 1. get to inventory
-      const toInventory: Inventory = await getRepository(Inventory).findOne({
+      let toInventory: Inventory = await getRepository(Inventory).findOne({
         where: { domain: context.state.domain, palletId: toPalletId },
         relations: ['bizplace', 'product', 'warehouse', 'location']
       })
       if (!toInventory) throw new Error(`to pallet doesn't exists`)
 
       // 2. get from inventory
-      const fromInventory: Inventory = await getRepository(Inventory).findOne({
+      let fromInventory: Inventory = await getRepository(Inventory).findOne({
         where: { domain: context.state.domain, palletId },
         relations: ['bizplace', 'product', 'warehouse', 'location']
       })
@@ -59,6 +59,30 @@ export const transfer = {
           creator: context.state.user,
           updater: context.state.user
         })
+        //    - update (fromInventory)
+        await getRepository(Inventory).save({
+          ...fromInventory,
+          qty: result,
+          lastSeq: fromInventory.lastSeq + 1,
+          updater: context.state.user
+        })
+
+        fromInventory = await getRepository(Inventory).findOne({
+          where: { id: fromInventory.id },
+          relations: ['bizplace', 'product', 'warehouse', 'location']
+        })
+
+        //    - add inventory history
+        await getRepository(InventoryHistory).save({
+          ...fromInventory,
+          name: InventoryNoGenerator.inventoryHistoryName(),
+          productId: fromInventory.product.id,
+          warehouseId: fromInventory.warehouse.id,
+          locationId: fromInventory.location.id,
+          seq: fromInventory.lastSeq,
+          creator: context.state.user,
+          updater: context.state.user
+        })
         //    - delete (fromInventory)
         await getRepository(Inventory).delete(fromInventory)
         //    - update worksheetDetail (EXECUTING => DONE)
@@ -73,9 +97,13 @@ export const transfer = {
         await getRepository(Inventory).save({
           ...toInventory,
           qty: toInventory.qty + qty,
-          seq: toInventory.seq + 1
+          lastSeq: toInventory.seq + 1
         })
 
+        toInventory = await getRepository(Inventory).findOne({
+          where: { id: toInventory.id },
+          relations: ['bizplace', 'product', 'warehouse', 'location']
+        })
         //    - add inventory history
         delete toInventory.id
         await getRepository(InventoryHistory).save({
@@ -92,7 +120,7 @@ export const transfer = {
 
         await getRepository(Inventory).save({
           ...fromInventory,
-          qty: fromInventory.qty - qty
+          qty: result
         })
       }
     })

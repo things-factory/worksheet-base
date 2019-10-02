@@ -33,17 +33,23 @@ export const putaway = {
       inventory = await getRepository(Inventory).save({
         ...inventory,
         location,
+        lastSeq: inventory.lastSeq + 1,
         warehouse: location.warehouse,
         zone: location.warehouse.zone,
         updater: context.state.user
       })
 
       // 5. add inventory history
+      inventory = await getRepository(Inventory).findOne({
+        where: { id: inventory.id },
+        relations: ['bizplace', 'product', 'warehouse', 'location']
+      })
       delete inventory.id
       await getRepository(InventoryHistory).save({
         ...inventory,
         domain: context.state.domain,
         name: InventoryNoGenerator.inventoryHistoryName(),
+        seq: inventory.lastSeq,
         productId: inventory.product.id,
         warehouseId: inventory.warehouse.id,
         locationId: inventory.location.id,
