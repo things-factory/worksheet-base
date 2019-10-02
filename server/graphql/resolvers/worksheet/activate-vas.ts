@@ -1,11 +1,4 @@
-import {
-  ArrivalNotice,
-  VasOrder,
-  OrderVas,
-  ORDER_STATUS,
-  ORDER_VAS_STATUS,
-  ShippingOrder
-} from '@things-factory/sales-base'
+import { OrderVas, ORDER_STATUS, ORDER_VAS_STATUS, VasOrder } from '@things-factory/sales-base'
 import { getManager, getRepository } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -24,10 +17,13 @@ export const activateVas = {
           name: worksheetNo,
           status: WORKSHEET_STATUS.DEACTIVATED
         },
-        relations: ['arrivalNotice', 'vasOrder', 'shippingOrder', 'worksheetDetails', 'worksheetDetails.targetVas']
+        relations: ['vasOrder', 'worksheetDetails', 'worksheetDetails.targetVas']
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
+      const foundWSDs: WorksheetDetail[] = foundWorksheet.worksheetDetails
+      const foundVasOrder: VasOrder = foundWorksheet.vasOrder
+      let targetVASs: OrderVas[] = foundWSDs.map((foundWSD: WorksheetDetail) => foundWSD.targetVas)
 
       /**
        * 2. Update description of vas worksheet details
@@ -50,50 +46,23 @@ export const activateVas = {
       )
 
       /**
-       * 3. Update order vas (status: READY_TO_PROCESS => PROCESSING)
+       * 3. Update target vass (status: READY_TO_PROCESS => PROCESSING)
        */
-      const foundVasWorksheetDetails: WorksheetDetail[] = foundWorksheet.worksheetDetails.filter(
-        (worksheetDetail: WorksheetDetail) => worksheetDetail.targetVas
-      )
-      await Promise.all(
-        foundVasWorksheetDetails.map(async (vasWorksheetDetail: WorksheetDetail) => {
-          await getRepository(OrderVas).update(
-            {
-              id: vasWorksheetDetail.targetVas.id,
-              status: ORDER_VAS_STATUS.READY_TO_PROCESS
-            },
-            {
-              status: ORDER_VAS_STATUS.PROCESSING,
-              updater: context.state.user
-            }
-          )
-        })
-      )
+      targetVASs = targetVASs.map((targetVas: OrderVas) => {
+        return {
+          ...targetVas,
+          status: ORDER_VAS_STATUS.PROCESSING,
+          updater: context.state.user
+        }
+      })
+      await getRepository(OrderVas).save(targetVASs)
 
       /**
-       * 4. Update Parent Order (status: ??? => PROCESSING)
+       * 4. Update VAS Order if it's pure VAS Order (status: READY_TO_PROCESS => PROCESSING)
        */
-      if (foundWorksheet.arrivalNotice && foundWorksheet.arrivalNotice.id) {
-        const arrivalNotice: ArrivalNotice = foundWorksheet.arrivalNotice
-
-        await getRepository(ArrivalNotice).save({
-          ...arrivalNotice,
-          status: ORDER_STATUS.PROCESSING,
-          updater: context.state.user
-        })
-      } else if (foundWorksheet.shippingOrder && foundWorksheet.shippingOrder.id) {
-        const shippingOrder: ShippingOrder = foundWorksheet.shippingOrder
-
-        await getRepository(ShippingOrder).save({
-          ...shippingOrder,
-          status: ORDER_STATUS.PROCESSING,
-          updater: context.state.user
-        })
-      } else if (foundWorksheet.vasOrder && foundWorksheet.vasOrder.id) {
-        const vasOrder: VasOrder = foundWorksheet.vasOrder
-
+      if (foundVasOrder && foundVasOrder.id) {
         await getRepository(VasOrder).save({
-          ...vasOrder,
+          ...foundVasOrder,
           status: ORDER_STATUS.PROCESSING,
           updater: context.state.user
         })
