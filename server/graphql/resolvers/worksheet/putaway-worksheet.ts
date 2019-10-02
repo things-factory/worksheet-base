@@ -37,7 +37,7 @@ export const putawayWorksheetResolver = {
         bizplaceName: arrivalNotice.bizplace.name,
         startedAt: worksheet.startedAt
       },
-      worksheetDetailInfos: worksheet.worksheetDetails.map((putawayWSD: WorksheetDetail) => {
+      worksheetDetailInfos: worksheet.worksheetDetails.map(async (putawayWSD: WorksheetDetail) => {
         const targetInventory: Inventory = putawayWSD.targetInventory
         return {
           name: putawayWSD.name,
@@ -50,7 +50,12 @@ export const putawayWorksheetResolver = {
           targetName: targetInventory.name,
           packingType: targetInventory.packingType,
           location: targetInventory.location,
-          toLocation: putawayWSD.toLocation
+          toLocation: putawayWSD.toLocation,
+          splitedInventories: await getRepository(Inventory).find({
+            domain: context.state.domain,
+            bizplace: arrivalNotice.bizplace,
+            refInventory: targetInventory
+          })
         }
       })
     }

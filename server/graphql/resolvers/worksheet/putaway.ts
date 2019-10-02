@@ -1,7 +1,8 @@
 import { Inventory, Location, LOCATION_STATUS } from '@things-factory/warehouse-base'
-import { Equal, getManager, getRepository, Not } from 'typeorm'
+import { Equal, getManager, getRepository, Not, IsNull } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
+import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
 
 export const putaway = {
   async putaway(_: any, { worksheetDetail, inventory, qty, isLocationFull }, context: any) {
@@ -33,7 +34,8 @@ export const putaway = {
 
       // 2. update inventory from buffer location to shelf location
       const targetInventory: Inventory = await getRepository(Inventory).findOne({
-        where: { domain: context.state.domain, palletId }
+        where: { domain: context.state.domain, palletId, refInventory: IsNull() },
+        relations: ['domain', 'bizplace', 'product', 'warehouse', 'location']
       })
 
       const remainQty = targetInventory.qty - qty
@@ -45,19 +47,22 @@ export const putaway = {
           updater: context.state.user
         })
 
-        delete targetInventory.id
-
-        // create new shelf inventory
-        await getRepository(Inventory).save({
+        const splitedInventory: Inventory = {
           ...targetInventory,
+          refInventory: targetInventory,
           qty,
           location: toLocation,
           creator: context.state.user,
           updater: context.state.user
-        })
+        }
+        delete splitedInventory.id
+
+        // create new shelf inventory
+        await getRepository(Inventory).save(splitedInventory)
       } else if (remainQty === 0) {
         await getRepository(Inventory).save({
           ...targetInventory,
+          name: InventoryNoGenerator.inventoryName(),
           location: toLocation,
           creator: context.state.user,
           updater: context.state.user
@@ -76,8 +81,8 @@ export const putaway = {
       }
 
       // 4. Update location info (if it's full or empty)
-      let locationStatus: String
-      if (toLocation.type === LOCATION_STATUS.EMPTY && !isLocationFull) {
+      let locationStatus: String = LOCATION_STATUS.OCCUPIED
+      if (toLocation.status === LOCATION_STATUS.EMPTY && !isLocationFull) {
         locationStatus = LOCATION_STATUS.OCCUPIED
       } else if (isLocationFull) {
         locationStatus = LOCATION_STATUS.FULL

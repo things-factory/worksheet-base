@@ -19,5 +19,6 @@ export const WorksheetDetailInfo = gql`
     status: String
     location: Location
     toLocation: Location
+    splitedInventories: [Inventory]
   }
 `
