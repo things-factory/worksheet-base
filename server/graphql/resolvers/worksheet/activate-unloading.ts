@@ -15,32 +15,33 @@ export const activateUnloading = {
       const foundWorksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
           domain: context.state.domain,
-          name: worksheetNo
+          name: worksheetNo,
+          type: WORKSHEET_TYPE.UNLOADING,
+          status: WORKSHEET_STATUS.DEACTIVATED
         },
         relations: ['bizplace', 'arrivalNotice', 'worksheetDetails', 'worksheetDetails.targetProduct']
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
-      if (foundWorksheet.status !== WORKSHEET_STATUS.DEACTIVATED && foundWorksheet.type === WORKSHEET_TYPE.UNLOADING) {
-        throw new Error('Status is not suitable for unloading')
-      }
       const customerBizplace: Bizplace = foundWorksheet.bizplace
+      const foundWSDs: WorksheetDetail[] = foundWorksheet.worksheetDetails
+      let targetProducts: OrderProduct[] = foundWSDs.map((foundWSD: WorksheetDetail) => foundWSD.targetProduct)
 
       /**
        * 2. Update description of product worksheet details
        */
       await Promise.all(
-        unloadingWorksheetDetails.map(async (productWorksheetDetail: WorksheetDetail) => {
+        unloadingWorksheetDetails.map(async (unloadingWSD: WorksheetDetail) => {
           await getRepository(WorksheetDetail).update(
             {
               domain: context.state.domain,
               bizplace: customerBizplace,
-              name: productWorksheetDetail.name,
+              name: unloadingWSD.name,
               status: WORKSHEET_STATUS.DEACTIVATED,
               worksheet: foundWorksheet
             },
             {
-              description: productWorksheetDetail.description,
+              description: unloadingWSD.description,
               status: WORKSHEET_STATUS.EXECUTING,
               updater: context.state.user
             }
@@ -49,25 +50,16 @@ export const activateUnloading = {
       )
 
       /**
-       * 3. Update order product (status: READY_TO_UNLOAD => UNLOADING)
+       * 3. Update target products (status: READY_TO_UNLOAD => UNLOADING)
        */
-      const foundProductWorksheetDetails: WorksheetDetail[] = foundWorksheet.worksheetDetails.filter(
-        (worksheetDetail: WorksheetDetail) => worksheetDetail.targetProduct
-      )
-      await Promise.all(
-        foundProductWorksheetDetails.map(async (productWorksheetDetail: WorksheetDetail) => {
-          await getRepository(OrderProduct).update(
-            {
-              id: productWorksheetDetail.targetProduct.id,
-              status: ORDER_PRODUCT_STATUS.READY_TO_UNLOAD
-            },
-            {
-              status: ORDER_PRODUCT_STATUS.UNLOADING,
-              updater: context.state.user
-            }
-          )
-        })
-      )
+      targetProducts = targetProducts.map((targetProduct: OrderProduct) => {
+        return {
+          ...targetProduct,
+          status: ORDER_PRODUCT_STATUS.UNLOADING,
+          updater: context.state.user
+        }
+      })
+      await getRepository(OrderProduct).save(targetProducts)
 
       /**
        * 4. Update Arrival Notice (status: READY_TO_UNLOAD => PROCESSING)

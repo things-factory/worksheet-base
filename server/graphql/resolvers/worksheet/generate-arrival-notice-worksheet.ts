@@ -29,7 +29,7 @@ export const generateArrivalNoticeWorksheet = {
       if (!foundArrivalNotice) throw new Error(`Arrival notice doesn't exists.`)
       const customerBizplace: Bizplace = foundArrivalNotice.bizplace
       let foundOPs: OrderProduct[] = foundArrivalNotice.orderProducts
-      let foundOVs: OrderVas[] = foundArrivalNotice.orderVas
+      let foundOVs: OrderVas[] = foundArrivalNotice.orderVass
 
       if (!bufferLocation || !bufferLocation.id) throw new Error(`Can't find buffer location`)
       const foundBufferLoc: Location = await getRepository(Location).findOne(bufferLocation.id)
@@ -109,7 +109,7 @@ export const generateArrivalNoticeWorksheet = {
         })
         await getRepository(WorksheetDetail).save(vasWorksheetDetails)
 
-        // 2. 3) Update status of order products (ARRIVED => READY_TO_UNLOAD)
+        // 2. 3) Update status of order vas (ARRIVED => READY_TO_PROCESS)
         foundOVs = foundOVs.map((ov: OrderVas) => {
           return {
             ...ov,
