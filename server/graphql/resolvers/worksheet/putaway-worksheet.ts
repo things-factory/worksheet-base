@@ -7,7 +7,7 @@ import { Worksheet, WorksheetDetail } from '../../../entities'
 export const putawayWorksheetResolver = {
   async putawayWorksheet(_: any, { arrivalNoticeNo }, context: any) {
     const arrivalNotice: ArrivalNotice = await getRepository(ArrivalNotice).findOne({
-      where: { domain: context.state.domain, name: arrivalNoticeNo, status: ORDER_STATUS.PROCESSING },
+      where: { domain: context.state.domain, name: arrivalNoticeNo, status: ORDER_STATUS.PUTTING_AWAY },
       relations: ['bizplace']
     })
 
@@ -44,6 +44,7 @@ export const putawayWorksheetResolver = {
           palletId: targetInventory.palletId,
           batchId: targetInventory.batchId,
           product: targetInventory.product,
+          qty: targetInventory.qty,
           status: putawayWSD.status,
           description: putawayWSD.description,
           targetName: targetInventory.name,

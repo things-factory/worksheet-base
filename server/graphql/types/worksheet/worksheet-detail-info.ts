@@ -11,6 +11,7 @@ export const WorksheetDetailInfo = gql`
     actualPalletQty: Int
     packQty: Int
     actualPackQty: Int
+    qty: Int
     vas: Vas
     targetName: String
     description: String

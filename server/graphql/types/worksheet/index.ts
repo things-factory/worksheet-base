@@ -64,13 +64,14 @@ export const Mutation = `
   putaway (
     worksheetDetail: WorksheetDetailPatch!
     inventory: InventoryPatch!
+    qty: Int!
+    isLocationFull: Boolean
   ): Boolean
 
   undoPutaway (
     worksheetDetail: WorksheetDetailPatch!
     inventory: InventoryPatch!
-    qty: Int!
-    isLocationFull: Boolean
+    
   ): Boolean
 
   completePutaway (

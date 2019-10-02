@@ -1,5 +1,5 @@
-import { Inventory, Location } from '@things-factory/warehouse-base'
-import { getManager, getRepository } from 'typeorm'
+import { Inventory, Location, LOCATION_STATUS } from '@things-factory/warehouse-base'
+import { Equal, getManager, getRepository, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
 
@@ -8,7 +8,8 @@ export const putaway = {
     return await getManager().transaction(async () => {
       const toLocation: Location = await getRepository(Location).findOne({
         domain: context.state.domain,
-        name: worksheetDetail.toLocation.name
+        name: worksheetDetail.toLocation.name,
+        status: Not(Equal(LOCATION_STATUS.FULL))
       })
 
       // 1. validity of location
@@ -73,6 +74,19 @@ export const putaway = {
           updater: context.state.user
         })
       }
+
+      // 4. Update location info (if it's full or empty)
+      let locationStatus: String
+      if (toLocation.type === LOCATION_STATUS.EMPTY && !isLocationFull) {
+        locationStatus = LOCATION_STATUS.OCCUPIED
+      } else if (isLocationFull) {
+        locationStatus = LOCATION_STATUS.FULL
+      }
+
+      await getRepository(Location).save({
+        ...toLocation,
+        status: locationStatus
+      })
     })
   }
 }
