@@ -6,21 +6,21 @@ import { completeUnloading } from './complete-unloading'
 import { completeVas } from './complete-vas'
 import { createWorksheet } from './create-worksheet'
 import { deleteWorksheet } from './delete-worksheet'
+import { executeVas } from './execute-vas'
 import { generateArrivalNoticeWorksheet } from './generate-arrival-notice-worksheet'
 import { generateVasOrderWorksheet } from './generate-vas-order-worksheet'
+import { putaway } from './putaway'
 import { putawayWorksheetResolver } from './putaway-worksheet'
+import { transfer } from './transfer'
+import { undoUnloading } from './undo-unloading'
+import { undoVas } from './undo-vas'
+import { unload } from './unload'
+import { unloadedInventories } from './unloaded-inventories'
 import { unloadingWorksheetResolver } from './unloading-worksheet'
 import { updateWorksheet } from './update-worksheet'
 import { vasWorksheetResolver } from './vas-worksheet'
 import { worksheetResolver } from './worksheet'
 import { worksheetsResolver } from './worksheets'
-import { unload } from './unload'
-import { unloadedInventories } from './unloaded-inventories'
-import { undoUnloading } from './undo-unloading'
-import { putaway } from './putaway'
-import { undoPutaway } from './undo-putaway'
-import { executeVas } from './execute-vas'
-import { undoVas } from './undo-vas'
 
 export const Query = {
   ...worksheetsResolver,
@@ -44,7 +44,7 @@ export const Mutation = {
   ...undoUnloading,
   ...completeUnloading,
   ...putaway,
-  ...undoPutaway,
+  ...transfer,
   ...completePutaway,
   ...executeVas,
   ...undoVas,

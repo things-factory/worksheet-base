@@ -62,16 +62,14 @@ export const Mutation = `
   ): Worksheet
 
   putaway (
-    worksheetDetail: WorksheetDetailPatch!
-    inventory: InventoryPatch!
-    qty: Int!
-    isLocationFull: Boolean
+    palletId: String!
+    toLocation: String!
   ): Boolean
 
-  undoPutaway (
-    worksheetDetail: WorksheetDetailPatch!
-    inventory: InventoryPatch!
-    
+  transfer (
+    palletId: String!
+    toPalletId: String!
+    qty: Int!
   ): Boolean
 
   completePutaway (
