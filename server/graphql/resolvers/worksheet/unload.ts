@@ -1,10 +1,9 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderProduct, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
-import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
+import { Inventory, InventoryNoGenerator, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { getManager, getRepository } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
-import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
 
 export const unload = {
   async unload(_: any, { worksheetDetailName, inventory }, context: any) {

@@ -1,5 +1,5 @@
-import { ArrivalNotice, VasOrder, ORDER_TYPES } from '@things-factory/sales-base'
-import { getManager, getRepository } from 'typeorm'
+import { ArrivalNotice, VasOrder, ORDER_TYPES, ORDER_STATUS } from '@things-factory/sales-base'
+import { getManager, getRepository, Not, Equal } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet } from '../../../entities'
 
@@ -31,6 +31,24 @@ export const completeVas = {
           endedAt: Date.now(),
           updater: context.state.user
         })
+
+        // 2. If there's no more worksheet related with current arrival notice
+        // update status of work sheet
+        // 2. 1) check wheter there are more worksheet or not
+        const relatedWorksheets: Worksheet[] = await getRepository(Worksheet).find({
+          domain: context.state.domain,
+          arrivalNotice,
+          status: Not(Equal(WORKSHEET_STATUS.DONE))
+        })
+
+        if (!relatedWorksheets || (relatedWorksheets && relatedWorksheets.length === 0)) {
+          // 3. update status of arrival notice
+          await getRepository(ArrivalNotice).save({
+            ...arrivalNotice,
+            status: ORDER_STATUS.DONE,
+            updater: context.state.user
+          })
+        }
       } else if (orderType === ORDER_TYPES.COLLECTION) {
       } else if (orderType === ORDER_TYPES.DELIVERY) {
       } else if (orderType === ORDER_TYPES.RELEASE_OF_GOODS) {

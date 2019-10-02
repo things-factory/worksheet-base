@@ -1,10 +1,9 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, ORDER_STATUS } from '@things-factory/sales-base'
-import { Inventory, InventoryHistory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
-import { getManager, getRepository } from 'typeorm'
+import { Inventory, InventoryHistory, InventoryNoGenerator, INVENTORY_STATUS } from '@things-factory/warehouse-base'
+import { getManager, getRepository, Not, Equal } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
 
 export const completePutaway = {
   async completePutaway(_: any, { arrivalNoticeNo }, context: any) {
@@ -14,7 +13,7 @@ export const completePutaway = {
        *    - data existing
        */
       const arrivalNotice: ArrivalNotice = await getRepository(ArrivalNotice).findOne({
-        where: { domain: context.state.domain, name: arrivalNoticeNo, status: ORDER_STATUS.PROCESSING },
+        where: { domain: context.state.domain, name: arrivalNoticeNo, status: ORDER_STATUS.PUTTING_AWAY },
         relations: ['bizplace']
       })
 
@@ -28,19 +27,11 @@ export const completePutaway = {
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.PUTAWAY,
           arrivalNotice
-        },
-        relations: [
-          'worksheetDetails',
-          'worksheetDetails.targetInventory',
-          'worksheetDetails.targetInventory.product',
-          'worksheetDetails.targetInventory.warehouse',
-          'worksheetDetails.targetInventory.location'
-        ]
+        }
       })
 
       if (!foundPutawayWorksheet) throw new Error(`Worksheet doesn't exists.`)
 
-      // 2. update status of work sheet
       await getRepository(Worksheet).save({
         ...foundPutawayWorksheet,
         status: WORKSHEET_STATUS.DONE,
@@ -48,43 +39,23 @@ export const completePutaway = {
         updater: context.state.user
       })
 
-      const worksheetDetails: WorksheetDetail[] = foundPutawayWorksheet.worksheetDetails
-
-      // 3. insert new inventory history & update lastSeq of inventory
-      await Promise.all(
-        worksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
-          const inventory: Inventory = worksheetDetail.targetInventory
-          const inventoryHistory: InventoryHistory = await getRepository(InventoryHistory).save({
-            domain: context.state.domain,
-            bizplace: customerBizplace,
-            seq: inventory.lastSeq++,
-            name: InventoryNoGenerator.inventoryHistoryName(),
-            palletId: inventory.palletId,
-            batchId: inventory.batchId,
-            productId: inventory.product.id,
-            warehouseId: inventory.warehouse.id,
-            locationId: inventory.location.id,
-            zone: inventory.zone,
-            packingType: inventory.packingType,
-            qty: inventory.qty,
-            status: INVENTORY_STATUS.OCCUPIED,
-            creator: context.state.user,
-            updater: context.state.user
-          })
-
-          await getRepository(Inventory).save({
-            ...inventory,
-            lastSeq: inventoryHistory.seq,
-            updater: context.state.updater
-          })
-        })
-      )
-
-      await getRepository(ArrivalNotice).save({
-        ...arrivalNotice,
-        status: ORDER_STATUS.DONE,
-        updater: context.state.user
+      // 2. If there's no more worksheet related with current arrival notice
+      // update status of work sheet
+      // 2. 1) check wheter there are more worksheet or not
+      const relatedWorksheets: Worksheet[] = await getRepository(Worksheet).find({
+        domain: context.state.domain,
+        arrivalNotice,
+        status: Not(Equal(WORKSHEET_STATUS.DONE))
       })
+
+      if (!relatedWorksheets || (relatedWorksheets && relatedWorksheets.length === 0)) {
+        // 3. update status of arrival notice
+        await getRepository(ArrivalNotice).save({
+          ...arrivalNotice,
+          status: ORDER_STATUS.DONE,
+          updater: context.state.user
+        })
+      }
     })
   }
 }

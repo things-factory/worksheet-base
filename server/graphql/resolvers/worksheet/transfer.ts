@@ -1,8 +1,7 @@
-import { Inventory, InventoryHistory } from '@things-factory/warehouse-base'
+import { Inventory, InventoryHistory, InventoryNoGenerator } from '@things-factory/warehouse-base'
 import { getManager, getRepository } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { InventoryNoGenerator } from '../../../utils/inventory-no-generator'
 
 export const transfer = {
   async transfer(_: any, { palletId, toPalletId, qty }, context: any) {

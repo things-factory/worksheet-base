@@ -1,6 +1,6 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderVas, VasOrder, ORDER_STATUS, ORDER_TYPES } from '@things-factory/sales-base'
-import { getRepository } from 'typeorm'
+import { getRepository, Not, Equal } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -9,7 +9,7 @@ export const vasWorksheetResolver = {
     // 1. If it's worksheet which is related with arrival notice
     if (orderType === ORDER_TYPES.ARRIVAL_NOTICE) {
       const arrivalNotice: ArrivalNotice = await getRepository(ArrivalNotice).findOne({
-        where: { domain: context.state.domain, name: orderNo, status: ORDER_STATUS.PROCESSING },
+        where: { domain: context.state.domain, name: orderNo, status: Not(Equal(ORDER_STATUS.DONE)) },
         relations: ['bizplace']
       })
 
