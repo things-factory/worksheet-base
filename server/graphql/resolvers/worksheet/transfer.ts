@@ -97,7 +97,7 @@ export const transfer = {
         await getRepository(Inventory).save({
           ...toInventory,
           qty: toInventory.qty + qty,
-          lastSeq: toInventory.seq + 1
+          lastSeq: toInventory.lastSeq + 1
         })
 
         toInventory = await getRepository(Inventory).findOne({
