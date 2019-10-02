@@ -45,13 +45,6 @@ export const putaway = {
         status: WORKSHEET_STATUS.DONE,
         updater: context.state.user
       })
-
-      // 6. update status of worksheet (EXECUTING => DONE)
-      await getRepository(Worksheet).save({
-        ...worksheet,
-        status: WORKSHEET_STATUS.DONE,
-        updater: context.state.user
-      })
     })
   }
 }

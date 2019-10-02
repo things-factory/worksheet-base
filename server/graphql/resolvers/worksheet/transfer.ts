@@ -62,13 +62,7 @@ export const transfer = {
         })
         //    - delete (fromInventory)
         await getRepository(Inventory).delete(fromInventory)
-        //    - update worksheet & worksheetDetail (EXECUTING => DONE)
-        await getRepository(Worksheet).save({
-          ...worksheet,
-          status: WORKSHEET_STATUS.DONE,
-          updater: context.state.user
-        })
-
+        //    - update worksheetDetail (EXECUTING => DONE)
         await getRepository(WorksheetDetail).save({
           ...worksheetDetail,
           status: WORKSHEET_STATUS.DONE,
