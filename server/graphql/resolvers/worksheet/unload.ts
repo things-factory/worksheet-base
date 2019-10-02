@@ -48,6 +48,7 @@ export const unload = {
       }
       inventoryData = await getRepository(Inventory).findOne(inventoryData)
 
+      let mergeFlag = false
       if (inventoryData) {
         // If there's previous inventory => qty has to be merged.
         inventoryData = {
@@ -55,6 +56,7 @@ export const unload = {
           qty: inventoryData.qty + qty,
           updater: context.state.user
         }
+        mergeFlag = true
       } else {
         // If there's no previous inventory
         inventoryData = {
@@ -79,7 +81,9 @@ export const unload = {
       // 3. Update qty of targetProduct
       await getRepository(OrderProduct).save({
         ...foundWorksheetDetail.targetProduct,
-        actualPalletQty: foundWorksheetDetail.targetProduct.actualPalletQty + 1,
+        actualPalletQty: mergeFlag
+          ? foundWorksheetDetail.targetProduct.actualPalletQty
+          : foundWorksheetDetail.targetProduct.actualPalletQty + 1,
         actualPackQty: foundWorksheetDetail.targetProduct.actualPackQty + qty,
         status: ORDER_PRODUCT_STATUS.UNLOADED,
         updater: context.state.user
