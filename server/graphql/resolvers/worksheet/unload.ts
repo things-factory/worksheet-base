@@ -34,56 +34,39 @@ export const unload = {
 
       // 2. Create new inventory data
       // Find previous pallet ( Same batchId, Same product, Same pallet id)
-      let inventoryData: Inventory = {
+      const prevInventory: Inventory = await getRepository(Inventory).findOne({
+        domain: context.state.domain,
+        bizplace: customerBizplace,
+        palletId: palletId,
+        warehouse: foundWorksheetDetail.worksheet.bufferLocation.warehouse,
+        location: foundWorksheetDetail.worksheet.bufferLocation,
+        zone: foundWorksheetDetail.worksheet.bufferLocation.zone
+      })
+
+      if (prevInventory) throw new Error('pallet id is duplicated')
+
+      // 2. Create new inventory data
+      await getRepository(Inventory).save({
         domain: context.state.domain,
         bizplace: customerBizplace,
         palletId: palletId,
         batchId: foundWorksheetDetail.targetProduct.batchId,
+        name: InventoryNoGenerator.inventoryName(),
         product: foundWorksheetDetail.targetProduct.product,
         packingType: foundWorksheetDetail.targetProduct.packingType,
+        qty,
         warehouse: foundWorksheetDetail.worksheet.bufferLocation.warehouse,
         location: foundWorksheetDetail.worksheet.bufferLocation,
         zone: foundWorksheetDetail.worksheet.bufferLocation.zone,
-        status: INVENTORY_STATUS.OCCUPIED
-      }
-      inventoryData = await getRepository(Inventory).findOne(inventoryData)
-
-      let mergeFlag = false
-      if (inventoryData) {
-        // If there's previous inventory => qty has to be merged.
-        inventoryData = {
-          ...inventoryData,
-          qty: inventoryData.qty + qty,
-          updater: context.state.user
-        }
-        mergeFlag = true
-      } else {
-        // If there's no previous inventory
-        inventoryData = {
-          domain: context.state.domain,
-          bizplace: customerBizplace,
-          palletId: palletId,
-          batchId: foundWorksheetDetail.targetProduct.batchId,
-          name: InventoryNoGenerator.inventoryName(),
-          product: foundWorksheetDetail.targetProduct.product,
-          packingType: foundWorksheetDetail.targetProduct.packingType,
-          qty,
-          warehouse: foundWorksheetDetail.worksheet.bufferLocation.warehouse,
-          location: foundWorksheetDetail.worksheet.bufferLocation,
-          zone: foundWorksheetDetail.worksheet.bufferLocation.zone,
-          status: INVENTORY_STATUS.OCCUPIED
-        }
-      }
-
-      // 2. Create new inventory data
-      await getRepository(Inventory).save(inventoryData)
+        status: INVENTORY_STATUS.OCCUPIED,
+        creator: context.state.user,
+        updater: context.state.user
+      })
 
       // 3. Update qty of targetProduct
       await getRepository(OrderProduct).save({
         ...foundWorksheetDetail.targetProduct,
-        actualPalletQty: mergeFlag
-          ? foundWorksheetDetail.targetProduct.actualPalletQty
-          : foundWorksheetDetail.targetProduct.actualPalletQty + 1,
+        actualPalletQty: foundWorksheetDetail.targetProduct.actualPalletQty + 1,
         actualPackQty: foundWorksheetDetail.targetProduct.actualPackQty + qty,
         status: ORDER_PRODUCT_STATUS.UNLOADED,
         updater: context.state.user
