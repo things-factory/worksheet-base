@@ -74,7 +74,7 @@ export const activateVas = {
       return await getRepository(Worksheet).save({
         ...foundWorksheet,
         status: WORKSHEET_STATUS.EXECUTING,
-        startedAt: Date.now(),
+        startedAt: Math.floor(Date.now() / 1000),
         updater: context.state.user
       })
     })

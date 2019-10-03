@@ -44,7 +44,7 @@ export const completeUnloading = {
       await getRepository(Worksheet).save({
         ...foundWorksheet,
         status: WORKSHEET_STATUS.DONE,
-        endedAt: Date.now(),
+        endedAt: Math.floor(Date.now() / 1000),
         updater: context.state.user
       })
 
