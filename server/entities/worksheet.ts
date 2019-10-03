@@ -63,11 +63,13 @@ export class Worksheet {
   status: string
 
   @Column({
+    type: 'timestamptz',
     nullable: true
   })
   startedAt: Date
 
   @Column({
+    type: 'timestamptz',
     nullable: true
   })
   endedAt: Date

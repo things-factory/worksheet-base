@@ -28,7 +28,7 @@ export const completeVas = {
         await getRepository(Worksheet).save({
           ...worksheet,
           status: WORKSHEET_STATUS.DONE,
-          endedAt: Math.floor(Date.now() / 1000),
+          endedAt: `now()`,
           updater: context.state.user
         })
 
@@ -75,7 +75,7 @@ export const completeVas = {
         await getRepository(Worksheet).save({
           ...worksheet,
           status: WORKSHEET_STATUS.DONE,
-          endedAt: Math.floor(Date.now() / 1000),
+          endedAt: `now()`,
           updater: context.state.user
         })
       }
