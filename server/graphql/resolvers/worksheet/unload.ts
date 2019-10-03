@@ -63,7 +63,7 @@ export const unload = {
       })
 
       // 3. Create new inventory history data
-      newInventory = await getRepository(Inventory).find({
+      newInventory = await getRepository(Inventory).findOne({
         where: { id: newInventory.id },
         relations: ['bizplace', 'product', 'warehouse', 'location']
       })
