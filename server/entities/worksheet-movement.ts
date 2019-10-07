@@ -13,7 +13,9 @@ export class WorksheetMovement {
   @ManyToOne(type => Domain)
   domain: Domain
 
-  @Column('date')
+  @Column({
+    nullable: true
+  })
   date: Date
 
   @ManyToOne(type => Worksheet)
