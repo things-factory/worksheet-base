@@ -62,16 +62,10 @@ export class Worksheet {
   @Column()
   status: string
 
-  @Column({
-    type: 'timestamptz',
-    nullable: true
-  })
+  @Column()
   startedAt: Date
 
-  @Column({
-    type: 'timestamptz',
-    nullable: true
-  })
+  @Column()
   endedAt: Date
 
   @ManyToOne(type => User, {

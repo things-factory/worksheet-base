@@ -77,7 +77,7 @@ export const activateUnloading = {
       return await getRepository(Worksheet).save({
         ...foundWorksheet,
         status: WORKSHEET_STATUS.EXECUTING,
-        startedAt: `now()`,
+        startedAt: new Date(),
         updater: context.state.user
       })
     })

@@ -34,7 +34,7 @@ export const completePutaway = {
       await getRepository(Worksheet).save({
         ...foundPutawayWorksheet,
         status: WORKSHEET_STATUS.DONE,
-        endedAt: `now()`,
+        startedAt: new Date(),
         updater: context.state.user
       })
 
