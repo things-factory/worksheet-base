@@ -16,6 +16,7 @@ export const worksheetResolver = {
         'bufferLocation',
         'bufferLocation.warehouse',
         'arrivalNotice',
+        'releaseGood',
         'vasOrder',
         'shippingOrder',
         'worksheetDetails',
