@@ -12,7 +12,7 @@ export const WorksheetDetail = gql`
     worker: Worker
     targetProduct: OrderProduct
     targetVas: OrderVas
-    targetInventory: Inventory
+    targetInventory: OrderInventory
     fromLocation: Location
     toLocation: Location
     status: String
