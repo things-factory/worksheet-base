@@ -9,6 +9,10 @@ export class WorksheetNoGenerator {
     return `PUTAWAY-${uuid()}`
   }
 
+  static picking() {
+    return `PICK-${uuid()}`
+  }
+
   static vas() {
     return `VAS-${uuid()}`
   }
@@ -19,6 +23,10 @@ export class WorksheetNoGenerator {
 
   static putawayDetail() {
     return `PUTAWAY-DETAIL-${uuid()}`
+  }
+
+  static pickingDetail() {
+    return `PICK-DETAIL-${uuid()}`
   }
 
   static vasDetail() {

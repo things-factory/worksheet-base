@@ -1,12 +1,13 @@
 import { ArrivalNoticeWorksheet } from './arrival-notice-worksheet'
 import { ExecutingWorksheet } from './executing-worksheet'
 import { NewWorksheet } from './new-worksheet'
+import { ReleaseGoodWorksheet } from './release-good-worksheet'
+import { VasOrderWorksheet } from './vas-order-worksheet'
 import { Worksheet } from './worksheet'
 import { WorksheetDetailInfo } from './worksheet-detail-info'
 import { WorksheetInfo } from './worksheet-info'
 import { WorksheetList } from './worksheet-list'
 import { WorksheetPatch } from './worksheet-patch'
-import { VasOrderWorksheet } from './vas-order-worksheet'
 
 export const Mutation = `
   createWorksheet (
@@ -26,6 +27,10 @@ export const Mutation = `
     arrivalNoticeNo: String!
     bufferLocation: ObjectRef!
   ): ArrivalNoticeWorksheet
+
+  generateReleaseGoodWorksheet (
+    releaseGoodNo: String!
+  ): ReleaseGoodWorksheet
 
   generateVasOrderWorksheet (
     vasNo: String!
@@ -105,6 +110,7 @@ export const Types = [
   WorksheetPatch,
   WorksheetList,
   ArrivalNoticeWorksheet,
+  ReleaseGoodWorksheet,
   VasOrderWorksheet,
   WorksheetInfo,
   WorksheetDetailInfo,
