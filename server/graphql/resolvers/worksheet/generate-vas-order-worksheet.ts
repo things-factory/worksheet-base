@@ -69,7 +69,7 @@ export const generateVasOrderWorksheet = {
       }
 
       /**
-       * 5. Update status of arrival notice (ARRIVED => READY_TO_UNLOAD)
+       * 5. Update status of vas order (PENDING_RECEIVE => READY_TO_EXECUTE)
        */
       await getRepository(VasOrder).save({
         ...vasOrder,
