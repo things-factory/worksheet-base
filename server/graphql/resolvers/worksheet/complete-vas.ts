@@ -28,7 +28,7 @@ export const completeVas = {
         await getRepository(Worksheet).save({
           ...worksheet,
           status: WORKSHEET_STATUS.DONE,
-          startedAt: new Date(),
+          endedAt: new Date(),
           updater: context.state.user
         })
 

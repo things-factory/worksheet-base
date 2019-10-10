@@ -34,12 +34,12 @@ export const completePutaway = {
       await getRepository(Worksheet).save({
         ...foundPutawayWorksheet,
         status: WORKSHEET_STATUS.DONE,
-        startedAt: new Date(),
+        endedAt: new Date(),
         updater: context.state.user
       })
 
       // 2. If there's no more worksheet related with current arrival notice
-      // update status of work sheet
+      // update status of arrival notice
       // 2. 1) check wheter there are more worksheet or not
       const relatedWorksheets: Worksheet[] = await getRepository(Worksheet).find({
         domain: context.state.domain,

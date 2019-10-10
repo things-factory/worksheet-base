@@ -12,6 +12,7 @@ export const WorksheetDetailInfo = gql`
     packQty: Int
     actualPackQty: Int
     qty: Int
+    releaseQty: Int
     vas: Vas
     targetName: String
     description: String
@@ -19,6 +20,5 @@ export const WorksheetDetailInfo = gql`
     status: String
     location: Location
     toLocation: Location
-    splitedInventories: [Inventory]
   }
 `

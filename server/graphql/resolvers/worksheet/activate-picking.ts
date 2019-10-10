@@ -75,7 +75,7 @@ export const activatePicking = {
       const releaseGood: ReleaseGood = foundWorksheet.releaseGood
       await getRepository(ReleaseGood).save({
         ...releaseGood,
-        status: ORDER_STATUS.PUTTING_AWAY,
+        status: ORDER_STATUS.PICKING,
         updater: context.state.user
       })
 

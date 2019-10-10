@@ -4,6 +4,7 @@ import { activateUnloading } from './activate-unloading'
 import { activateVas } from './activate-vas'
 import { completePutaway } from './complete-putaway'
 import { completeUnloading } from './complete-unloading'
+import { completePicking } from './complete-picking'
 import { completeVas } from './complete-vas'
 import { createWorksheet } from './create-worksheet'
 import { deleteWorksheet } from './delete-worksheet'
@@ -11,6 +12,8 @@ import { executeVas } from './execute-vas'
 import { generateArrivalNoticeWorksheet } from './generate-arrival-notice-worksheet'
 import { generateReleaseGoodWorksheet } from './generate-release-good-worksheet'
 import { generateVasOrderWorksheet } from './generate-vas-order-worksheet'
+import { picking } from './picking'
+import { pickingWorksheetResolver } from './picking-worksheet'
 import { putaway } from './putaway'
 import { putawayWorksheetResolver } from './putaway-worksheet'
 import { transfer } from './transfer'
@@ -29,6 +32,7 @@ export const Query = {
   ...worksheetResolver,
   ...unloadingWorksheetResolver,
   ...putawayWorksheetResolver,
+  ...pickingWorksheetResolver,
   ...vasWorksheetResolver,
   ...unloadedInventories
 }
@@ -50,6 +54,8 @@ export const Mutation = {
   ...putaway,
   ...transfer,
   ...completePutaway,
+  ...picking,
+  ...completePicking,
   ...executeVas,
   ...undoVas,
   ...completeVas

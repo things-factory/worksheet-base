@@ -2,7 +2,7 @@ import { Bizplace } from '@things-factory/biz-base'
 import { OrderProduct, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
 import { Inventory, InventoryNoGenerator, INVENTORY_STATUS, InventoryHistory } from '@things-factory/warehouse-base'
 import { getManager, getRepository } from 'typeorm'
-import { WORKSHEET_STATUS } from '../../../constants'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
 
 export const unload = {
@@ -16,7 +16,8 @@ export const unload = {
         where: {
           domain: context.state.domain,
           name: worksheetDetailName,
-          status: WORKSHEET_STATUS.EXECUTING
+          status: WORKSHEET_STATUS.EXECUTING,
+          type: WORKSHEET_TYPE.UNLOADING
         },
         relations: [
           'bizplace',

@@ -86,6 +86,15 @@ export const Mutation = `
     arrivalNoticeNo: String!
   ): Boolean
 
+  picking (
+    palletId: String!
+    releaseQty: Int!
+  ): Boolean
+
+  completePicking (
+    releaseGoodNo: String!
+  ): Boolean
+
   executeVas (
     worksheetDetail: WorksheetDetailPatch!
   ): Boolean
@@ -107,6 +116,7 @@ export const Query = `
   unloadedInventories(worksheetDetailName: String!): [Inventory]
   putawayWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   vasWorksheet(orderNo: String!, orderType: String!): ExecutingWorksheet
+  pickingWorksheet(releaseGoodNo: String!): ExecutingWorksheet
 `
 
 export const Types = [

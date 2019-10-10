@@ -1,6 +1,6 @@
 import { Inventory, InventoryHistory, InventoryNoGenerator } from '@things-factory/warehouse-base'
 import { getManager, getRepository } from 'typeorm'
-import { WORKSHEET_STATUS } from '../../../constants'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const transfer = {
@@ -23,7 +23,12 @@ export const transfer = {
 
       // 3. get worksheet & worksheet detail
       const worksheetDetail: WorksheetDetail = await getRepository(WorksheetDetail).findOne({
-        where: { domain: context.state.domain, targetInventory: fromInventory, status: WORKSHEET_STATUS.EXECUTING },
+        where: {
+          domain: context.state.domain,
+          targetInventory: fromInventory,
+          status: WORKSHEET_STATUS.EXECUTING,
+          type: WORKSHEET_TYPE.PUTAWAY
+        },
         relations: ['worksheet']
       })
       if (!worksheetDetail) throw new Error(`Worksheet Detail doesn't exists`)
