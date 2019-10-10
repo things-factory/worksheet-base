@@ -1,6 +1,7 @@
 import { OrderVas, ORDER_STATUS, ORDER_VAS_STATUS, VasOrder } from '@things-factory/sales-base'
+import { Bizplace } from '@things-factory/biz-base'
 import { getManager } from 'typeorm'
-import { WORKSHEET_STATUS } from '../../../constants'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const activateVas = {
@@ -17,10 +18,11 @@ export const activateVas = {
           name: worksheetNo,
           status: WORKSHEET_STATUS.DEACTIVATED
         },
-        relations: ['vasOrder', 'worksheetDetails', 'worksheetDetails.targetVas']
+        relations: ['bizplace', 'vasOrder', 'worksheetDetails', 'worksheetDetails.targetVas']
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
+      const customerBizplace: Bizplace = foundWorksheet.bizplace
       const foundWSDs: WorksheetDetail[] = foundWorksheet.worksheetDetails
       const foundVasOrder: VasOrder = foundWorksheet.vasOrder
       let targetVASs: OrderVas[] = foundWSDs.map((foundWSD: WorksheetDetail) => foundWSD.targetVas)
@@ -33,8 +35,10 @@ export const activateVas = {
           await trxMgr.getRepository(WorksheetDetail).update(
             {
               domain: context.state.domain,
+              bizplace: customerBizplace,
               name: vasWorksheetDetail.name,
-              status: WORKSHEET_STATUS.DEACTIVATED
+              status: WORKSHEET_STATUS.DEACTIVATED,
+              type: WORKSHEET_TYPE.VAS
             },
             {
               description: vasWorksheetDetail.description,

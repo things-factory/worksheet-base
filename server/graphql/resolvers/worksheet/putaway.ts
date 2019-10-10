@@ -1,5 +1,11 @@
 import { OrderInventory, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
-import { Inventory, InventoryHistory, InventoryNoGenerator, Location } from '@things-factory/warehouse-base'
+import {
+  Inventory,
+  InventoryHistory,
+  InventoryNoGenerator,
+  Location,
+  LOCATION_TYPE
+} from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -27,7 +33,7 @@ export const putaway = {
 
       // 3. get to location object
       const location: Location = await trxMgr.getRepository(Location).findOne({
-        where: { domain: context.state.domain, name: toLocation },
+        where: { domain: context.state.domain, name: toLocation, type: LOCATION_TYPE.SHELF },
         relations: ['warehouse']
       })
       if (!location) throw new Error(`Location doesn't exists`)
