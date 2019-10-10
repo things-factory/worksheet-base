@@ -1,4 +1,4 @@
-import { ArrivalNotice, ORDER_STATUS } from '@things-factory/sales-base'
+import { ArrivalNotice, OrderInventory, ORDER_STATUS } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
 import { getRepository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -26,8 +26,9 @@ export const putawayWorksheetResolver = {
         'arrivalNotice',
         'worksheetDetails',
         'worksheetDetails.targetInventory',
-        'worksheetDetails.targetInventory.location',
-        'worksheetDetails.targetInventory.product',
+        'worksheetDetails.targetInventory.inventory',
+        'worksheetDetails.targetInventory.inventory.location',
+        'worksheetDetails.targetInventory.inventory.product',
         'worksheetDetails.toLocation'
       ]
     })
@@ -38,19 +39,19 @@ export const putawayWorksheetResolver = {
         startedAt: worksheet.startedAt
       },
       worksheetDetailInfos: worksheet.worksheetDetails.map(async (putawayWSD: WorksheetDetail) => {
-        const targetInventory: Inventory = putawayWSD.targetInventory
+        const targetInventory: OrderInventory = putawayWSD.targetInventory
+        const inventory: Inventory = targetInventory.inventory
         return {
           name: putawayWSD.name,
-          palletId: targetInventory.palletId,
-          batchId: targetInventory.batchId,
-          product: targetInventory.product,
-          qty: targetInventory.qty,
+          palletId: inventory.palletId,
+          batchId: inventory.batchId,
+          product: inventory.product,
+          qty: inventory.qty,
           status: putawayWSD.status,
           description: putawayWSD.description,
           targetName: targetInventory.name,
-          packingType: targetInventory.packingType,
-          location: targetInventory.location,
-          toLocation: putawayWSD.toLocation
+          packingType: inventory.packingType,
+          location: inventory.location
         }
       })
     }
