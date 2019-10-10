@@ -1,4 +1,4 @@
-import { ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
+import { ORDER_STATUS, ReleaseGood, OrderInventory } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
 import { getRepository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -25,9 +25,9 @@ export const pickingWorksheetResolver = {
         'bizplace',
         'worksheetDetails',
         'worksheetDetails.targetInventory',
-        'worksheetDetails.targetInventory.location',
-        'worksheetDetails.targetInventory.product',
-        'worksheetDetails.toLocation'
+        'worksheetDetails.targetInventory.inventory',
+        'worksheetDetails.targetInventory.inventory.location',
+        'worksheetDetails.targetInventory.inventory.product'
       ]
     })
 
@@ -37,19 +37,20 @@ export const pickingWorksheetResolver = {
         startedAt: worksheet.startedAt
       },
       worksheetDetailInfos: worksheet.worksheetDetails.map(async (pickingWSD: WorksheetDetail) => {
-        const targetInventory: Inventory = pickingWSD.targetInventory
+        const targetInventory: OrderInventory = pickingWSD.targetInventory
+        const inventory: Inventory = targetInventory.inventory
         return {
           name: pickingWSD.name,
-          palletId: targetInventory.palletId,
-          batchId: targetInventory.batchId,
-          product: targetInventory.product,
-          qty: targetInventory.qty,
+          palletId: inventory.palletId,
+          batchId: inventory.batchId,
+          product: inventory.product,
+          qty: inventory.qty,
           releaseQty: targetInventory.releaseQty,
           status: pickingWSD.status,
           description: pickingWSD.description,
           targetName: targetInventory.name,
           packingType: targetInventory.packingType,
-          location: targetInventory.location
+          location: inventory.location
         }
       })
     }
