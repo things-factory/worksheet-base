@@ -51,6 +51,11 @@ export const Mutation = `
     vasWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet
 
+  activatePicking (
+    worksheetNo: String!
+    pickingWorksheetDetails: [WorksheetDetailPatch]
+  ): Worksheet
+
   unload (
     worksheetDetailName: String!
     inventory: InventoryPatch!

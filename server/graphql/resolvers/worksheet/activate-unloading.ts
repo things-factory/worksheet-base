@@ -28,7 +28,7 @@ export const activateUnloading = {
       let targetProducts: OrderProduct[] = foundWSDs.map((foundWSD: WorksheetDetail) => foundWSD.targetProduct)
 
       /**
-       * 2. Update description of product worksheet details
+       * 2. Update description of product worksheet details (status: DEACTIVATED => EXECUTING)
        */
       await Promise.all(
         unloadingWorksheetDetails.map(async (unloadingWSD: WorksheetDetail) => {

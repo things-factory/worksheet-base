@@ -1,11 +1,11 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, OrderInventory, ORDER_STATUS, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
+import { OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { getManager, getRepository } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
-export const activatePutaway = {
-  async activatePutaway(_: any, { worksheetNo, putawayWorksheetDetails }, context: any) {
+export const activatePicking = {
+  async activatePicking(_: any, { worksheetNo, pickingWorksheetDetails }, context: any) {
     return await getManager().transaction(async () => {
       /**
        * 1. Validation for worksheet
@@ -18,7 +18,7 @@ export const activatePutaway = {
           name: worksheetNo,
           status: WORKSHEET_STATUS.DEACTIVATED
         },
-        relations: ['bizplace', 'arrivalNotice', 'worksheetDetails', 'worksheetDetails.targetInventory']
+        relations: ['bizplace', 'releaseGood', 'worksheetDetails', 'worksheetDetails.targetInventory']
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
@@ -27,19 +27,19 @@ export const activatePutaway = {
       let targetInventories: OrderInventory[] = foundWSDs.map((foundWSD: WorksheetDetail) => foundWSD.targetInventory)
 
       /**
-       * 2. Update description of putaway worksheet details
+       * 2. Update description and status of picking worksheet details (status: DEACTIVATED => EXECUTING)
        */
       await Promise.all(
-        putawayWorksheetDetails.map(async (putawayWorksheetDetail: WorksheetDetail) => {
+        pickingWorksheetDetails.map(async (pickingWorksheetDetail: WorksheetDetail) => {
           await getRepository(WorksheetDetail).update(
             {
               domain: context.state.domain,
               bizplace: customerBizplace,
-              name: putawayWorksheetDetail.name,
+              name: pickingWorksheetDetail.name,
               status: WORKSHEET_STATUS.DEACTIVATED
             },
             {
-              description: putawayWorksheetDetail.description,
+              description: pickingWorksheetDetail.description,
               status: WORKSHEET_STATUS.EXECUTING,
               updater: context.state.user
             }
@@ -48,7 +48,7 @@ export const activatePutaway = {
       )
 
       /**
-       * 3. Update target inventories (status: READY_TO_PUTAWAY => PUTTING_AWAY)
+       * 3. Update target inventories (status: READY_TO_PICK => PICKING)
        */
       targetInventories = targetInventories.map((targetInventory: OrderInventory) => {
         return {
@@ -60,7 +60,7 @@ export const activatePutaway = {
       await getRepository(OrderInventory).save(targetInventories)
 
       /**
-       * 4. Update putaway Worksheet (status: DEACTIVATED => EXECUTING)
+       * 4. Update picking Worksheet (status: DEACTIVATED => EXECUTING)
        */
       const worksheet: Worksheet = await getRepository(Worksheet).save({
         ...foundWorksheet,
@@ -70,11 +70,11 @@ export const activatePutaway = {
       })
 
       /**
-       * 5. Update Arrival Notice (status: READY_TO_PUTAWAY => PUTTING_AWAY)
+       * 5. Update Release Good (status: READY_TO_PICK => PICKING)
        */
-      const arrivalNotice: ArrivalNotice = foundWorksheet.arrivalNotice
-      await getRepository(ArrivalNotice).save({
-        ...arrivalNotice,
+      const releaseGood: ReleaseGood = foundWorksheet.releaseGood
+      await getRepository(ReleaseGood).save({
+        ...releaseGood,
         status: ORDER_STATUS.PUTTING_AWAY,
         updater: context.state.user
       })
