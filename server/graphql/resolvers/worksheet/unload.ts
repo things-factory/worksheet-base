@@ -1,18 +1,18 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderProduct, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
-import { Inventory, InventoryNoGenerator, INVENTORY_STATUS, InventoryHistory } from '@things-factory/warehouse-base'
-import { getManager, getRepository } from 'typeorm'
+import { Inventory, InventoryHistory, InventoryNoGenerator, INVENTORY_STATUS } from '@things-factory/warehouse-base'
+import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
 
 export const unload = {
   async unload(_: any, { worksheetDetailName, inventory }, context: any) {
-    return await getManager().transaction(async () => {
+    return await getManager().transaction(async trxMgr => {
       const palletId = inventory.palletId
       const qty = inventory.qty
 
       // 1. find worksheet detail
-      const foundWorksheetDetail: WorksheetDetail = await getRepository(WorksheetDetail).findOne({
+      const foundWorksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
         where: {
           domain: context.state.domain,
           name: worksheetDetailName,
@@ -34,7 +34,7 @@ export const unload = {
 
       // 2. Create new inventory data
       // Find previous pallet ( Same batchId, Same product, Same pallet id)
-      const prevInventory: Inventory = await getRepository(Inventory).findOne({
+      const prevInventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
         domain: context.state.domain,
         bizplace: customerBizplace,
         palletId: palletId,
@@ -46,7 +46,7 @@ export const unload = {
       if (prevInventory) throw new Error('pallet id is duplicated')
 
       // 2. Create new inventory data
-      let newInventory: Inventory = await getRepository(Inventory).save({
+      let newInventory: Inventory = await trxMgr.getRepository(Inventory).save({
         domain: context.state.domain,
         bizplace: customerBizplace,
         palletId: palletId,
@@ -64,12 +64,12 @@ export const unload = {
       })
 
       // 3. Create new inventory history data
-      newInventory = await getRepository(Inventory).findOne({
+      newInventory = await trxMgr.getRepository(Inventory).findOne({
         where: { id: newInventory.id },
         relations: ['bizplace', 'product', 'warehouse', 'location']
       })
       delete newInventory.id
-      await getRepository(InventoryHistory).save({
+      await trxMgr.getRepository(InventoryHistory).save({
         ...newInventory,
         domain: context.state.domain,
         name: InventoryNoGenerator.inventoryHistoryName(),
@@ -82,7 +82,7 @@ export const unload = {
       })
 
       // 3. Update qty of targetProduct
-      await getRepository(OrderProduct).save({
+      await trxMgr.getRepository(OrderProduct).save({
         ...foundWorksheetDetail.targetProduct,
         actualPalletQty: foundWorksheetDetail.targetProduct.actualPalletQty + 1,
         actualPackQty: foundWorksheetDetail.targetProduct.actualPackQty + qty,

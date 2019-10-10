@@ -1,19 +1,19 @@
 import { Inventory, InventoryHistory, InventoryNoGenerator, Location } from '@things-factory/warehouse-base'
-import { getManager, getRepository } from 'typeorm'
+import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const putaway = {
   async putaway(_: any, { palletId, toLocation }, context: any) {
-    return await getManager().transaction(async () => {
+    return await getManager().transaction(async trxMgr => {
       // 1. get inventory
-      let inventory: Inventory = await getRepository(Inventory).findOne({
+      let inventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
         where: { domain: context.state.domain, palletId }
       })
       if (!inventory) throw new Error(`Inventory doesn't exists`)
 
       // 2. get worksheet detail
-      const worksheetDetail: WorksheetDetail = await getRepository(WorksheetDetail).findOne({
+      const worksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
         where: {
           domain: context.state.domain,
           targetInventory: inventory,
@@ -28,14 +28,14 @@ export const putaway = {
       if (!worksheet) throw new Error(`Worksheet doesn't exists`)
 
       // 3. get to location object
-      const location: Location = await getRepository(Location).findOne({
+      const location: Location = await trxMgr.getRepository(Location).findOne({
         where: { domain: context.state.domain, name: toLocation },
         relations: ['warehouse']
       })
       if (!location) throw new Error(`Location doesn't exists`)
 
       // 4. update location of inventory (buffer location => toLocation)
-      inventory = await getRepository(Inventory).save({
+      inventory = await trxMgr.getRepository(Inventory).save({
         ...inventory,
         location,
         lastSeq: inventory.lastSeq + 1,
@@ -45,12 +45,12 @@ export const putaway = {
       })
 
       // 5. add inventory history
-      inventory = await getRepository(Inventory).findOne({
+      inventory = await trxMgr.getRepository(Inventory).findOne({
         where: { id: inventory.id },
         relations: ['bizplace', 'product', 'warehouse', 'location']
       })
       delete inventory.id
-      await getRepository(InventoryHistory).save({
+      await trxMgr.getRepository(InventoryHistory).save({
         ...inventory,
         domain: context.state.domain,
         name: InventoryNoGenerator.inventoryHistoryName(),
@@ -63,7 +63,7 @@ export const putaway = {
       })
 
       // 6. update status of worksheet details (EXECUTING => DONE)
-      await getRepository(WorksheetDetail).save({
+      await trxMgr.getRepository(WorksheetDetail).save({
         ...worksheetDetail,
         status: WORKSHEET_STATUS.DONE,
         updater: context.state.user

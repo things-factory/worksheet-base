@@ -1,17 +1,17 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, ORDER_STATUS } from '@things-factory/sales-base'
-import { Equal, getManager, getRepository, Not } from 'typeorm'
+import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet } from '../../../entities'
 
 export const completePutaway = {
   async completePutaway(_: any, { arrivalNoticeNo }, context: any) {
-    return await getManager().transaction(async () => {
+    return await getManager().transaction(async trxMgr => {
       /**
        * 1. Validation for worksheet
        *    - data existing
        */
-      const arrivalNotice: ArrivalNotice = await getRepository(ArrivalNotice).findOne({
+      const arrivalNotice: ArrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({
         where: { domain: context.state.domain, name: arrivalNoticeNo, status: ORDER_STATUS.PUTTING_AWAY },
         relations: ['bizplace']
       })
@@ -19,7 +19,7 @@ export const completePutaway = {
       if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
       const customerBizplace: Bizplace = arrivalNotice.bizplace
 
-      const foundPutawayWorksheet: Worksheet = await getRepository(Worksheet).findOne({
+      const foundPutawayWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: {
           domain: context.state.domain,
           bizplace: customerBizplace,
@@ -31,7 +31,7 @@ export const completePutaway = {
 
       if (!foundPutawayWorksheet) throw new Error(`Worksheet doesn't exists.`)
 
-      await getRepository(Worksheet).save({
+      await trxMgr.getRepository(Worksheet).save({
         ...foundPutawayWorksheet,
         status: WORKSHEET_STATUS.DONE,
         endedAt: new Date(),
@@ -41,7 +41,7 @@ export const completePutaway = {
       // 2. If there's no more worksheet related with current arrival notice
       // update status of arrival notice
       // 2. 1) check wheter there are more worksheet or not
-      const relatedWorksheets: Worksheet[] = await getRepository(Worksheet).find({
+      const relatedWorksheets: Worksheet[] = await trxMgr.getRepository(Worksheet).find({
         domain: context.state.domain,
         arrivalNotice,
         status: Not(Equal(WORKSHEET_STATUS.DONE))
@@ -49,7 +49,7 @@ export const completePutaway = {
 
       if (!relatedWorksheets || (relatedWorksheets && relatedWorksheets.length === 0)) {
         // 3. update status of arrival notice
-        await getRepository(ArrivalNotice).save({
+        await trxMgr.getRepository(ArrivalNotice).save({
           ...arrivalNotice,
           status: ORDER_STATUS.DONE,
           updater: context.state.user

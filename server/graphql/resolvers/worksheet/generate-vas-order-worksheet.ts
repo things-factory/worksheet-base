@@ -36,31 +36,35 @@ export const generateVasOrderWorksheet = {
           updater: context.state.user
         })
 
-        // 3. 2) Create vas worksheet details
-        const vasWorksheetDetails = foundOVs.map((ov: OrderVas) => {
-          return {
-            domain: context.state.domain,
-            bizplace: customerBizplace,
-            worksheet: vasWorksheet,
-            name: WorksheetNoGenerator.vasDetail(),
-            targetVas: ov,
-            type: WORKSHEET_TYPE.VAS,
-            status: WORKSHEET_STATUS.DEACTIVATED,
-            creator: context.state.user,
-            updater: context.state.user
-          }
-        })
-        await txMgr.getRepository(WorksheetDetail).save(vasWorksheetDetails)
+        await Promise.all(
+          foundOVs.map(async (orderVas: OrderVas) => {
+            await txMgr.getRepository(WorksheetDetail).save({
+              domain: context.state.domain,
+              bizplace: foundVasOrder.bizplace,
+              worksheet: vasWorksheet,
+              name: WorksheetNoGenerator.vasDetail(),
+              targetVas: orderVas,
+              type: WORKSHEET_TYPE.VAS,
+              status: WORKSHEET_STATUS.DEACTIVATED,
+              creator: context.state.user,
+              updater: context.state.user
+            })
 
-        // 3. 3) Update status of order vas (ARRIVED => READY_TO_PROCESS)
-        foundOVs = foundOVs.map((ov: OrderVas) => {
-          return {
-            ...ov,
-            status: ORDER_VAS_STATUS.READY_TO_PROCESS,
-            updater: context.state.user
-          }
-        })
-        await txMgr.getRepository(OrderVas).save(foundOVs)
+            // 4. 2) Update status of order vass (ARRIVED => READY_TO_PROCESS)
+            await txMgr.getRepository(OrderVas).update(
+              {
+                domain: context.state.domain,
+                name: orderVas.name,
+                vasOrder: foundVasOrder
+              },
+              {
+                ...orderVas,
+                status: ORDER_VAS_STATUS.READY_TO_PROCESS,
+                updater: context.state.user
+              }
+            )
+          })
+        )
       }
 
       /**

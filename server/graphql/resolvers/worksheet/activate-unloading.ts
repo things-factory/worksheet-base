@@ -1,18 +1,18 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderProduct, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
-import { getManager, getRepository } from 'typeorm'
+import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const activateUnloading = {
   async activateUnloading(_: any, { worksheetNo, unloadingWorksheetDetails }, context: any) {
-    return await getManager().transaction(async () => {
+    return await getManager().transaction(async trxMgr => {
       /**
        * 1. Validation for worksheet
        *    - data existing
        *    - status of worksheet
        */
-      const foundWorksheet: Worksheet = await getRepository(Worksheet).findOne({
+      const foundWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: {
           domain: context.state.domain,
           name: worksheetNo,
@@ -32,7 +32,7 @@ export const activateUnloading = {
        */
       await Promise.all(
         unloadingWorksheetDetails.map(async (unloadingWSD: WorksheetDetail) => {
-          await getRepository(WorksheetDetail).update(
+          await trxMgr.getRepository(WorksheetDetail).update(
             {
               domain: context.state.domain,
               bizplace: customerBizplace,
@@ -59,13 +59,13 @@ export const activateUnloading = {
           updater: context.state.user
         }
       })
-      await getRepository(OrderProduct).save(targetProducts)
+      await trxMgr.getRepository(OrderProduct).save(targetProducts)
 
       /**
        * 4. Update Arrival Notice (status: READY_TO_UNLOAD => PROCESSING)
        */
       const arrivalNotice: ArrivalNotice = foundWorksheet.arrivalNotice
-      await getRepository(ArrivalNotice).save({
+      await trxMgr.getRepository(ArrivalNotice).save({
         ...arrivalNotice,
         status: ORDER_STATUS.PROCESSING,
         updater: context.state.user
@@ -74,7 +74,7 @@ export const activateUnloading = {
       /**
        * 5. Update Worksheet (status: DEACTIVATED => EXECUTING)
        */
-      return await getRepository(Worksheet).save({
+      return await trxMgr.getRepository(Worksheet).save({
         ...foundWorksheet,
         status: WORKSHEET_STATUS.EXECUTING,
         startedAt: new Date(),

@@ -1,13 +1,13 @@
 import { OrderProduct, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
-import { Inventory, INVENTORY_STATUS, InventoryHistory, InventoryNoGenerator } from '@things-factory/warehouse-base'
-import { getManager, getRepository } from 'typeorm'
+import { Inventory, InventoryHistory, InventoryNoGenerator, INVENTORY_STATUS } from '@things-factory/warehouse-base'
+import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
 
 export const undoUnloading = {
   async undoUnloading(_: any, { worksheetDetailName, palletId }, context: any) {
-    return await getManager().transaction(async () => {
-      const foundWorksheetDetail: WorksheetDetail = await getRepository(WorksheetDetail).findOne({
+    return await getManager().transaction(async trxMgr => {
+      const foundWorksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
         where: { domain: context.state.domain, name: worksheetDetailName, status: WORKSHEET_STATUS.EXECUTING },
         relations: ['bizplace', 'fromLocation', 'toLocation', 'targetProduct']
       })
@@ -15,13 +15,13 @@ export const undoUnloading = {
       if (!foundWorksheetDetail) throw new Error("Worksheet doesn't exists")
 
       // 1. find inventory
-      let inventory: Inventory = await getRepository(Inventory).findOne({
+      let inventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
         domain: context.state.domain,
         status: INVENTORY_STATUS.OCCUPIED,
         palletId
       })
 
-      await getRepository(OrderProduct).save({
+      await trxMgr.getRepository(OrderProduct).save({
         ...foundWorksheetDetail.targetProduct,
         actualPackQty: foundWorksheetDetail.targetProduct.actualPackQty - inventory.qty,
         actualPalletQty: foundWorksheetDetail.targetProduct.actualPalletQty - 1,
@@ -29,26 +29,25 @@ export const undoUnloading = {
         updater: context.state.user
       })
 
-      await getRepository(WorksheetDetail).save({
+      await trxMgr.getRepository(WorksheetDetail).save({
         ...foundWorksheetDetail,
         status: WORKSHEET_STATUS.EXECUTING,
         updater: context.state.user
       })
 
       // update inventory qty to 0
-      await getRepository(Inventory).save({
+      await trxMgr.getRepository(Inventory).save({
         ...inventory,
         lastSeq: inventory.lastSeq + 1,
         qty: 0,
         updater: context.state.user
       })
 
-      inventory = await getRepository(Inventory).findOne({
+      inventory = await trxMgr.getRepository(Inventory).findOne({
         where: { id: inventory.id },
         relations: ['bizplace', 'product', 'warehouse', 'location']
       })
-      delete inventory.id
-      await getRepository(InventoryHistory).save({
+      const inventoryHistory: InventoryHistory = {
         ...inventory,
         domain: context.state.domain,
         name: InventoryNoGenerator.inventoryHistoryName(),
@@ -58,9 +57,10 @@ export const undoUnloading = {
         locationId: inventory.location.id,
         creator: context.state.user,
         updater: context.state.user
-      })
-
-      await getRepository(Inventory).delete(inventory.id)
+      }
+      delete inventoryHistory.id
+      await trxMgr.getRepository(InventoryHistory).save(inventoryHistory)
+      await trxMgr.getRepository(Inventory).delete(inventory.id)
     })
   }
 }

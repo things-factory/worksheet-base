@@ -1,18 +1,18 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, OrderInventory, ORDER_STATUS, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
-import { getManager, getRepository } from 'typeorm'
+import { ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
+import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const activatePutaway = {
   async activatePutaway(_: any, { worksheetNo, putawayWorksheetDetails }, context: any) {
-    return await getManager().transaction(async () => {
+    return await getManager().transaction(async trxMgr => {
       /**
        * 1. Validation for worksheet
        *    - data existing
        *    - status of worksheet
        */
-      const foundWorksheet: Worksheet = await getRepository(Worksheet).findOne({
+      const foundWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: {
           domain: context.state.domain,
           name: worksheetNo,
@@ -31,7 +31,7 @@ export const activatePutaway = {
        */
       await Promise.all(
         putawayWorksheetDetails.map(async (putawayWorksheetDetail: WorksheetDetail) => {
-          await getRepository(WorksheetDetail).update(
+          await trxMgr.getRepository(WorksheetDetail).update(
             {
               domain: context.state.domain,
               bizplace: customerBizplace,
@@ -57,12 +57,12 @@ export const activatePutaway = {
           updater: context.state.user
         }
       })
-      await getRepository(OrderInventory).save(targetInventories)
+      await trxMgr.getRepository(OrderInventory).save(targetInventories)
 
       /**
        * 4. Update putaway Worksheet (status: DEACTIVATED => EXECUTING)
        */
-      const worksheet: Worksheet = await getRepository(Worksheet).save({
+      const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).save({
         ...foundWorksheet,
         status: WORKSHEET_STATUS.EXECUTING,
         startedAt: new Date(),
@@ -73,7 +73,7 @@ export const activatePutaway = {
        * 5. Update Arrival Notice (status: READY_TO_PUTAWAY => PUTTING_AWAY)
        */
       const arrivalNotice: ArrivalNotice = foundWorksheet.arrivalNotice
-      await getRepository(ArrivalNotice).save({
+      await trxMgr.getRepository(ArrivalNotice).save({
         ...arrivalNotice,
         status: ORDER_STATUS.PUTTING_AWAY,
         updater: context.state.user
