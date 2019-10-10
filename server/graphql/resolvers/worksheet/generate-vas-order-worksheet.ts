@@ -1,14 +1,14 @@
-import { OrderVas, ORDER_STATUS, ORDER_VAS_STATUS, VasOrder } from '@things-factory/sales-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { getManager, getRepository, In } from 'typeorm'
+import { OrderVas, ORDER_STATUS, ORDER_VAS_STATUS, VasOrder } from '@things-factory/sales-base'
+import { getManager, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
 
 export const generateVasOrderWorksheet = {
   async generateVasOrderWorksheet(_: any, { vasNo }, context: any) {
-    return await getManager().transaction(async txMgr => {
-      const foundVasOrder: VasOrder = await txMgr.getRepository(VasOrder).findOne({
+    return await getManager().transaction(async trxMgr => {
+      const foundVasOrder: VasOrder = await trxMgr.getRepository(VasOrder).findOne({
         where: {
           domain: context.state.domain,
           name: vasNo,
@@ -22,10 +22,13 @@ export const generateVasOrderWorksheet = {
       const customerBizplace: Bizplace = foundVasOrder.bizplace
       let foundOVs: OrderVas[] = foundVasOrder.orderVass
 
+      /**
+       * 3. Create worksheet and worksheet details for vass (if it exists)
+       */
       let vasWorksheet: Worksheet = new Worksheet()
       if (foundOVs && foundOVs.length) {
-        // 3. 1) Create vas worksheet
-        vasWorksheet = await txMgr.getRepository(Worksheet).save({
+        // 2. 1) Create vas worksheet
+        vasWorksheet = await trxMgr.getRepository(Worksheet).save({
           domain: context.state.domain,
           bizplace: customerBizplace,
           name: WorksheetNoGenerator.vas(),
@@ -36,41 +39,37 @@ export const generateVasOrderWorksheet = {
           updater: context.state.user
         })
 
-        await Promise.all(
-          foundOVs.map(async (orderVas: OrderVas) => {
-            await txMgr.getRepository(WorksheetDetail).save({
-              domain: context.state.domain,
-              bizplace: foundVasOrder.bizplace,
-              worksheet: vasWorksheet,
-              name: WorksheetNoGenerator.vasDetail(),
-              targetVas: orderVas,
-              type: WORKSHEET_TYPE.VAS,
-              status: WORKSHEET_STATUS.DEACTIVATED,
-              creator: context.state.user,
-              updater: context.state.user
-            })
+        // 2. 2) Create vas worksheet details
+        const vasWorksheetDetails = foundOVs.map((ov: OrderVas) => {
+          return {
+            domain: context.state.domain,
+            bizplace: customerBizplace,
+            worksheet: vasWorksheet,
+            name: WorksheetNoGenerator.vasDetail(),
+            targetVas: ov,
+            type: WORKSHEET_TYPE.VAS,
+            status: WORKSHEET_STATUS.DEACTIVATED,
+            creator: context.state.user,
+            updater: context.state.user
+          }
+        })
+        await trxMgr.getRepository(WorksheetDetail).save(vasWorksheetDetails)
 
-            // 4. 2) Update status of order vass (ARRIVED => READY_TO_PROCESS)
-            await txMgr.getRepository(OrderVas).update(
-              {
-                domain: context.state.domain,
-                name: orderVas.name,
-                vasOrder: foundVasOrder
-              },
-              {
-                ...orderVas,
-                status: ORDER_VAS_STATUS.READY_TO_PROCESS,
-                updater: context.state.user
-              }
-            )
-          })
-        )
+        // 2. 3) Update status of order vas (ARRIVED => READY_TO_PROCESS)
+        foundOVs = foundOVs.map((ov: OrderVas) => {
+          return {
+            ...ov,
+            status: ORDER_VAS_STATUS.READY_TO_PROCESS,
+            updater: context.state.user
+          }
+        })
+        await trxMgr.getRepository(OrderVas).save(foundOVs)
       }
 
       /**
        * 5. Update status of vas order (PENDING_RECEIVE => READY_TO_EXECUTE)
        */
-      await txMgr.getRepository(VasOrder).save({
+      await trxMgr.getRepository(VasOrder).save({
         ...foundVasOrder,
         status: ORDER_STATUS.READY_TO_EXECUTE,
         updater: context.state.user

@@ -15,7 +15,6 @@ export const worksheetsResolver = {
         'bizplace',
         'arrivalNotice',
         'releaseGood',
-        'shippingOrder',
         'vasOrder',
         'worksheetDetails',
         'worksheetDetails.targetProduct',

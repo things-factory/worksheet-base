@@ -1,4 +1,4 @@
-import { ArrivalNotice, ORDER_STATUS, ORDER_TYPES, VasOrder } from '@things-factory/sales-base'
+import { ArrivalNotice, ReleaseGood, ORDER_STATUS, ORDER_TYPES, VasOrder } from '@things-factory/sales-base'
 import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet } from '../../../entities'
@@ -49,17 +49,56 @@ export const completeVas = {
             updater: context.state.user
           })
         }
-      } else if (orderType === ORDER_TYPES.COLLECTION) {
-      } else if (orderType === ORDER_TYPES.DELIVERY) {
       } else if (orderType === ORDER_TYPES.RELEASE_OF_GOODS) {
-      } else if (orderType === ORDER_TYPES.SHIPPING) {
+        const releaseGood: ReleaseGood = await trxMgr.getRepository(ReleaseGood).findOne({
+          where: { domain: context.state.domain, name: orderNo },
+          relations: ['bizplace']
+        })
+
+        if (!releaseGood) throw new Error(`Release order dosen't exist.`)
+
+        const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+          where: {
+            releaseGood,
+            domain: context.state.domain,
+            type: WORKSHEET_TYPE.VAS,
+            status: WORKSHEET_STATUS.EXECUTING
+          }
+        })
+
+        if (!worksheet) throw new Error(`Worksheet doesn't exist`)
+
+        await trxMgr.getRepository(Worksheet).save({
+          ...worksheet,
+          status: WORKSHEET_STATUS.DONE,
+          endedAt: new Date(),
+          updater: context.state.user
+        })
+
+        // 2. If there's no more worksheet related with current release good
+        // update status of work sheet
+        // 2. 1) check wheter there are more worksheet or not
+        const relatedWorksheets: Worksheet[] = await trxMgr.getRepository(Worksheet).find({
+          domain: context.state.domain,
+          releaseGood,
+          status: Not(Equal(WORKSHEET_STATUS.DONE))
+        })
+
+        if (!relatedWorksheets || (relatedWorksheets && relatedWorksheets.length === 0)) {
+          // 3. update status of release good
+          await trxMgr.getRepository(ReleaseGood).save({
+            ...releaseGood,
+            status: ORDER_STATUS.DONE,
+            updater: context.state.user
+          })
+        }
       } else if (orderType === ORDER_TYPES.VAS_ORDER) {
         const vasOrder: VasOrder = await trxMgr.getRepository(VasOrder).findOne({
           where: { domain: context.state.domain, name: orderNo },
           relations: ['bizplace']
         })
 
-        if (!vasOrder) throw new Error(`Vas order dosen't exist.`)
+        if (!vasOrder) throw new Error(`VAS order dosen't exist.`)
 
         const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
           where: {
@@ -72,12 +111,30 @@ export const completeVas = {
 
         if (!worksheet) throw new Error(`Worksheet doesn't exist`)
 
-        await trxMgr.getRepository(Worksheet).save({
-          ...worksheet,
+        await trxMgr.getRepository(VasOrder).save({
+          ...vasOrder,
           status: WORKSHEET_STATUS.DONE,
-          startedAt: new Date(),
+          endedAt: new Date(),
           updater: context.state.user
         })
+
+        // 2. If there's no more worksheet related with current vas order
+        // update status of work sheet
+        // 2. 1) check wheter there are more worksheet or not
+        const relatedWorksheets: Worksheet[] = await trxMgr.getRepository(Worksheet).find({
+          domain: context.state.domain,
+          vasOrder,
+          status: Not(Equal(WORKSHEET_STATUS.DONE))
+        })
+
+        if (!relatedWorksheets || (relatedWorksheets && relatedWorksheets.length === 0)) {
+          // 3. update status of vas order
+          await trxMgr.getRepository(VasOrder).save({
+            ...vasOrder,
+            status: ORDER_STATUS.DONE,
+            updater: context.state.user
+          })
+        }
       }
     })
   }

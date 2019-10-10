@@ -18,7 +18,6 @@ export const worksheetResolver = {
         'arrivalNotice',
         'releaseGood',
         'vasOrder',
-        'shippingOrder',
         'worksheetDetails',
         'worksheetDetails.toLocation',
         'worksheetDetails.targetProduct',
