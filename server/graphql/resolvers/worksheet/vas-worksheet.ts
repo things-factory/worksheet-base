@@ -98,7 +98,7 @@ export const vasWorksheetResolver = {
       }
     } else if (orderType === ORDER_TYPES.VAS_ORDER) {
       const vasOrder: VasOrder = await getRepository(VasOrder).findOne({
-        where: { domain: context.state.domain, name: orderNo, status: ORDER_STATUS.DONE },
+        where: { domain: context.state.domain, name: orderNo, status: Not(Equal(ORDER_STATUS.DONE)) },
         relations: ['bizplace']
       })
 
