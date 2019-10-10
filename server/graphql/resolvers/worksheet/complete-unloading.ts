@@ -1,5 +1,12 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, OrderProduct, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
+import {
+  ArrivalNotice,
+  OrderInventory,
+  OrderNoGenerator,
+  OrderProduct,
+  ORDER_PRODUCT_STATUS,
+  ORDER_STATUS
+} from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
 import { Equal, getManager, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -127,13 +134,23 @@ export const completeUnloading = {
 
           await Promise.all(
             inventories.map(async (inventory: Inventory) => {
+              const targetInventory: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
+                name: OrderNoGenerator.orderInventory(),
+                seq: inventory.lastSeq,
+                releaseQty: inventory.qty,
+                status: ORDER_PRODUCT_STATUS.UNLOADED,
+                inventory,
+                creator: context.state.user,
+                updater: context.state.user
+              })
+
               await trxMgr.getRepository(WorksheetDetail).save({
                 domain: context.state.domain,
                 bizplace: customerBizplace,
                 name: WorksheetNoGenerator.putawayDetail(),
                 type: WORKSHEET_TYPE.PUTAWAY,
                 worksheet: putawayWorksheet,
-                targetInventory: inventory,
+                targetInventory,
                 fromLocation: foundWorksheet.bufferLocation,
                 status: WORKSHEET_STATUS.DEACTIVATED,
                 creator: context.state.user,
