@@ -1,4 +1,4 @@
-import { ReleaseGood, ORDER_STATUS } from '@things-factory/sales-base'
+import { ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
 import { getRepository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'

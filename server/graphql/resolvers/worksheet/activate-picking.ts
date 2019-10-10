@@ -1,18 +1,18 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
-import { getManager, getRepository } from 'typeorm'
+import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const activatePicking = {
   async activatePicking(_: any, { worksheetNo, pickingWorksheetDetails }, context: any) {
-    return await getManager().transaction(async () => {
+    return await getManager().transaction(async trxMgr => {
       /**
        * 1. Validation for worksheet
        *    - data existing
        *    - status of worksheet
        */
-      const foundWorksheet: Worksheet = await getRepository(Worksheet).findOne({
+      const foundWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: {
           domain: context.state.domain,
           name: worksheetNo,
@@ -31,7 +31,7 @@ export const activatePicking = {
        */
       await Promise.all(
         pickingWorksheetDetails.map(async (pickingWorksheetDetail: WorksheetDetail) => {
-          await getRepository(WorksheetDetail).update(
+          await trxMgr.getRepository(WorksheetDetail).update(
             {
               domain: context.state.domain,
               bizplace: customerBizplace,
@@ -57,12 +57,12 @@ export const activatePicking = {
           updater: context.state.user
         }
       })
-      await getRepository(OrderInventory).save(targetInventories)
+      await trxMgr.getRepository(OrderInventory).save(targetInventories)
 
       /**
        * 4. Update picking Worksheet (status: DEACTIVATED => EXECUTING)
        */
-      const worksheet: Worksheet = await getRepository(Worksheet).save({
+      const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).save({
         ...foundWorksheet,
         status: WORKSHEET_STATUS.EXECUTING,
         startedAt: new Date(),
@@ -73,7 +73,7 @@ export const activatePicking = {
        * 5. Update Release Good (status: READY_TO_PICK => PICKING)
        */
       const releaseGood: ReleaseGood = foundWorksheet.releaseGood
-      await getRepository(ReleaseGood).save({
+      await trxMgr.getRepository(ReleaseGood).save({
         ...releaseGood,
         status: ORDER_STATUS.PICKING,
         updater: context.state.user

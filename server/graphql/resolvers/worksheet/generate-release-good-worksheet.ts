@@ -1,7 +1,6 @@
 import { Bizplace } from '@things-factory/biz-base'
 import {
   OrderInventory,
-  OrderProduct,
   OrderVas,
   ORDER_PRODUCT_STATUS,
   ORDER_STATUS,

@@ -1,3 +1,4 @@
+import { Bizplace } from '@things-factory/biz-base'
 import {
   ArrivalNotice,
   OrderProduct,
@@ -7,21 +8,20 @@ import {
   ORDER_VAS_STATUS
 } from '@things-factory/sales-base'
 import { Location } from '@things-factory/warehouse-base'
-import { getManager, getRepository } from 'typeorm'
+import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
-import { Bizplace } from '@things-factory/biz-base'
 
 export const generateArrivalNoticeWorksheet = {
   async generateArrivalNoticeWorksheet(_: any, { arrivalNoticeNo, bufferLocation }, context: any) {
-    return await getManager().transaction(async () => {
+    return await getManager().transaction(async trxMgr => {
       /**
        * 1. Validation for arrival notice
        *    - data existing
        *    - status of arrival notice
        */
-      const foundArrivalNotice: ArrivalNotice = await getRepository(ArrivalNotice).findOne({
+      const foundArrivalNotice: ArrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({
         where: { domain: context.state.domain, name: arrivalNoticeNo, status: ORDER_STATUS.ARRIVED },
         relations: ['bizplace', 'orderProducts', 'orderVass']
       })
@@ -32,13 +32,13 @@ export const generateArrivalNoticeWorksheet = {
       let foundOVs: OrderVas[] = foundArrivalNotice.orderVass
 
       if (!bufferLocation || !bufferLocation.id) throw new Error(`Can't find buffer location`)
-      const foundBufferLoc: Location = await getRepository(Location).findOne(bufferLocation.id)
+      const foundBufferLoc: Location = await trxMgr.getRepository(Location).findOne(bufferLocation.id)
       if (!foundBufferLoc) throw new Error(`location doesn't exists.`)
       /*
        * 2. Create worksheet and worksheet details for products
        */
       // 2. 1) Create unloading worksheet
-      const unloadingWorksheet = await getRepository(Worksheet).save({
+      const unloadingWorksheet = await trxMgr.getRepository(Worksheet).save({
         domain: context.state.domain,
         bizplace: customerBizplace,
         name: WorksheetNoGenerator.unloading(),
@@ -64,7 +64,7 @@ export const generateArrivalNoticeWorksheet = {
           updater: context.state.user
         }
       })
-      await getRepository(WorksheetDetail).save(unloadingWorksheetDetails)
+      await trxMgr.getRepository(WorksheetDetail).save(unloadingWorksheetDetails)
 
       // 2. 3) Update status of order products (ARRIVED => READY_TO_UNLOAD)
       foundOPs = foundOPs.map((op: OrderProduct) => {
@@ -74,7 +74,7 @@ export const generateArrivalNoticeWorksheet = {
           updater: context.state.user
         }
       })
-      await getRepository(OrderProduct).save(foundOPs)
+      await trxMgr.getRepository(OrderProduct).save(foundOPs)
 
       /**
        * 3. Create worksheet and worksheet details for vass (if it exists)
@@ -82,7 +82,7 @@ export const generateArrivalNoticeWorksheet = {
       let vasWorksheet: Worksheet = new Worksheet()
       if (foundOVs && foundOVs.length) {
         // 2. 1) Create vas worksheet
-        vasWorksheet = await getRepository(Worksheet).save({
+        vasWorksheet = await trxMgr.getRepository(Worksheet).save({
           domain: context.state.domain,
           bizplace: customerBizplace,
           name: WorksheetNoGenerator.vas(),
@@ -107,7 +107,7 @@ export const generateArrivalNoticeWorksheet = {
             updater: context.state.user
           }
         })
-        await getRepository(WorksheetDetail).save(vasWorksheetDetails)
+        await trxMgr.getRepository(WorksheetDetail).save(vasWorksheetDetails)
 
         // 2. 3) Update status of order vas (ARRIVED => READY_TO_PROCESS)
         foundOVs = foundOVs.map((ov: OrderVas) => {
@@ -117,13 +117,13 @@ export const generateArrivalNoticeWorksheet = {
             updater: context.state.user
           }
         })
-        await getRepository(OrderVas).save(foundOVs)
+        await trxMgr.getRepository(OrderVas).save(foundOVs)
       }
 
       /**
        * 5. Update status of arrival notice (ARRIVED => READY_TO_UNLOAD)
        */
-      await getRepository(ArrivalNotice).save({
+      await trxMgr.getRepository(ArrivalNotice).save({
         ...foundArrivalNotice,
         status: ORDER_STATUS.READY_TO_UNLOAD,
         updater: context.state.user

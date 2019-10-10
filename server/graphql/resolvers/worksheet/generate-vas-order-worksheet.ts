@@ -1,18 +1,18 @@
 import { OrderVas, ORDER_STATUS, ORDER_VAS_STATUS, VasOrder } from '@things-factory/sales-base'
-import { getManager, getRepository } from 'typeorm'
+import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
 
 export const generateVasOrderWorksheet = {
   async generateVasOrderWorksheet(_: any, { vasNo }, context: any) {
-    return await getManager().transaction(async () => {
+    return await getManager().transaction(async trxMgr => {
       /**
        * 1. Validation for vas order
        *    - data existing
        *    - status of vas order
        */
-      const vasOrder: VasOrder = await getRepository(VasOrder).findOne({
+      const vasOrder: VasOrder = await trxMgr.getRepository(VasOrder).findOne({
         where: { domain: context.state.domain, name: vasNo },
         relations: ['bizplace', 'orderVass']
       })
@@ -26,7 +26,7 @@ export const generateVasOrderWorksheet = {
       const orderVass: [OrderVas] = vasOrder.orderVass
       let vasWorksheet: Worksheet = new Worksheet()
       if (orderVass && orderVass.length) {
-        vasWorksheet = await getRepository(Worksheet).save({
+        vasWorksheet = await trxMgr.getRepository(Worksheet).save({
           domain: context.state.domain,
           bizplace: vasOrder.bizplace,
           name: WorksheetNoGenerator.vas(),
@@ -39,7 +39,7 @@ export const generateVasOrderWorksheet = {
 
         await Promise.all(
           orderVass.map(async (orderVas: OrderVas) => {
-            await getRepository(WorksheetDetail).save({
+            await trxMgr.getRepository(WorksheetDetail).save({
               domain: context.state.domain,
               bizplace: vasOrder.bizplace,
               worksheet: vasWorksheet,
@@ -52,7 +52,7 @@ export const generateVasOrderWorksheet = {
             })
 
             // 4. 2) Update status of order vass (ARRIVED => READY_TO_PROCESS)
-            await getRepository(OrderVas).update(
+            await trxMgr.getRepository(OrderVas).update(
               {
                 domain: context.state.domain,
                 name: orderVas.name,
@@ -71,7 +71,7 @@ export const generateVasOrderWorksheet = {
       /**
        * 5. Update status of vas order (PENDING_RECEIVE => READY_TO_EXECUTE)
        */
-      await getRepository(VasOrder).save({
+      await trxMgr.getRepository(VasOrder).save({
         ...vasOrder,
         status: ORDER_STATUS.READY_TO_EXECUTE,
         updater: context.state.user

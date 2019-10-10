@@ -1,27 +1,26 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderProduct, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
-import { Equal, getManager, getRepository, In, Not } from 'typeorm'
+import { Equal, getManager, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
 
 export const completeUnloading = {
   async completeUnloading(_: any, { arrivalNoticeNo, worksheetDetails }, context: any) {
-    return await getManager().transaction(async () => {
+    return await getManager().transaction(async trxMgr => {
       /**
        * 1. Validation for worksheet
        *    - data existing
        */
-      const arrivalNotice: ArrivalNotice = await getRepository(ArrivalNotice).findOne({
+      const arrivalNotice: ArrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({
         where: { domain: context.state.domain, name: arrivalNoticeNo, status: ORDER_STATUS.PROCESSING },
         relations: ['bizplace']
       })
 
       if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
       const customerBizplace: Bizplace = arrivalNotice.bizplace
-
-      const foundWorksheet: Worksheet = await getRepository(Worksheet).findOne({
+      const foundWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: {
           domain: context.state.domain,
           bizplace: customerBizplace,
@@ -33,38 +32,36 @@ export const completeUnloading = {
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists.`)
-      const foundWorksheetDetails: WorksheetDetail[] = foundWorksheet.worksheetDetails
+      let foundWorksheetDetails: WorksheetDetail[] = foundWorksheet.worksheetDetails
       let targetProducts: OrderProduct[] = foundWorksheetDetails.map(
         (foundWSD: WorksheetDetail) => foundWSD.targetProduct
       )
 
       /**
-       * 3. Update worksheet status (status: EXECUTING => DONE)
+       * 3. Update worksheet detail status (EXECUTING => DONE) & issue note
        */
-      await getRepository(Worksheet).save({
+      foundWorksheetDetails = foundWorksheetDetails.map((foundWSD: WorksheetDetail) => {
+        const patchedWSD: WorksheetDetail = worksheetDetails.find(
+          (patchedWSD: WorksheetDetail) => foundWSD.name === patchedWSD.name
+        )
+        if (patchedWSD && patchedWSD.issue) foundWSD.issue = patchedWSD.issue
+        return {
+          ...foundWSD,
+          status: WORKSHEET_STATUS.DONE,
+          updater: context.state.user
+        }
+      })
+      await trxMgr.getRepository(WorksheetDetail).save(foundWorksheetDetails)
+
+      /**
+       * 4. Update worksheet status (status: EXECUTING => DONE)
+       */
+      await trxMgr.getRepository(Worksheet).save({
         ...foundWorksheet,
         status: WORKSHEET_STATUS.DONE,
         endedAt: new Date(),
         updater: context.state.user
       })
-
-      /**
-       * 4. Update worksheet detail status (EXECUTING => DONE) & issue note
-       */
-      await Promise.all(
-        foundWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
-          const patchedWD: WorksheetDetail = worksheetDetails.filter(
-            (patchedWD: WorksheetDetail) => patchedWD.name === worksheetDetail.name
-          )[0]
-          if (patchedWD.issue) worksheetDetail.issue = patchedWD.issue
-
-          await getRepository(WorksheetDetail).save({
-            ...worksheetDetail,
-            status: WORKSHEET_STATUS.DONE,
-            updater: context.state.user
-          })
-        })
-      )
 
       /**
        * 5. Update target products status (UNLOADING => DONE)
@@ -76,14 +73,14 @@ export const completeUnloading = {
           updater: context.state.user
         }
       })
-      await getRepository(OrderProduct).save(targetProducts)
+      await trxMgr.getRepository(OrderProduct).save(targetProducts)
 
       /**
        * 6. Check whether every related worksheet is completed
        *    - if yes => Update Status of arrival notice
        *    - VAS doesn't affect to status of arrival notice
        */
-      const relatedWorksheets: Worksheet[] = await getRepository(Worksheet).find({
+      const relatedWorksheets: Worksheet[] = await trxMgr.getRepository(Worksheet).find({
         where: {
           domain: context.state.domain,
           bizplace: customerBizplace,
@@ -94,24 +91,17 @@ export const completeUnloading = {
       })
 
       if (relatedWorksheets.length === 0) {
-        await getRepository(ArrivalNotice).update(
-          {
-            domain: context.state.domain,
-            bizplace: customerBizplace,
-            name: arrivalNotice.name,
-            status: ORDER_STATUS.PROCESSING
-          },
-          {
-            status: ORDER_STATUS.READY_TO_PUTAWAY,
-            updater: context.status.user
-          }
-        )
+        await trxMgr.getRepository(ArrivalNotice).save({
+          ...arrivalNotice,
+          status: ORDER_STATUS.READY_TO_PUTAWAY,
+          updater: context.status.user
+        })
       }
 
       /**
        * 7. Create putaway worksheet
        */
-      const putawayWorksheet = await getRepository(Worksheet).save({
+      const putawayWorksheet = await trxMgr.getRepository(Worksheet).save({
         domain: context.state.domain,
         arrivalNotice: arrivalNotice,
         bizplace: customerBizplace,
@@ -125,7 +115,7 @@ export const completeUnloading = {
 
       await Promise.all(
         foundWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
-          const inventories: Inventory[] = await getRepository(Inventory).find({
+          const inventories: Inventory[] = await trxMgr.getRepository(Inventory).find({
             where: {
               domain: context.state.domain,
               bizplace: customerBizplace,
@@ -137,7 +127,7 @@ export const completeUnloading = {
 
           await Promise.all(
             inventories.map(async (inventory: Inventory) => {
-              await getRepository(WorksheetDetail).save({
+              await trxMgr.getRepository(WorksheetDetail).save({
                 domain: context.state.domain,
                 bizplace: customerBizplace,
                 name: WorksheetNoGenerator.putawayDetail(),

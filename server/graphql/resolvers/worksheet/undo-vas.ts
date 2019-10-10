@@ -1,15 +1,15 @@
 import { OrderVas, ORDER_VAS_STATUS } from '@things-factory/sales-base'
-import { getManager, getRepository } from 'typeorm'
+import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
 
 export const undoVas = {
   async undoVas(_: any, { worksheetDetail }, context: any) {
-    return await getManager().transaction(async () => {
+    return await getManager().transaction(async trxMgr => {
       const worksheetDetailName = worksheetDetail.name
 
       // 1. update status of worksheetDetail (DONE => EXECUTING)
-      const foundWorksheetDetail: WorksheetDetail = await getRepository(WorksheetDetail).findOne({
+      const foundWorksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
         where: {
           domain: context.state.domain,
           name: worksheetDetailName,
@@ -23,14 +23,14 @@ export const undoVas = {
       const targetVas: OrderVas = foundWorksheetDetail.targetVas
       if (!targetVas) throw new Error("VAS doesn't exists")
 
-      await getRepository(WorksheetDetail).save({
+      await trxMgr.getRepository(WorksheetDetail).save({
         ...foundWorksheetDetail,
         status: WORKSHEET_STATUS.EXECUTING,
         issue: '',
         updater: context.state.user
       })
 
-      await getRepository(OrderVas).save({
+      await trxMgr.getRepository(OrderVas).save({
         ...targetVas,
         status: ORDER_VAS_STATUS.PROCESSING,
         updater: context.state.user
