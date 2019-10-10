@@ -72,6 +72,7 @@ export const Mutation = `
   ): Worksheet
 
   putaway (
+    worksheetDetailName: String!
     palletId: String!
     toLocation: String!
   ): Boolean

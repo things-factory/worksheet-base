@@ -139,6 +139,7 @@ export const completeUnloading = {
                 seq: inventory.lastSeq,
                 releaseQty: inventory.qty,
                 status: ORDER_PRODUCT_STATUS.UNLOADED,
+                arrivalNotice,
                 inventory,
                 creator: context.state.user,
                 updater: context.state.user

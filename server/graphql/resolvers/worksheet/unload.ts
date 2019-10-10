@@ -45,7 +45,7 @@ export const unload = {
 
       if (prevInventory) throw new Error('pallet id is duplicated')
 
-      // 2. Create new inventory data
+      // 3. Create new inventory data
       let newInventory: Inventory = await trxMgr.getRepository(Inventory).save({
         domain: context.state.domain,
         bizplace: customerBizplace,
@@ -63,14 +63,13 @@ export const unload = {
         updater: context.state.user
       })
 
-      // 3. Create new inventory history data
-      newInventory = await trxMgr.getRepository(Inventory).findOne({
+      inventory = await trxMgr.getRepository(Inventory).findOne({
         where: { id: newInventory.id },
         relations: ['bizplace', 'product', 'warehouse', 'location']
       })
-      delete newInventory.id
-      await trxMgr.getRepository(InventoryHistory).save({
-        ...newInventory,
+      // 4. Create new inventory history data
+      let inventoryHistory: InventoryHistory = {
+        ...inventory,
         domain: context.state.domain,
         name: InventoryNoGenerator.inventoryHistoryName(),
         seq: newInventory.lastSeq,
@@ -79,9 +78,10 @@ export const unload = {
         locationId: newInventory.location.id,
         creator: context.state.user,
         updater: context.state.user
-      })
+      }
+      await trxMgr.getRepository(InventoryHistory).save(inventoryHistory)
 
-      // 3. Update qty of targetProduct
+      // 5. Update status and qty of targetProduct
       await trxMgr.getRepository(OrderProduct).save({
         ...foundWorksheetDetail.targetProduct,
         actualPalletQty: foundWorksheetDetail.targetProduct.actualPalletQty + 1,

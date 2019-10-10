@@ -1,26 +1,27 @@
-import { Inventory, InventoryHistory, InventoryNoGenerator, Location } from '@things-factory/warehouse-base'
+import {
+  Inventory,
+  InventoryHistory,
+  OrderInventory,
+  InventoryNoGenerator,
+  Location
+} from '@things-factory/warehouse-base'
+import { ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const putaway = {
-  async putaway(_: any, { palletId, toLocation }, context: any) {
+  async putaway(_: any, { worksheetDetailName, palletId, toLocation }, context: any) {
     return await getManager().transaction(async trxMgr => {
-      // 1. get inventory
-      let inventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
-        where: { domain: context.state.domain, palletId }
-      })
-      if (!inventory) throw new Error(`Inventory doesn't exists`)
-
-      // 2. get worksheet detail
+      // 1. get worksheet detail
       const worksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
         where: {
           domain: context.state.domain,
-          targetInventory: inventory,
+          name: worksheetDetailName,
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.PUTAWAY
         },
-        relations: ['worksheet']
+        relations: ['worksheet', 'targetInventory', 'targetInventory.inventory']
       })
       if (!worksheetDetail) throw new Error(`Worksheet Details doesn't exists`)
 
@@ -33,6 +34,9 @@ export const putaway = {
         relations: ['warehouse']
       })
       if (!location) throw new Error(`Location doesn't exists`)
+
+      let targetInventory: OrderInventory = worksheetDetail.targetInventory
+      let inventory: Inventory = targetInventory.inventory
 
       // 4. update location of inventory (buffer location => toLocation)
       inventory = await trxMgr.getRepository(Inventory).save({
@@ -49,8 +53,7 @@ export const putaway = {
         where: { id: inventory.id },
         relations: ['bizplace', 'product', 'warehouse', 'location']
       })
-      delete inventory.id
-      await trxMgr.getRepository(InventoryHistory).save({
+      let inventoryHistory: InventoryHistory = {
         ...inventory,
         domain: context.state.domain,
         name: InventoryNoGenerator.inventoryHistoryName(),
@@ -60,9 +63,18 @@ export const putaway = {
         locationId: inventory.location.id,
         creator: context.state.user,
         updater: context.state.user
+      }
+      delete inventoryHistory.id
+      await trxMgr.getRepository(InventoryHistory).save(inventoryHistory)
+
+      // 6. update status of order inventory
+      await trxMgr.getRepository(OrderInventory).save({
+        ...targetInventory,
+        status: ORDER_PRODUCT_STATUS.STORED,
+        updater: context.state.user
       })
 
-      // 6. update status of worksheet details (EXECUTING => DONE)
+      // 7. update status of worksheet details (EXECUTING => DONE)
       await trxMgr.getRepository(WorksheetDetail).save({
         ...worksheetDetail,
         status: WORKSHEET_STATUS.DONE,
