@@ -1,11 +1,5 @@
-import {
-  Inventory,
-  InventoryHistory,
-  OrderInventory,
-  InventoryNoGenerator,
-  Location
-} from '@things-factory/warehouse-base'
-import { ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
+import { OrderInventory, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
+import { Inventory, InventoryHistory, InventoryNoGenerator, Location } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
