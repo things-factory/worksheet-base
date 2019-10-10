@@ -29,7 +29,7 @@ export const picking = {
       if (inventory.palletId !== palletId) throw new Error('Pallet ID is invalid')
 
       // 2. update inventory quantity and seq
-      await trxMgr.getRepository(Inventory).save({
+      inventory = await trxMgr.getRepository(Inventory).save({
         ...inventory,
         qty: inventory.qty - releaseQty,
         lastSeq: inventory.lastSeq + 1

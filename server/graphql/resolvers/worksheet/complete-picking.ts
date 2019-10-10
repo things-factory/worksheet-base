@@ -1,5 +1,5 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
+import { ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet } from '../../../entities'
@@ -45,7 +45,7 @@ export const completePicking = {
       if (relatedWorksheetCnt <= 0) {
         // if there no more related worksheet
         // 3. update status of release good
-        await trxMgr.getRepository(ArrivalNotice).save({
+        await trxMgr.getRepository(ReleaseGood).save({
           ...releaseGood,
           status: ORDER_STATUS.DONE,
           updater: context.state.user
