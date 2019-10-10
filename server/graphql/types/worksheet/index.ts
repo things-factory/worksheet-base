@@ -88,6 +88,7 @@ export const Mutation = `
   ): Boolean
 
   picking (
+    worksheetDetailName: String!
     palletId: String!
     releaseQty: Int!
   ): Boolean

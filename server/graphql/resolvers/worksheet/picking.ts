@@ -1,3 +1,4 @@
+import { OrderInventory } from '@things-factory/sales-base'
 import {
   Inventory,
   InventoryHistory,
@@ -10,25 +11,22 @@ import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
 
 export const picking = {
-  async picking(_: any, { palletId, releaseQty }, context: any) {
+  async picking(_: any, { worksheetDetailName, palletId, releaseQty }, context: any) {
     return await getManager().transaction(async trxMgr => {
-      // 1. get inventory
-      let inventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
-        where: { domain: context.state.domain, palletId },
-        relations: ['location']
-      })
-      if (!inventory) throw new Error(`Inventory doesn't exists`)
-
-      // 2. get worksheet detail
+      // 1. get worksheet detail
       const worksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
         where: {
           domain: context.state.domain,
-          targetInventory: inventory,
+          name: worksheetDetailName,
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.PICKING
-        }
+        },
+        relations: ['worksheet', 'targetInventory', 'targetInventory.inventory']
       })
       if (!worksheetDetail) throw new Error(`Worksheet Details doesn't exists`)
+      let targetInventory: OrderInventory = worksheetDetail.targetInventory
+      let inventory: Inventory = targetInventory.inventory
+      if (inventory.palletId !== palletId) throw new Error('Pallet ID is invalid')
 
       // 2. update inventory quantity and seq
       await trxMgr.getRepository(Inventory).save({

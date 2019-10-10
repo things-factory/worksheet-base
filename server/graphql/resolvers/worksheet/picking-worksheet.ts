@@ -49,7 +49,7 @@ export const pickingWorksheetResolver = {
           status: pickingWSD.status,
           description: pickingWSD.description,
           targetName: targetInventory.name,
-          packingType: targetInventory.packingType,
+          packingType: inventory.packingType,
           location: inventory.location
         }
       })

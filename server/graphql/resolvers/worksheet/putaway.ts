@@ -18,6 +18,9 @@ export const putaway = {
         relations: ['worksheet', 'targetInventory', 'targetInventory.inventory']
       })
       if (!worksheetDetail) throw new Error(`Worksheet Details doesn't exists`)
+      let targetInventory: OrderInventory = worksheetDetail.targetInventory
+      let inventory: Inventory = targetInventory.inventory
+      if (inventory.palletId !== palletId) throw new Error('Pallet ID is invalid')
 
       const worksheet: Worksheet = worksheetDetail.worksheet
       if (!worksheet) throw new Error(`Worksheet doesn't exists`)
@@ -28,9 +31,6 @@ export const putaway = {
         relations: ['warehouse']
       })
       if (!location) throw new Error(`Location doesn't exists`)
-
-      let targetInventory: OrderInventory = worksheetDetail.targetInventory
-      let inventory: Inventory = targetInventory.inventory
 
       // 4. update location of inventory (buffer location => toLocation)
       inventory = await trxMgr.getRepository(Inventory).save({
