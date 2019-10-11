@@ -47,6 +47,7 @@ export const vasWorksheetResolver = {
             targetName: targetVas.name,
             vas: targetVas.vas,
             description: vasWSD.description,
+            operationGuide: vasWSD.operationGuide,
             remark: targetVas.remark,
             status: vasWSD.status
           }
@@ -91,6 +92,7 @@ export const vasWorksheetResolver = {
             targetName: targetVas.name,
             vas: targetVas.vas,
             description: vasWSD.description,
+            operationGuide: vasWSD.operationGuide,
             remark: targetVas.remark,
             status: vasWSD.status
           }
@@ -135,6 +137,7 @@ export const vasWorksheetResolver = {
             targetName: targetVas.name,
             vas: targetVas.vas,
             description: vasWSD.description,
+            operationGuide: vasWSD.operationGuide,
             remark: targetVas.remark,
             status: vasWSD.status
           }

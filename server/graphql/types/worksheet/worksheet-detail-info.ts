@@ -13,6 +13,7 @@ export const WorksheetDetailInfo = gql`
     actualPackQty: Int
     qty: Int
     releaseQty: Int
+    operationGuide: String
     vas: Vas
     targetName: String
     description: String
