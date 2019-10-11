@@ -13,6 +13,7 @@ export const WorksheetDetailPatch = gql`
     fromLocation: ObjectRef
     toLocation: ObjectRef
     status: String
+    operationGuide: String
     remark: String
     issue: String
     cuFlag: String
