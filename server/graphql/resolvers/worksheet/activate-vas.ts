@@ -42,7 +42,6 @@ export const activateVas = {
             },
             {
               description: vasWorksheetDetail.description,
-              operationGuide: vasWorksheetDetail.operationGuide,
               status: WORKSHEET_STATUS.EXECUTING,
               updater: context.state.user
             }

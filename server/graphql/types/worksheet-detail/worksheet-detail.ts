@@ -16,7 +16,6 @@ export const WorksheetDetail = gql`
     fromLocation: Location
     toLocation: Location
     status: String
-    operationGuide: String
     remark: String
     issue: String
     creator: User

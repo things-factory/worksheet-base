@@ -59,11 +59,6 @@ export class WorksheetDetail {
   @ManyToOne(type => Location)
   toLocation: Location
 
-  @Column('text', {
-    nullable: true
-  })
-  operationGuide: string
-
   @Column({
     nullable: true
   })
