@@ -24,6 +24,7 @@ export const worksheetResolver = {
         'worksheetDetails.targetProduct.product',
         'worksheetDetails.targetVas',
         'worksheetDetails.targetVas.vas',
+        'worksheetDetails.targetVas.inventory',
         'worksheetDetails.targetInventory',
         'worksheetDetails.targetInventory.inventory',
         'worksheetDetails.targetInventory.inventory.product',
