@@ -111,30 +111,20 @@ export const completeVas = {
 
         if (!worksheet) throw new Error(`Worksheet doesn't exist`)
 
-        await trxMgr.getRepository(VasOrder).save({
-          ...vasOrder,
+        // Update status of worksheet
+        await trxMgr.getRepository(Worksheet).save({
+          ...worksheet,
           status: WORKSHEET_STATUS.DONE,
           endedAt: new Date(),
           updater: context.state.user
         })
 
-        // 2. If there's no more worksheet related with current vas order
-        // update status of work sheet
-        // 2. 1) check wheter there are more worksheet or not
-        const relatedWorksheets: Worksheet[] = await trxMgr.getRepository(Worksheet).find({
-          domain: context.state.domain,
-          vasOrder,
-          status: Not(Equal(WORKSHEET_STATUS.DONE))
+        // Update order status
+        await trxMgr.getRepository(VasOrder).save({
+          ...vasOrder,
+          status: ORDER_STATUS.DONE,
+          updater: context.state.user
         })
-
-        if (!relatedWorksheets || (relatedWorksheets && relatedWorksheets.length === 0)) {
-          // 3. update status of vas order
-          await trxMgr.getRepository(VasOrder).save({
-            ...vasOrder,
-            status: ORDER_STATUS.DONE,
-            updater: context.state.user
-          })
-        }
       }
     })
   }
