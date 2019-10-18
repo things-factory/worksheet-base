@@ -46,6 +46,7 @@ export const vasWorksheetResolver = {
             batchId: targetVas.batchId,
             targetName: targetVas.name,
             vas: targetVas.vas,
+            operationGuide: targetVas.operationGuide,
             description: vasWSD.description,
             remark: targetVas.remark,
             status: vasWSD.status
@@ -90,6 +91,7 @@ export const vasWorksheetResolver = {
             batchId: targetVas.batchId,
             targetName: targetVas.name,
             vas: targetVas.vas,
+            operationGuide: targetVas.operationGuide,
             description: vasWSD.description,
             remark: targetVas.remark,
             status: vasWSD.status
