@@ -12,6 +12,9 @@ export const WorksheetDetailPatch = gql`
     targetInventory: OrderInventoryPatch
     fromLocation: ObjectRef
     toLocation: ObjectRef
+    batchId: String
+    palletQty: Int
+    palletizingDescription: String
     status: String
     remark: String
     issue: String
