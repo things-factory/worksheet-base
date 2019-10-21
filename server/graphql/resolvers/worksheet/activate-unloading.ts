@@ -111,7 +111,7 @@ export const activateUnloading = {
         })
 
         if (!relatedVasWorksheet) {
-          await trxMgr.getRepository(Worksheet).save({
+          relatedVasWorksheet = await trxMgr.getRepository(Worksheet).save({
             domain: context.state.domain,
             bizplace: customerBizplace,
             name: WorksheetNoGenerator.vas(),
