@@ -107,7 +107,7 @@ export const activateUnloading = {
       ) {
         // Check if there's VAS worksheet which is related with current arrival notice order.
         let relatedVasWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-          where: { domain: context.state.domain, arrivalNotice, type: ORDER_TYPES.VAS }
+          where: { domain: context.state.domain, arrivalNotice, type: ORDER_TYPES.VAS_ORDER }
         })
 
         if (!relatedVasWorksheet) {
@@ -116,6 +116,8 @@ export const activateUnloading = {
             bizplace: customerBizplace,
             name: WorksheetNoGenerator.vas(),
             arrivalNotice,
+            statedAt: new Date(),
+            endedAt: new Date(),
             type: WORKSHEET_TYPE.VAS,
             status: WORKSHEET_STATUS.DONE,
             creator: context.state.user,
@@ -130,6 +132,7 @@ export const activateUnloading = {
               domain: context.state.domain,
               name: OrderNoGenerator.orderVas(),
               arrivalNotice,
+              description: worksheetDetail.palletizingDescription,
               batchId: worksheetDetail.batchId,
               bizplace: customerBizplace,
               type: ORDER_TYPES.ARRIVAL_NOTICE,
