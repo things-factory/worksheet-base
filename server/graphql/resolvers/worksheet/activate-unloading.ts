@@ -107,7 +107,7 @@ export const activateUnloading = {
       ) {
         // Check if there's VAS worksheet which is related with current arrival notice order.
         let relatedVasWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-          where: { domain: context.state.domain, arrivalNotice, type: ORDER_TYPES.VAS_ORDER }
+          where: { domain: context.state.domain, arrivalNotice, type: WORKSHEET_TYPE.VAS }
         })
 
         if (!relatedVasWorksheet) {
