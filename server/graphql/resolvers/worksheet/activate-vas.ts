@@ -23,9 +23,13 @@ export const activateVas = {
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
       const customerBizplace: Bizplace = foundWorksheet.bizplace
-      const foundWSDs: WorksheetDetail[] = foundWorksheet.worksheetDetails
+      const foundWSDs: WorksheetDetail[] = foundWorksheet.worksheetDetails.filter(
+        (worksheetDetail: WorksheetDetail) => worksheetDetail.status !== WORKSHEET_STATUS.DONE
+      )
       const foundVasOrder: VasOrder = foundWorksheet.vasOrder
-      let targetVASs: OrderVas[] = foundWSDs.map((foundWSD: WorksheetDetail) => foundWSD.targetVas)
+      let targetVASs: OrderVas[] = foundWSDs
+        .map((foundWSD: WorksheetDetail) => foundWSD.targetVas)
+        .filter((targetVas: OrderVas) => targetVas.status !== ORDER_STATUS.DONE)
 
       /**
        * 2. Update description of vas worksheet details
