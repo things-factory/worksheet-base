@@ -136,7 +136,7 @@ export const activateUnloading = {
               batchId: worksheetDetail.batchId,
               bizplace: customerBizplace,
               type: ORDER_TYPES.ARRIVAL_NOTICE,
-              status: ORDER_VAS_STATUS.DONE
+              status: ORDER_VAS_STATUS.COMPLETED
             }
           })
 
