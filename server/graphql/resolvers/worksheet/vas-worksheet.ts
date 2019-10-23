@@ -49,7 +49,8 @@ export const vasWorksheetResolver = {
             operationGuide: targetVas.operationGuide,
             description: vasWSD.description,
             remark: targetVas.remark,
-            status: vasWSD.status
+            status: vasWSD.status,
+            issue: vasWSD.issue
           }
         })
       }
@@ -94,7 +95,8 @@ export const vasWorksheetResolver = {
             operationGuide: targetVas.operationGuide,
             description: vasWSD.description,
             remark: targetVas.remark,
-            status: vasWSD.status
+            status: vasWSD.status,
+            issue: vasWSD.issue
           }
         })
       }
@@ -139,7 +141,8 @@ export const vasWorksheetResolver = {
             operationGuide: targetVas.operationGuide,
             description: vasWSD.description,
             remark: targetVas.remark,
-            status: vasWSD.status
+            status: vasWSD.status,
+            issue: vasWSD.issue
           }
         })
       }

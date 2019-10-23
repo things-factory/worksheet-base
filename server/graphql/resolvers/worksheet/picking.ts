@@ -57,7 +57,7 @@ export const picking = {
 
       // 4. dispose inventory if quantity is zero
       if (inventory.qty <= 0) {
-        await trxMgr.getRepository(Inventory).delete(inventory)
+        await trxMgr.getRepository(Inventory).delete(inventory.id)
 
         // 4. 1) if inventory was disposed check whether location has other inventories
         const inventoryCounts: number = await trxMgr
