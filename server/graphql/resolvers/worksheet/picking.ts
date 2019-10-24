@@ -8,7 +8,7 @@ import {
   Location,
   LOCATION_STATUS
 } from '@things-factory/warehouse-base'
-import { getManager } from 'typeorm'
+import { getManager, Not, Equal } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
 
@@ -73,7 +73,13 @@ export const picking = {
         // 4. 1) if status of inventory is TERMINATED, check whether related inventory with specific location exists or not
         const relatedInventory: Inventory = await trxMgr
           .getRepository(Inventory)
-          .findOne({ where: { domain: context.state.domain, location: inventory.location } })
+          .findOne({
+            where: {
+              domain: context.state.domain,
+              location: inventory.location,
+              status: Not(Equal(INVENTORY_STATUS.TERMINATED))
+            }
+          })
         if (!relatedInventory) {
           // 4. 1) - 1 if location doesn't have other inventories => update status of location (status: OCCUPIED or FULL => EMPTY)
           await trxMgr.getRepository(Location).save({
@@ -89,7 +95,7 @@ export const picking = {
           domain: context.state.domain,
           name: InventoryNoGenerator.inventoryHistoryName(),
           seq: inventory.lastSeq + 1,
-          transactionType: INVENTORY_TRANSACTION_TYPE.PICKING,
+          transactionType: INVENTORY_TRANSACTION_TYPE.TERMINATED,
           productId: inventory.product.id,
           warehouseId: inventory.warehouse.id,
           locationId: inventory.location.id,

@@ -1,4 +1,4 @@
-import { OrderInventory, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
+import { OrderInventory, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
 import {
   Inventory,
   InventoryHistory,
@@ -84,7 +84,7 @@ export const putaway = {
       // 6. update status of order inventory
       await trxMgr.getRepository(OrderInventory).save({
         ...targetInventory,
-        status: ORDER_PRODUCT_STATUS.STORED,
+        status: ORDER_INVENTORY_STATUS.TERMINATED,
         updater: context.state.user
       })
 

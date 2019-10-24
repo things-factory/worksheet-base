@@ -99,7 +99,7 @@ export const completeVas = {
         switch (orderType) {
           case ORDER_TYPES.ARRIVAL_NOTICE:
             await trxMgr.getRepository(ArrivalNotice).save({
-              ...orderCondition,
+              ...orderCondition.arrivalNotice,
               status: ORDER_STATUS.DONE,
               updater: context.state.user
             })
@@ -107,7 +107,7 @@ export const completeVas = {
 
           case ORDER_TYPES.RELEASE_OF_GOODS:
             await trxMgr.getRepository(ReleaseGood).save({
-              ...orderCondition,
+              ...orderCondition.releaseGood,
               status: ORDER_STATUS.DONE,
               updater: context.state.user
             })
@@ -115,7 +115,7 @@ export const completeVas = {
 
           case ORDER_TYPES.VAS_ORDER:
             await trxMgr.getRepository(VasOrder).save({
-              ...orderCondition,
+              ...orderCondition.vasOrder,
               status: ORDER_STATUS.DONE,
               updater: context.state.user
             })
