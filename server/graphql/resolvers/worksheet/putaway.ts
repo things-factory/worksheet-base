@@ -5,7 +5,8 @@ import {
   InventoryNoGenerator,
   INVENTORY_STATUS,
   Location,
-  LOCATION_TYPE
+  LOCATION_TYPE,
+  LOCATION_STATUS
 } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -49,6 +50,15 @@ export const putaway = {
         zone: location.warehouse.zone,
         updater: context.state.user
       })
+
+      // 4. 1) Update status of location
+      if (location.status === LOCATION_STATUS.EMPTY) {
+        await trxMgr.getRepository(Location).save({
+          ...location,
+          status: LOCATION_STATUS.OCCUPIED,
+          updater: context.state.user
+        })
+      }
 
       // 5. add inventory history
       inventory = await trxMgr.getRepository(Inventory).findOne({

@@ -1,6 +1,13 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderProduct, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
-import { Inventory, InventoryHistory, InventoryNoGenerator, INVENTORY_STATUS } from '@things-factory/warehouse-base'
+import {
+  Inventory,
+  InventoryHistory,
+  InventoryNoGenerator,
+  INVENTORY_STATUS,
+  Location,
+  LOCATION_STATUS
+} from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
@@ -31,6 +38,7 @@ export const unload = {
 
       if (!foundWorksheetDetail) throw new Error(`WorksheetDetail doesn't exists`)
       const customerBizplace: Bizplace = foundWorksheetDetail.bizplace
+      const bufferLocation: Location = foundWorksheetDetail.worksheet.bufferLocation
 
       // 2. Create new inventory data
       // Find previous pallet ( Same batchId, Same product, Same pallet id)
@@ -89,6 +97,16 @@ export const unload = {
         status: ORDER_PRODUCT_STATUS.UNLOADED,
         updater: context.state.user
       })
+
+      // 6. Update status of buffer location
+      // 6. 1) If status of location is not occupied
+      if (bufferLocation.status !== LOCATION_STATUS.OCCUPIED) {
+        await trxMgr.getRepository(Location).save({
+          ...bufferLocation,
+          status: LOCATION_STATUS.OCCUPIED,
+          updater: context.state.user
+        })
+      }
     })
   }
 }

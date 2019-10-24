@@ -1,25 +1,36 @@
 import { OrderProduct, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
-import { Inventory, InventoryHistory, InventoryNoGenerator, INVENTORY_STATUS } from '@things-factory/warehouse-base'
+import {
+  Inventory,
+  InventoryHistory,
+  InventoryNoGenerator,
+  INVENTORY_STATUS,
+  Location,
+  LOCATION_STATUS
+} from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
-import { WorksheetDetail } from '../../../entities'
+import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const undoUnloading = {
   async undoUnloading(_: any, { worksheetDetailName, palletId }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const foundWorksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
         where: { domain: context.state.domain, name: worksheetDetailName, status: WORKSHEET_STATUS.EXECUTING },
-        relations: ['bizplace', 'fromLocation', 'toLocation', 'targetProduct']
+        relations: ['bizplace', 'targetProduct']
       })
 
       if (!foundWorksheetDetail) throw new Error("Worksheet doesn't exists")
 
       // 1. find inventory
       let inventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
-        domain: context.state.domain,
-        status: INVENTORY_STATUS.OCCUPIED,
-        palletId
+        where: {
+          domain: context.state.domain,
+          status: INVENTORY_STATUS.OCCUPIED,
+          palletId
+        },
+        relations: ['location']
       })
+      const bufferLocation: Location = inventory.location
 
       await trxMgr.getRepository(OrderProduct).save({
         ...foundWorksheetDetail.targetProduct,
@@ -62,6 +73,19 @@ export const undoUnloading = {
       delete inventoryHistory.id
       await trxMgr.getRepository(InventoryHistory).save(inventoryHistory)
       await trxMgr.getRepository(Inventory).delete(inventory.id)
+
+      // Check whether related worksheet exists or not with specific buffer location
+      const relatedWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+        where: { domain: context.state.domain, bufferLocation: bufferLocation }
+      })
+      // if there's no related worksheet => update status of location to EMPTY
+      if (!relatedWorksheet) {
+        await trxMgr.getRepository(Location).save({
+          ...bufferLocation,
+          status: LOCATION_STATUS.EMPTY,
+          updater: context.state.user
+        })
+      }
     })
   }
 }

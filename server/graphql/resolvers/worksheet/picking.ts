@@ -68,11 +68,11 @@ export const picking = {
           updater: context.state.user
         })
 
-        // 4. 1) if status of inventory is TERMINATED, check whether location has other inventories
-        const inventoryCounts: number = await trxMgr
+        // 4. 1) if status of inventory is TERMINATED, check whether related inventory with specific location exists or not
+        const relatedInventory: Inventory = await trxMgr
           .getRepository(Inventory)
-          .count({ where: { domain: context.state.domain, location: inventory.location } })
-        if (inventoryCounts === 0) {
+          .findOne({ where: { domain: context.state.domain, location: inventory.location } })
+        if (!relatedInventory) {
           // 4. 1) - 1 if location doesn't have other inventories => update status of location (status: OCCUPIED or FULL => EMPTY)
           await trxMgr.getRepository(Location).save({
             ...inventory.location,
