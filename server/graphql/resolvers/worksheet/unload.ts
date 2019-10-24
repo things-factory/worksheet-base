@@ -101,8 +101,8 @@ export const unload = {
       })
 
       // 6. Update status of buffer location
-      // 6. 1) If status of location is not occupied
-      if (bufferLocation.status !== LOCATION_STATUS.OCCUPIED) {
+      // 6. 1) If status of location is empty
+      if (bufferLocation.status === LOCATION_STATUS.EMPTY) {
         await trxMgr.getRepository(Location).save({
           ...bufferLocation,
           status: LOCATION_STATUS.OCCUPIED,

@@ -25,7 +25,7 @@ export const unloadedInventories = {
         bizplace: customerBizplace,
         batchId: foundWorksheetDetail.targetProduct.batchId,
         location: foundWorksheetDetail.worksheet.bufferLocation,
-        status: INVENTORY_STATUS.OCCUPIED
+        status: INVENTORY_STATUS.UNLOADED
       }
     })
   }

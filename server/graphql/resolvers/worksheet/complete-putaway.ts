@@ -1,5 +1,6 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, ORDER_STATUS, ORDER_PRODUCT_STATUS, OrderInventory } from '@things-factory/sales-base'
+import { ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
+import { Inventory, Location, LOCATION_STATUS } from '@things-factory/warehouse-base'
 import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -27,10 +28,21 @@ export const completePutaway = {
           type: WORKSHEET_TYPE.PUTAWAY,
           arrivalNotice
         },
-        relations: ['worksheetDetails', 'worksheetDetails.targetInventory']
+        relations: ['worksheetDetails', 'worksheetDetails.targetInventory', 'bufferLocation']
       })
 
       if (!foundPutawayWorksheet) throw new Error(`Worksheet doesn't exists.`)
+      const bufferLocation: Location = foundPutawayWorksheet.bufferLocation
+      const relatedInventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
+        where: { domain: context.state.domain, location: bufferLocation }
+      })
+      if (!relatedInventory) {
+        trxMgr.getRepository(Location).save({
+          ...bufferLocation,
+          status: LOCATION_STATUS.EMPTY,
+          updater: context.state.user
+        })
+      }
 
       await trxMgr.getRepository(Worksheet).save({
         ...foundPutawayWorksheet,
