@@ -1,6 +1,12 @@
-import { Inventory, InventoryHistory, InventoryNoGenerator, INVENTORY_STATUS } from '@things-factory/warehouse-base'
-import { getManager } from 'typeorm'
 import { OrderInventory, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
+import {
+  Inventory,
+  InventoryHistory,
+  InventoryNoGenerator,
+  INVENTORY_STATUS,
+  INVENTORY_TRANSACTION_TYPE
+} from '@things-factory/warehouse-base'
+import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -62,14 +68,15 @@ export const transfer = {
           warehouseId: toInventory.warehouse.id,
           locationId: toInventory.location.id,
           seq: toInventory.lastSeq,
+          transactionType: INVENTORY_TRANSACTION_TYPE.TRANSFERED_IN,
           creator: context.state.user,
           updater: context.state.user
         })
         //    - update (fromInventory)
         await trxMgr.getRepository(Inventory).save({
           ...fromInventory,
-          qty: leftQty,
-          status: INVENTORY_STATUS.TRANSFERED,
+          qty: leftQty, // 0
+          status: INVENTORY_STATUS.TERMINATED,
           lastSeq: fromInventory.lastSeq + 1,
           updater: context.state.user
         })
@@ -92,6 +99,7 @@ export const transfer = {
           warehouseId: fromInventory.warehouse.id,
           locationId: fromInventory.location.id,
           seq: fromInventory.lastSeq,
+          transactionType: INVENTORY_TRANSACTION_TYPE.TRANSFERED_OUT,
           creator: context.state.user,
           updater: context.state.user
         })
@@ -126,6 +134,7 @@ export const transfer = {
           warehouseId: toInventory.warehouse.id,
           locationId: toInventory.location.id,
           seq: toInventory.lastSeq,
+          transactionType: INVENTORY_TRANSACTION_TYPE.TRANSFERED_IN,
           creator: context.state.user,
           updater: context.state.user
         })
@@ -133,6 +142,25 @@ export const transfer = {
         await trxMgr.getRepository(Inventory).save({
           ...fromInventory,
           qty: leftQty,
+          lastSeq: fromInventory.lastSeq + 1,
+          updater: context.state.user
+        })
+
+        fromInventory = await trxMgr.getRepository(Inventory).findOne({
+          where: { id: fromInventory.id },
+          relations: ['bizplace', 'product', 'warehouse', 'location']
+        })
+
+        //    - add inventory history
+        await trxMgr.getRepository(InventoryHistory).save({
+          ...fromInventory,
+          name: InventoryNoGenerator.inventoryHistoryName(),
+          productId: fromInventory.product.id,
+          warehouseId: fromInventory.warehouse.id,
+          locationId: fromInventory.location.id,
+          seq: fromInventory.lastSeq,
+          transactionType: INVENTORY_TRANSACTION_TYPE.TRANSFERED_OUT,
+          creator: context.state.user,
           updater: context.state.user
         })
       }

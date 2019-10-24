@@ -4,6 +4,7 @@ import {
   InventoryHistory,
   InventoryNoGenerator,
   INVENTORY_STATUS,
+  INVENTORY_TRANSACTION_TYPE,
   Location,
   LOCATION_STATUS
 } from '@things-factory/warehouse-base'
@@ -64,6 +65,7 @@ export const undoUnloading = {
         domain: context.state.domain,
         name: InventoryNoGenerator.inventoryHistoryName(),
         seq: inventory.lastSeq,
+        transactionType: INVENTORY_TRANSACTION_TYPE.UNDO_UNLOADING,
         productId: inventory.product.id,
         warehouseId: inventory.warehouse.id,
         locationId: inventory.location.id,

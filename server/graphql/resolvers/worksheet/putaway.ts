@@ -4,9 +4,10 @@ import {
   InventoryHistory,
   InventoryNoGenerator,
   INVENTORY_STATUS,
+  INVENTORY_TRANSACTION_TYPE,
   Location,
-  LOCATION_TYPE,
-  LOCATION_STATUS
+  LOCATION_STATUS,
+  LOCATION_TYPE
 } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -70,6 +71,7 @@ export const putaway = {
         domain: context.state.domain,
         name: InventoryNoGenerator.inventoryHistoryName(),
         seq: inventory.lastSeq,
+        transactionType: INVENTORY_TRANSACTION_TYPE.PUTAWAY,
         productId: inventory.product.id,
         warehouseId: inventory.warehouse.id,
         locationId: inventory.location.id,
