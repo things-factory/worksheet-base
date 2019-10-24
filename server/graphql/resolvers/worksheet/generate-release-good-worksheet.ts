@@ -2,7 +2,7 @@ import { Bizplace } from '@things-factory/biz-base'
 import {
   OrderInventory,
   OrderVas,
-  ORDER_PRODUCT_STATUS,
+  ORDER_INVENTORY_STATUS,
   ORDER_STATUS,
   ORDER_VAS_STATUS,
   ReleaseGood
@@ -65,7 +65,7 @@ export const generateReleaseGoodWorksheet = {
       foundOIs = foundOIs.map((oi: OrderInventory) => {
         return {
           ...oi,
-          status: ORDER_PRODUCT_STATUS.READY_TO_PICK,
+          status: ORDER_INVENTORY_STATUS.READY_TO_PICK,
           updater: context.state.user
         }
       })
@@ -104,7 +104,7 @@ export const generateReleaseGoodWorksheet = {
         })
         await txMgr.getRepository(WorksheetDetail).save(vasWorksheetDetails)
 
-        // 3. 3) Update status of order vas (ARRIVED => READY_TO_PROCESS)
+        // 3. 3) Update status of order vas (PENDING_RECEIVE => READY_TO_PROCESS)
         foundOVs = foundOVs.map((ov: OrderVas) => {
           return {
             ...ov,

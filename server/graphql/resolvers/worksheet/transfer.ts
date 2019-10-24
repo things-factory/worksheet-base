@@ -1,5 +1,6 @@
 import { Inventory, InventoryHistory, InventoryNoGenerator, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
+import { OrderInventory, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -29,11 +30,12 @@ export const transfer = {
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.PUTAWAY
         },
-        relations: ['worksheet']
+        relations: ['worksheet', 'targetInventory']
       })
       if (!worksheetDetail) throw new Error(`Worksheet Detail doesn't exists`)
       const worksheet: Worksheet = worksheetDetail.worksheet
       if (!worksheet) throw new Error(`Worksheet doesn't exists`)
+      let targetInventory: OrderInventory = worksheetDetail.targetInventory
 
       // 4. transfer qty
       // 4. 1) if result < 0
@@ -70,6 +72,11 @@ export const transfer = {
           status: INVENTORY_STATUS.TRANSFERED,
           lastSeq: fromInventory.lastSeq + 1,
           updater: context.state.user
+        })
+
+        await trxMgr.getRepository(OrderInventory).save({
+          ...targetInventory,
+          status: ORDER_PRODUCT_STATUS.TERMINATED
         })
 
         fromInventory = await trxMgr.getRepository(Inventory).findOne({

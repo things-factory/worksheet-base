@@ -1,7 +1,7 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
+import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { getManager } from 'typeorm'
-import { WORKSHEET_STATUS } from '../../../constants'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const activatePicking = {
@@ -16,6 +16,7 @@ export const activatePicking = {
         where: {
           domain: context.state.domain,
           name: worksheetNo,
+          type: WORKSHEET_TYPE.PICKING,
           status: WORKSHEET_STATUS.DEACTIVATED
         },
         relations: ['bizplace', 'releaseGood', 'worksheetDetails', 'worksheetDetails.targetInventory']
@@ -53,7 +54,7 @@ export const activatePicking = {
       targetInventories = targetInventories.map((targetInventory: OrderInventory) => {
         return {
           ...targetInventory,
-          status: ORDER_PRODUCT_STATUS.PICKING,
+          status: ORDER_INVENTORY_STATUS.PICKING,
           updater: context.state.user
         }
       })

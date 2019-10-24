@@ -1,8 +1,8 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, ORDER_STATUS } from '@things-factory/sales-base'
+import { ArrivalNotice, ORDER_STATUS, ORDER_PRODUCT_STATUS, OrderInventory } from '@things-factory/sales-base'
 import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { Worksheet } from '../../../entities'
+import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const completePutaway = {
   async completePutaway(_: any, { arrivalNoticeNo }, context: any) {
@@ -26,7 +26,8 @@ export const completePutaway = {
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.PUTAWAY,
           arrivalNotice
-        }
+        },
+        relations: ['worksheetDetails', 'worksheetDetails.targetInventory']
       })
 
       if (!foundPutawayWorksheet) throw new Error(`Worksheet doesn't exists.`)
@@ -36,6 +37,28 @@ export const completePutaway = {
         status: WORKSHEET_STATUS.DONE,
         endedAt: new Date(),
         updater: context.state.user
+      })
+
+      const worksheetDetails: WorksheetDetail[] = foundPutawayWorksheet.worksheetDetails.map(
+        (worksheetDetail: WorksheetDetail) => {
+          return {
+            ...worksheetDetail,
+            status: WORKSHEET_STATUS.DONE,
+            updater: context.state.user
+          }
+        }
+      )
+      await trxMgr.getRepository(WorksheetDetail).save(worksheetDetails)
+
+      let targetInventories: OrderInventory[] = worksheetDetails.map(
+        (worksheetDetail: WorksheetDetail) => worksheetDetail.targetInventory
+      )
+      targetInventories = targetInventories.map((orderInventory: OrderInventory) => {
+        return {
+          ...orderInventory,
+          status: ORDER_PRODUCT_STATUS.TERMINATED,
+          updater: context.state.user
+        }
       })
 
       // 2. If there's no more worksheet related with current arrival notice

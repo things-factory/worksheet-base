@@ -34,7 +34,7 @@ export const executeVas = {
 
       await trxMgr.getRepository(OrderVas).save({
         ...targetVas,
-        status: worksheetDetail.issue ? ORDER_VAS_STATUS.UNCOMPLETED : ORDER_VAS_STATUS.COMPLETED,
+        status: ORDER_VAS_STATUS.COMPLETED,
         updater: context.state.user
       })
     })

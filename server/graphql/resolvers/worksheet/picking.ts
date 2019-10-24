@@ -1,11 +1,11 @@
-import { OrderInventory } from '@things-factory/sales-base'
+import { OrderInventory, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
 import {
   Inventory,
   InventoryHistory,
   InventoryNoGenerator,
+  INVENTORY_STATUS,
   Location,
-  LOCATION_STATUS,
-  INVENTORY_STATUS
+  LOCATION_STATUS
 } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -96,6 +96,12 @@ export const picking = {
         delete inventoryHistory.id
         await trxMgr.getRepository(InventoryHistory).save(inventoryHistory)
       }
+
+      await trxMgr.getRepository(OrderInventory).save({
+        ...targetInventory,
+        status: ORDER_INVENTORY_STATUS.PICKED,
+        updater: context.state.user
+      })
 
       // 6. update status of worksheet details (EXECUTING = > DONE)
       await trxMgr.getRepository(WorksheetDetail).save({

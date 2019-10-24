@@ -1,8 +1,8 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
+import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { Worksheet } from '../../../entities'
+import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const completePicking = {
   async completePicking(_: any, { releaseGoodNo }, context: any) {
@@ -21,10 +21,32 @@ export const completePicking = {
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.PICKING,
           releaseGood
-        }
+        },
+        relations: ['worksheetDetails', 'worksheetDetails.targetInventory']
       })
 
       if (!foundPickingWorksheet) throw new Error(`Worksheet doesn't exists.`)
+      const worksheetDetails: WorksheetDetail[] = foundPickingWorksheet.worksheetDetails.map(
+        (worksheetDetail: WorksheetDetail) => {
+          return {
+            ...worksheetDetail,
+            status: WORKSHEET_STATUS.DONE,
+            updater: context.state.user
+          }
+        }
+      )
+      await trxMgr.getRepository(WorksheetDetail).save(worksheetDetails)
+      let targetInventories: OrderInventory[] = worksheetDetails.map(
+        (worksheetDetail: WorksheetDetail) => worksheetDetail.targetInventory
+      )
+      targetInventories = targetInventories.map((targetInventory: OrderInventory) => {
+        return {
+          ...targetInventory,
+          status: ORDER_INVENTORY_STATUS.TERMINATED,
+          updater: context.state.user
+        }
+      })
+      await trxMgr.getRepository(OrderInventory).save(targetInventories)
 
       // Update status and endtedAt of worksheet
       await trxMgr.getRepository(Worksheet).save({

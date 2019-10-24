@@ -71,12 +71,12 @@ export const completeUnloading = {
       })
 
       /**
-       * 5. Update target products status (UNLOADING => DONE)
+       * 5. Update target products status (UNLOADED => TERMINATED)
        */
       targetProducts = targetProducts.map((targetProduct: OrderProduct) => {
         return {
           ...targetProduct,
-          status: ORDER_PRODUCT_STATUS.UNLOADED,
+          status: ORDER_PRODUCT_STATUS.TERMINATED,
           updater: context.state.user
         }
       })
