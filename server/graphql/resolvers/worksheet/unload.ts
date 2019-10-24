@@ -58,7 +58,7 @@ export const unload = {
         warehouse: foundWorksheetDetail.worksheet.bufferLocation.warehouse,
         location: foundWorksheetDetail.worksheet.bufferLocation,
         zone: foundWorksheetDetail.worksheet.bufferLocation.zone,
-        status: INVENTORY_STATUS.OCCUPIED,
+        status: INVENTORY_STATUS.UNLOADED,
         creator: context.state.user,
         updater: context.state.user
       })
@@ -86,6 +86,7 @@ export const unload = {
         ...foundWorksheetDetail.targetProduct,
         actualPalletQty: foundWorksheetDetail.targetProduct.actualPalletQty + 1,
         actualPackQty: foundWorksheetDetail.targetProduct.actualPackQty + qty,
+        status: ORDER_PRODUCT_STATUS.UNLOADED,
         updater: context.state.user
       })
     })

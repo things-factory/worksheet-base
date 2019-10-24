@@ -4,7 +4,8 @@ import {
   InventoryHistory,
   InventoryNoGenerator,
   Location,
-  LOCATION_STATUS
+  LOCATION_STATUS,
+  INVENTORY_STATUS
 } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -28,10 +29,13 @@ export const picking = {
       let inventory: Inventory = targetInventory.inventory
       if (inventory.palletId !== palletId) throw new Error('Pallet ID is invalid')
 
+      const leftQty = inventory.qty - releaseQty
+      if (leftQty < 0) throw new Error(`Invalid qty, can't exceed limitation`)
+
       // 2. update inventory quantity and seq
       inventory = await trxMgr.getRepository(Inventory).save({
         ...inventory,
-        qty: inventory.qty - releaseQty,
+        qty: leftQty,
         lastSeq: inventory.lastSeq + 1
       })
 
@@ -55,11 +59,16 @@ export const picking = {
       delete inventoryHistory.id
       await trxMgr.getRepository(InventoryHistory).save(inventoryHistory)
 
-      // 4. dispose inventory if quantity is zero
+      // 4. Terminate inventory if quantity is zero
       if (inventory.qty <= 0) {
-        await trxMgr.getRepository(Inventory).delete(inventory.id)
+        await trxMgr.getRepository(Inventory).save({
+          ...inventory,
+          status: INVENTORY_STATUS.TERMINATED,
+          qty: 0,
+          updater: context.state.user
+        })
 
-        // 4. 1) if inventory was disposed check whether location has other inventories
+        // 4. 1) if status of inventory is TERMINATED, check whether location has other inventories
         const inventoryCounts: number = await trxMgr
           .getRepository(Inventory)
           .count({ where: { domain: context.state.domain, location: inventory.location } })
@@ -78,7 +87,6 @@ export const picking = {
           domain: context.state.domain,
           name: InventoryNoGenerator.inventoryHistoryName(),
           seq: inventory.lastSeq + 1,
-          description: 'DISPOSED',
           productId: inventory.product.id,
           warehouseId: inventory.warehouse.id,
           locationId: inventory.location.id,

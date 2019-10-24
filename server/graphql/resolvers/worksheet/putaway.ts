@@ -3,6 +3,7 @@ import {
   Inventory,
   InventoryHistory,
   InventoryNoGenerator,
+  INVENTORY_STATUS,
   Location,
   LOCATION_TYPE
 } from '@things-factory/warehouse-base'
@@ -42,6 +43,7 @@ export const putaway = {
       inventory = await trxMgr.getRepository(Inventory).save({
         ...inventory,
         location,
+        status: INVENTORY_STATUS.STORED,
         lastSeq: inventory.lastSeq + 1,
         warehouse: location.warehouse,
         zone: location.warehouse.zone,

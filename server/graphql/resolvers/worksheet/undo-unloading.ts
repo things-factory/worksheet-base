@@ -39,6 +39,7 @@ export const undoUnloading = {
       await trxMgr.getRepository(Inventory).save({
         ...inventory,
         lastSeq: inventory.lastSeq + 1,
+        status: INVENTORY_STATUS.DELETED,
         qty: 0,
         updater: context.state.user
       })

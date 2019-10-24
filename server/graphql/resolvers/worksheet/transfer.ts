@@ -1,4 +1,4 @@
-import { Inventory, InventoryHistory, InventoryNoGenerator } from '@things-factory/warehouse-base'
+import { Inventory, InventoryHistory, InventoryNoGenerator, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -36,14 +36,13 @@ export const transfer = {
       if (!worksheet) throw new Error(`Worksheet doesn't exists`)
 
       // 4. transfer qty
-      const result = fromInventory.qty - qty
       // 4. 1) if result < 0
       //    - throw error
-      if (result < 0) {
-        throw new Error(`Invalid qty, can't exceed limitation`)
-      }
+      const leftQty = fromInventory.qty - qty
+      if (leftQty < 0) throw new Error(`Invalid qty, can't exceed limitation`)
+
       // 4. 2) if result == 0
-      else if (result == 0) {
+      if (leftQty == 0) {
         //    - plus qty to (toInventory)
         await trxMgr.getRepository(Inventory).save({
           ...toInventory,
@@ -67,7 +66,8 @@ export const transfer = {
         //    - update (fromInventory)
         await trxMgr.getRepository(Inventory).save({
           ...fromInventory,
-          qty: result,
+          qty: leftQty,
+          status: INVENTORY_STATUS.TRANSFERED,
           lastSeq: fromInventory.lastSeq + 1,
           updater: context.state.user
         })
@@ -88,8 +88,7 @@ export const transfer = {
           creator: context.state.user,
           updater: context.state.user
         })
-        //    - delete (fromInventory)
-        await trxMgr.getRepository(Inventory).delete(fromInventory)
+
         //    - update worksheetDetail (EXECUTING => DONE)
         await trxMgr.getRepository(WorksheetDetail).save({
           ...worksheetDetail,
@@ -98,11 +97,12 @@ export const transfer = {
         })
       }
       // 4. 3) if result > 0
-      else if (result > 0) {
+      else if (leftQty > 0) {
         await trxMgr.getRepository(Inventory).save({
           ...toInventory,
           qty: toInventory.qty + qty,
-          lastSeq: toInventory.lastSeq + 1
+          lastSeq: toInventory.lastSeq + 1,
+          updater: context.state.user
         })
 
         toInventory = await trxMgr.getRepository(Inventory).findOne({
@@ -125,7 +125,8 @@ export const transfer = {
 
         await trxMgr.getRepository(Inventory).save({
           ...fromInventory,
-          qty: result
+          qty: leftQty,
+          updater: context.state.user
         })
       }
     })

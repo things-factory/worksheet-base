@@ -53,7 +53,7 @@ export const activatePicking = {
       targetInventories = targetInventories.map((targetInventory: OrderInventory) => {
         return {
           ...targetInventory,
-          status: ORDER_PRODUCT_STATUS.PUTTING_AWAY,
+          status: ORDER_PRODUCT_STATUS.PICKING,
           updater: context.state.user
         }
       })

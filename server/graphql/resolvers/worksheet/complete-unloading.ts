@@ -76,7 +76,7 @@ export const completeUnloading = {
       targetProducts = targetProducts.map((targetProduct: OrderProduct) => {
         return {
           ...targetProduct,
-          status: ORDER_PRODUCT_STATUS.DONE,
+          status: ORDER_PRODUCT_STATUS.UNLOADED,
           updater: context.state.user
         }
       })
