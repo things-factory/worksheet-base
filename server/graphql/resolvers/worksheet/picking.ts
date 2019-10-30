@@ -63,7 +63,7 @@ export const picking = {
 
       // 4. Terminate inventory if quantity is zero
       if (inventory.qty <= 0) {
-        await trxMgr.getRepository(Inventory).save({
+        inventory = await trxMgr.getRepository(Inventory).save({
           ...inventory,
           status: INVENTORY_STATUS.TERMINATED,
           qty: 0,
@@ -71,15 +71,13 @@ export const picking = {
         })
 
         // 4. 1) if status of inventory is TERMINATED, check whether related inventory with specific location exists or not
-        const relatedInventory: Inventory = await trxMgr
-          .getRepository(Inventory)
-          .findOne({
-            where: {
-              domain: context.state.domain,
-              location: inventory.location,
-              status: Not(Equal(INVENTORY_STATUS.TERMINATED))
-            }
-          })
+        const relatedInventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
+          where: {
+            domain: context.state.domain,
+            location: inventory.location,
+            status: Not(Equal(INVENTORY_STATUS.TERMINATED))
+          }
+        })
         if (!relatedInventory) {
           // 4. 1) - 1 if location doesn't have other inventories => update status of location (status: OCCUPIED or FULL => EMPTY)
           await trxMgr.getRepository(Location).save({
