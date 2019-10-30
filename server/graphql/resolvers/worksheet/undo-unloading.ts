@@ -26,7 +26,7 @@ export const undoUnloading = {
       let inventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
         where: {
           domain: context.state.domain,
-          status: INVENTORY_STATUS.OCCUPIED,
+          status: INVENTORY_STATUS.UNLOADED,
           palletId
         },
         relations: ['location']
