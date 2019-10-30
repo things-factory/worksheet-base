@@ -9,7 +9,7 @@ import {
   Location,
   LOCATION_STATUS
 } from '@things-factory/warehouse-base'
-import { getManager } from 'typeorm'
+import { getManager, Not, Equal } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
 
@@ -17,6 +17,17 @@ export const unload = {
   async unload(_: any, { worksheetDetailName, inventory }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const palletId = inventory.palletId
+      // check duplication of pallet id
+      const duplicatedInventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
+        where: {
+          domain: context.state.domain,
+          palletId,
+          status: Not(Equal(INVENTORY_STATUS.TERMINATED))
+        }
+      })
+
+      if (duplicatedInventory) throw new Error(`Pallet ID (${duplicatedInventory.palletId}) is duplicated`)
+
       const qty = inventory.qty
 
       // 1. find worksheet detail
