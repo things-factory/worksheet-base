@@ -36,23 +36,27 @@ export const pickingWorksheetResolver = {
         bizplaceName: releaseGood.bizplace.name,
         startedAt: worksheet.startedAt
       },
-      worksheetDetailInfos: worksheet.worksheetDetails.map(async (pickingWSD: WorksheetDetail) => {
-        const targetInventory: OrderInventory = pickingWSD.targetInventory
-        const inventory: Inventory = targetInventory.inventory
-        return {
-          name: pickingWSD.name,
-          palletId: inventory.palletId,
-          batchId: inventory.batchId,
-          product: inventory.product,
-          qty: inventory.qty,
-          releaseQty: targetInventory.releaseQty,
-          status: pickingWSD.status,
-          description: pickingWSD.description,
-          targetName: targetInventory.name,
-          packingType: inventory.packingType,
-          location: inventory.location
-        }
-      })
+      worksheetDetailInfos: worksheet.worksheetDetails
+        .sort((a: WorksheetDetail, b: WorksheetDetail) =>
+          a.targetInventory.inventory.location.name > b.targetInventory.inventory.location.name ? 1 : -1
+        )
+        .map(async (pickingWSD: WorksheetDetail) => {
+          const targetInventory: OrderInventory = pickingWSD.targetInventory
+          const inventory: Inventory = targetInventory.inventory
+          return {
+            name: pickingWSD.name,
+            palletId: inventory.palletId,
+            batchId: inventory.batchId,
+            product: inventory.product,
+            qty: inventory.qty,
+            releaseQty: targetInventory.releaseQty,
+            status: pickingWSD.status,
+            description: pickingWSD.description,
+            targetName: targetInventory.name,
+            packingType: inventory.packingType,
+            location: inventory.location
+          }
+        })
     }
   }
 }
