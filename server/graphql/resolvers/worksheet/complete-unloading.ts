@@ -12,6 +12,7 @@ import { Equal, getManager, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
+import { activatePutaway } from './activate-putaway'
 
 export const completeUnloading = {
   async completeUnloading(_: any, { arrivalNoticeNo, worksheetDetails }, context: any) {
@@ -48,10 +49,10 @@ export const completeUnloading = {
        * 3. Update worksheet detail status (EXECUTING => DONE) & issue note
        */
       foundWorksheetDetails = foundWorksheetDetails.map((foundWSD: WorksheetDetail) => {
-        const patchedWSD: WorksheetDetail = worksheetDetails.find(
-          (patchedWSD: WorksheetDetail) => foundWSD.name === patchedWSD.name
+        const worksheetDetail: WorksheetDetail = worksheetDetails.find(
+          (worksheetDetail: WorksheetDetail) => foundWSD.name === worksheetDetail.name
         )
-        if (patchedWSD && patchedWSD.issue) foundWSD.issue = patchedWSD.issue
+        if (worksheetDetail && worksheetDetail.issue) foundWSD.issue = worksheetDetail.issue
         return {
           ...foundWSD,
           status: WORKSHEET_STATUS.DONE,
@@ -108,7 +109,7 @@ export const completeUnloading = {
       /**
        * 7. Create putaway worksheet
        */
-      const putawayWorksheet = await trxMgr.getRepository(Worksheet).save({
+      const putawayWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).save({
         domain: context.state.domain,
         arrivalNotice: arrivalNotice,
         bizplace: customerBizplace,
@@ -161,6 +162,25 @@ export const completeUnloading = {
           )
         })
       )
+
+      /**
+       * 7.1) If there's no issue related with this worksheet => Activate putaway worksheet right directely
+       */
+      const issuedWorksheetDetails = worksheetDetails.filter(
+        (worksheetDetail: WorksheetDetail) => worksheetDetail.issue
+      )
+      if (issuedWorksheetDetails.length === 0) {
+        const foundPutawayWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+          where: { id: putawayWorksheet.id },
+          relations: ['worksheetDetails']
+        })
+
+        await activatePutaway.activatePutaway(
+          _,
+          { worksheetNo: foundPutawayWorksheet.name, putawayWorksheetDetails: foundPutawayWorksheet.worksheetDetails },
+          context
+        )
+      }
 
       return foundWorksheet
     })
