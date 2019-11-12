@@ -4,8 +4,6 @@ import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
-export const services = {
-  activatePutaway: async (
 export const activatePutaway = {
   async activatePutaway(_: any, { worksheetNo, putawayWorksheetDetails }, context: any) {
     return await getManager().transaction(async trxMgr => {
