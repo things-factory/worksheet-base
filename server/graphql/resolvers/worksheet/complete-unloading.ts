@@ -165,7 +165,7 @@ export const completeUnloading = {
         )
 
         return await trxMgr.getRepository(Worksheet).findOne({
-          where: { ...foundWorksheet },
+          where: { id: foundWorksheet.id },
           relations: ['arrivalNotice', 'worksheetDetails']
         })
       }
