@@ -12,7 +12,7 @@ import { Equal, getManager, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
-import { activatePutaway } from './activate-putaway'
+import { services } from './activate-putaway'
 
 export const completeUnloading = {
   async completeUnloading(_: any, { arrivalNoticeNo, worksheetDetails }, context: any) {
@@ -175,11 +175,7 @@ export const completeUnloading = {
           relations: ['worksheetDetails']
         })
 
-        await activatePutaway.activatePutaway(
-          _,
-          { worksheetNo: foundPutawayWorksheet.name, putawayWorksheetDetails: foundPutawayWorksheet.worksheetDetails },
-          context
-        )
+        await services.activatePutaway(foundPutawayWorksheet.name, foundPutawayWorksheet.worksheetDetails, context)
       }
 
       return foundWorksheet
