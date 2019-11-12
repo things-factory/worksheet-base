@@ -179,7 +179,6 @@ export const completeUnloading = {
       const foundPutawayWorksheet: Worksheet = await getRepository(Worksheet).findOne({
         where: {
           domain: context.state.domain,
-          bizplace: context.state.bizplace,
           arrivalNotice: updatedWorksheet.arrivalNotice,
           type: WORKSHEET_TYPE.PUTAWAY,
           status: WORKSHEET_STATUS.DEACTIVATED
