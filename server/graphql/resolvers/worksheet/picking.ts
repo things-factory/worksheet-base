@@ -32,11 +32,12 @@ export const picking = {
 
       const leftQty = inventory.qty - releaseQty
       if (leftQty < 0) throw new Error(`Invalid qty, can't exceed limitation`)
-
+      debugger
       // 2. update inventory quantity and seq
       inventory = await trxMgr.getRepository(Inventory).save({
         ...inventory,
         qty: leftQty,
+        weight: inventory.weight - worksheetDetail.targetInventory.releaseWeight,
         lastSeq: inventory.lastSeq + 1
       })
 

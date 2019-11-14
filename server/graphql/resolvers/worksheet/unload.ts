@@ -79,6 +79,7 @@ export const unload = {
         product: foundWorksheetDetail.targetProduct.product,
         packingType: foundWorksheetDetail.targetProduct.packingType,
         qty,
+        weight: inventory.qty * foundWorksheetDetail.targetProduct.weight,
         refOrderId: arrivalNotice.id,
         warehouse: foundWorksheetDetail.worksheet.bufferLocation.warehouse,
         location: foundWorksheetDetail.worksheet.bufferLocation,
