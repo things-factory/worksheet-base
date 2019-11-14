@@ -1,5 +1,5 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { OrderProduct, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
+import { ArrivalNotice, OrderProduct, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
 import {
   Inventory,
   InventoryHistory,
@@ -9,9 +9,9 @@ import {
   Location,
   LOCATION_STATUS
 } from '@things-factory/warehouse-base'
-import { getManager, Not, Equal } from 'typeorm'
+import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { WorksheetDetail } from '../../../entities'
+import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const unload = {
   async unload(_: any, { worksheetDetailName, inventory }, context: any) {
@@ -43,12 +43,16 @@ export const unload = {
           'targetProduct',
           'targetProduct.product',
           'worksheet',
+          'worksheet.arrivalNotice',
           'worksheet.bufferLocation',
           'worksheet.bufferLocation.warehouse'
         ]
       })
 
       if (!foundWorksheetDetail) throw new Error(`WorksheetDetail doesn't exists`)
+
+      const worksheet: Worksheet = foundWorksheetDetail.worksheet
+      const arrivalNotice: ArrivalNotice = worksheet.arrivalNotice
       const customerBizplace: Bizplace = foundWorksheetDetail.bizplace
       const bufferLocation: Location = foundWorksheetDetail.worksheet.bufferLocation
 
@@ -75,6 +79,7 @@ export const unload = {
         product: foundWorksheetDetail.targetProduct.product,
         packingType: foundWorksheetDetail.targetProduct.packingType,
         qty,
+        refOrderId: arrivalNotice.id,
         warehouse: foundWorksheetDetail.worksheet.bufferLocation.warehouse,
         location: foundWorksheetDetail.worksheet.bufferLocation,
         zone: foundWorksheetDetail.worksheet.bufferLocation.zone,

@@ -7,8 +7,8 @@ import {
   ORDER_PRODUCT_STATUS,
   ORDER_STATUS
 } from '@things-factory/sales-base'
-import { Inventory } from '@things-factory/warehouse-base'
-import { Equal, getManager, getRepository, EntityManager, In, Not, Any } from 'typeorm'
+import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
+import { EntityManager, Equal, getManager, getRepository, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
@@ -127,9 +127,11 @@ export const completeUnloading = {
             const inventories: Inventory[] = await trxMgr.getRepository(Inventory).find({
               where: {
                 domain: context.state.domain,
+                refOrderId: arrivalNotice.id,
                 bizplace: customerBizplace,
                 batchId: worksheetDetail.targetProduct.batchId,
-                location: foundWorksheet.bufferLocation
+                location: foundWorksheet.bufferLocation,
+                status: INVENTORY_STATUS.UNLOADED
               },
               relations: ['product', 'warehouse', 'location']
             })
