@@ -42,7 +42,8 @@ export const unloadingWorksheetResolver = {
         bizplaceName: customerBizplace.name,
         containerNo: arrivalNotice.containerNo,
         bufferLocation: worksheet.bufferLocation.name,
-        startedAt: worksheet.startedAt
+        startedAt: worksheet.startedAt,
+        refNo: arrivalNotice.refNo
       },
       worksheetDetailInfos: worksheet.worksheetDetails.map(async (productWSD: WorksheetDetail) => {
         const targetProduct: OrderProduct = productWSD.targetProduct
