@@ -1,5 +1,6 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
+import { Inventory } from '@things-factory/warehouse-base'
 import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -22,7 +23,11 @@ export const completePicking = {
           type: WORKSHEET_TYPE.PICKING,
           releaseGood
         },
-        relations: ['worksheetDetails', 'worksheetDetails.targetInventory']
+        relations: [
+          'worksheetDetails',
+          'worksheetDetails.targetInventory',
+          'worksheetDetails.targetInventories.inventory'
+        ]
       })
 
       if (!foundPickingWorksheet) throw new Error(`Worksheet doesn't exists.`)
@@ -39,13 +44,31 @@ export const completePicking = {
       let targetInventories: OrderInventory[] = worksheetDetails.map(
         (worksheetDetail: WorksheetDetail) => worksheetDetail.targetInventory
       )
-      targetInventories = targetInventories.map((targetInventory: OrderInventory) => {
-        return {
-          ...targetInventory,
-          status: ORDER_INVENTORY_STATUS.TERMINATED,
-          updater: context.state.user
-        }
-      })
+
+      // Update status of order inventories & remove locked_qty and locked_weight if it's exists
+      targetInventories = await Promise.all(
+        targetInventories.map(async (targetInventory: OrderInventory) => {
+          const inventory: Inventory = targetInventory.inventory
+          let lockedQty: number = inventory.lockedQty || 0
+          let lockedWeight: number = inventory.lockedWeight || 0
+          const releaseQty: number = targetInventory.releaseQty || 0
+          const releaseWeight: number = targetInventory.releaseWeight || 0
+
+          await trxMgr.getRepository(Inventory).save({
+            ...inventory,
+            lockedQty,
+            lockedWeight,
+            updater: context.state.user
+          })
+
+          return {
+            ...targetInventory,
+            status: ORDER_INVENTORY_STATUS.TERMINATED,
+            updater: context.state.user
+          }
+        })
+      )
+
       await trxMgr.getRepository(OrderInventory).save(targetInventories)
 
       // Update status and endtedAt of worksheet
