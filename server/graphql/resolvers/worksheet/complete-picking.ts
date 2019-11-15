@@ -26,7 +26,7 @@ export const completePicking = {
         relations: [
           'worksheetDetails',
           'worksheetDetails.targetInventory',
-          'worksheetDetails.targetInventories.inventory'
+          'worksheetDetails.targetInventory.inventory'
         ]
       })
 
@@ -57,7 +57,8 @@ export const completePicking = {
           await trxMgr.getRepository(Inventory).save({
             ...inventory,
             lockedQty,
-            lockedWeight,
+            lockedQty: lockedQty - releaseQty,
+            lockedWeight: lockedWeight - releaseWeight,
             updater: context.state.user
           })
 
