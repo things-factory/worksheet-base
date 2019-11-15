@@ -9,9 +9,13 @@ export const worksheetsResolver = {
     const convertedParams = convertListParams(params)
 
     const arrivalNoticeParam: any = params.filters.find((param: any) => param.name === 'arrivalNoticeNo')
-    if (arrivalNoticeParam) {
+    const arrivalNoticeRefNoParam = params.filters.find(param => param.name === 'arrivalNoticeRefNo')
+    if (arrivalNoticeParam || arrivalNoticeRefNoParam) {
+      let arrFilters = []
+      if (arrivalNoticeParam) arrFilters.push({ ...arrivalNoticeParam, name: 'name' })
+      if (arrivalNoticeRefNoParam) arrFilters.push({ ...arrivalNoticeRefNoParam, name: 'refNo' })
       const foundArrivalNotices: ArrivalNotice[] = await getRepository(ArrivalNotice).find({
-        ...convertListParams({ filters: [{ ...arrivalNoticeParam, name: 'name' }] })
+        ...convertListParams({ filters: arrFilters })
       })
       if (foundArrivalNotices && foundArrivalNotices.length) {
         convertedParams.where.arrivalNotice = In(foundArrivalNotices.map((foundAN: ArrivalNotice) => foundAN.id))
@@ -21,9 +25,13 @@ export const worksheetsResolver = {
     }
 
     const releaseGoodParam = params.filters.find(param => param.name === 'releaseGoodNo')
-    if (releaseGoodParam) {
+    const releaseGoodRefNoParam = params.filters.find(param => param.name === 'releaseGoodRefNo')
+    if (releaseGoodParam || releaseGoodRefNoParam) {
+      let arrFilters = []
+      if (releaseGoodParam) arrFilters.push({ ...releaseGoodParam, name: 'name' })
+      if (releaseGoodRefNoParam) arrFilters.push({ ...releaseGoodRefNoParam, name: 'refNo' })
       const foundReleaseGoods: ReleaseGood[] = await getRepository(ReleaseGood).find({
-        ...convertListParams({ filters: [{ ...releaseGoodParam, name: 'name' }] })
+        ...convertListParams({ filters: arrFilters })
       })
       if (foundReleaseGoods && foundReleaseGoods.length) {
         convertedParams.where.releaseGood = In(foundReleaseGoods.map((foundRG: ReleaseGood) => foundRG.id))
