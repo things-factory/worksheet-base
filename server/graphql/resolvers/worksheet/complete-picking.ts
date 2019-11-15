@@ -56,7 +56,6 @@ export const completePicking = {
 
           await trxMgr.getRepository(Inventory).save({
             ...inventory,
-            lockedQty,
             lockedQty: lockedQty - releaseQty,
             lockedWeight: lockedWeight - releaseWeight,
             updater: context.state.user
