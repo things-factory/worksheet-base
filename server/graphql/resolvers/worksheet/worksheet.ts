@@ -1,4 +1,4 @@
-import { Bizplace } from '@things-factory/sales-base'
+import { getPermittedBizplaceIds } from '@things-factory/sales-base'
 import { getRepository, In } from 'typeorm'
 import { Worksheet } from '../../../entities'
 
@@ -7,7 +7,7 @@ export const worksheetResolver = {
     return await getRepository(Worksheet).findOne({
       where: {
         domain: context.state.domain,
-        bizplace: In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id)),
+        bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user)),
         name
       },
       relations: [

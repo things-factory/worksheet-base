@@ -1,4 +1,4 @@
-import { Bizplace } from '@things-factory/biz-base'
+import { Bizplace, getPermittedBizplaceIds } from '@things-factory/biz-base'
 import {
   OrderInventory,
   OrderVas,
@@ -19,7 +19,7 @@ export const generateReleaseGoodWorksheet = {
         where: {
           domain: context.state.domain,
           name: releaseGoodNo,
-          bizplace: In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id)),
+          bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user)),
           status: ORDER_STATUS.PENDING_RECEIVE
         },
         relations: ['bizplace', 'orderInventories', 'orderVass']

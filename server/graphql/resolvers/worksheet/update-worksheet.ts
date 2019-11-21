@@ -1,10 +1,15 @@
+import { getPermittedBizplaceIds } from '@things-factory/biz-base'
 import { getRepository, In } from 'typeorm'
 import { Worksheet } from '../../../entities'
 
 export const updateWorksheet = {
-  async updateWorksheet(_: any, { name, patch }, context: any) {
+  async updateWorksheet(_: any, { id, patch }, context: any) {
     const worksheet: Worksheet = await getRepository(Worksheet).findOne({
-      where: { domain: context.state.domain, bizplace: In(context.state.bizplaces), name }
+      where: {
+        domain: context.state.domain,
+        bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user)),
+        id
+      }
     })
 
     return await getRepository(Worksheet).save({

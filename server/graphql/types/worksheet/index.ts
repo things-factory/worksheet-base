@@ -15,12 +15,12 @@ export const Mutation = `
   ): Worksheet
 
   updateWorksheet (
-    name: String!
+    id: String!
     patch: WorksheetPatch!
   ): Worksheet
 
   deleteWorksheet (
-    name: String!
+    id: String!
   ): Boolean
 
   generateArrivalNoticeWorksheet (
