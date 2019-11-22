@@ -1,4 +1,4 @@
-import { Bizplace } from '@things-factory/sales-base'
+import { ArrivalNotice, Bizplace } from '@things-factory/sales-base'
 import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { getRepository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -13,16 +13,18 @@ export const unloadedInventories = {
         type: WORKSHEET_TYPE.UNLOADING,
         status: WORKSHEET_STATUS.EXECUTING
       },
-      relations: ['bizplace', 'targetProduct', 'worksheet', 'worksheet.bufferLocation']
+      relations: ['bizplace', 'targetProduct', 'worksheet', 'worksheet.arrivalNotice', 'worksheet.bufferLocation']
     })
 
     if (!foundWorksheetDetail) return []
 
+    const arrivalNotice: ArrivalNotice = foundWorksheetDetail.worksheet.arrivalNotice
     const customerBizplace: Bizplace = foundWorksheetDetail.bizplace
     return await getRepository(Inventory).find({
       where: {
         domain: context.state.domain,
         bizplace: customerBizplace,
+        refOrderId: arrivalNotice.id,
         batchId: foundWorksheetDetail.targetProduct.batchId,
         location: foundWorksheetDetail.worksheet.bufferLocation,
         status: INVENTORY_STATUS.UNLOADED

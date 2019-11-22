@@ -34,7 +34,8 @@ export const pickingWorksheetResolver = {
     return {
       worksheetInfo: {
         bizplaceName: releaseGood.bizplace.name,
-        startedAt: worksheet.startedAt
+        startedAt: worksheet.startedAt,
+        refNo: releaseGood.refNo
       },
       worksheetDetailInfos: worksheet.worksheetDetails
         .sort((a: WorksheetDetail, b: WorksheetDetail) =>

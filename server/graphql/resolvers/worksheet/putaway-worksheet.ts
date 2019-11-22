@@ -36,6 +36,7 @@ export const putawayWorksheetResolver = {
     return {
       worksheetInfo: {
         bizplaceName: arrivalNotice.bizplace.name,
+        refNo: arrivalNotice.refNo,
         startedAt: worksheet.startedAt
       },
       worksheetDetailInfos: worksheet.worksheetDetails.map(async (putawayWSD: WorksheetDetail) => {
