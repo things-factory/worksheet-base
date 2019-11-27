@@ -1,5 +1,5 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
+import { generateGoodsReceivalNote, ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -78,6 +78,16 @@ export const activatePutaway = {
         status: ORDER_STATUS.PUTTING_AWAY,
         updater: context.state.user
       })
+
+      /**
+       * 6. Generate the Goods Received Note straight away
+       */
+      const goodsReceivedNote = { customer: foundWorksheet.bizplace.id, refNo: foundWorksheet.arrivalNotice.name }
+      await generateGoodsReceivalNote.generateGoodsReceivalNote(
+        _,
+        { grn: goodsReceivedNote },
+        context
+      )
 
       return worksheet
     })
