@@ -48,6 +48,8 @@ export const picking = {
 
       const inventoryHistory: InventoryHistory = {
         ...inventory,
+        qty: -releaseQty,
+        status: INVENTORY_STATUS.PICKED,
         domain: context.state.domain,
         name: InventoryNoGenerator.inventoryHistoryName(),
         seq: inventory.lastSeq,
