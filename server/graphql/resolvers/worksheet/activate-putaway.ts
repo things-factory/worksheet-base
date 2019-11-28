@@ -1,5 +1,11 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { generateGoodsReceivalNote, ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
+import {
+  generateGoodsReceivalNote,
+  ArrivalNotice,
+  OrderInventory,
+  ORDER_PRODUCT_STATUS,
+  ORDER_STATUS
+} from '@things-factory/sales-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -82,12 +88,8 @@ export const activatePutaway = {
       /**
        * 6. Generate the Goods Received Note straight away
        */
-      const goodsReceivedNote = { customer: foundWorksheet.bizplace.id, refNo: foundWorksheet.arrivalNotice.name }
-      await generateGoodsReceivalNote.generateGoodsReceivalNote(
-        _,
-        { grn: goodsReceivedNote },
-        context
-      )
+      const grn = { customer: foundWorksheet.bizplace.id, refNo: foundWorksheet.arrivalNotice.name }
+      await generateGoodsReceivalNote(grn, context.state.domain, context.state.user)
 
       return worksheet
     })
