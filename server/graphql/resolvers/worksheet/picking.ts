@@ -57,6 +57,7 @@ export const picking = {
         productId: inventory.product.id,
         warehouseId: inventory.warehouse.id,
         locationId: inventory.location.id,
+        refOrderId: worksheetDetail.worksheet.id,
         creator: context.state.user,
         updater: context.state.user
       }
