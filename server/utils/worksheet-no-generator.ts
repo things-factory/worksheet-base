@@ -9,6 +9,10 @@ export class WorksheetNoGenerator {
     return `PUTAWAY-${uuid()}`
   }
 
+  static loading() {
+    return `LOAD-${uuid()}`
+  }
+
   static picking() {
     return `PICK-${uuid()}`
   }
@@ -23,6 +27,10 @@ export class WorksheetNoGenerator {
 
   static putawayDetail() {
     return `PUTAWAY-DETAIL-${uuid()}`
+  }
+
+  static loadingDetail() {
+    return `LOAD-DETAIL-${uuid()}`
   }
 
   static pickingDetail() {
