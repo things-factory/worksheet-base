@@ -9,7 +9,13 @@ import { Worksheet, WorksheetDetail } from '../../../entities'
 export const activateLoadingResolver = {
   async activateLoading(_: any, { worksheetNo, loadingWorksheetDetails }, context: any) {
     return await getManager().transaction(async trxMgr => {
-      return await activateLoading(worksheetNo, loadingWorksheetDetails, context.state.domain, context.state.user)
+      return await activateLoading(
+        worksheetNo,
+        loadingWorksheetDetails,
+        context.state.domain,
+        context.state.user,
+        trxMgr
+      )
     })
   }
 }
