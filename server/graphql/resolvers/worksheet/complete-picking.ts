@@ -143,7 +143,8 @@ export const completePicking = {
             foundLoadingWorksheet.name,
             foundLoadingWorksheet.worksheetDetails,
             context.state.domain,
-            context.state.user
+            context.state.user,
+            trxMgr
           )
 
           // 3. update status of release good

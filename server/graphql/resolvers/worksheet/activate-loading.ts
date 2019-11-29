@@ -1,8 +1,8 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { Domain } from '@things-factory/shell'
 import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
-import { getManager, getRepository } from 'typeorm'
+import { Domain } from '@things-factory/shell'
+import { EntityManager, getManager, getRepository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -18,14 +18,18 @@ export async function activateLoading(
   worksheetNo: any,
   loadingWorksheetDetails: any,
   domain: Domain,
-  user: User
+  user: User,
+  trxMgr?: EntityManager
 ): Promise<Worksheet> {
   /**
    * 1. Validation for worksheet
    *    - data existing
    *    - status of worksheet
    */
-  const foundWorksheet: Worksheet = await getRepository(Worksheet).findOne({
+
+  const repository = trxMgr ? trxMgr.getRepository : getRepository
+
+  const foundWorksheet: Worksheet = await repository(Worksheet).findOne({
     where: {
       domain,
       name: worksheetNo,
@@ -45,7 +49,7 @@ export async function activateLoading(
    */
   await Promise.all(
     loadingWorksheetDetails.map(async (loadingWorksheetDetail: WorksheetDetail) => {
-      await getRepository(WorksheetDetail).update(
+      await repository(WorksheetDetail).update(
         {
           domain,
           bizplace: customerBizplace,
@@ -71,12 +75,12 @@ export async function activateLoading(
       updater: user
     }
   })
-  await getRepository(OrderInventory).save(targetInventories)
+  await repository(OrderInventory).save(targetInventories)
 
   /**
    * 4. Update loading Worksheet (status: DEACTIVATED => EXECUTING)
    */
-  const worksheet: Worksheet = await getRepository(Worksheet).save({
+  const worksheet: Worksheet = await repository(Worksheet).save({
     ...foundWorksheet,
     status: WORKSHEET_STATUS.EXECUTING,
     startedAt: new Date(),
@@ -87,7 +91,7 @@ export async function activateLoading(
    * 5. Update Release Good (status: READY_TO_PICK => PICKING)
    */
   const releaseGood: ReleaseGood = foundWorksheet.releaseGood
-  await getRepository(ReleaseGood).save({
+  await repository(ReleaseGood).save({
     ...releaseGood,
     status: ORDER_STATUS.LOADING,
     updater: user
