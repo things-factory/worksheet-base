@@ -2,7 +2,7 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { EntityManager, getManager, getRepository } from 'typeorm'
+import { EntityManager, getManager, getRepository, Repository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -33,9 +33,18 @@ export async function activateLoading(
    *    - status of worksheet
    */
 
-  const repository = trxMgr ? trxMgr.getRepository : getRepository
+  const worksheetRepo: Repository<Worksheet> = trxMgr ? trxMgr.getRepository(Worksheet) : getRepository(Worksheet)
+  const worksheetDetailRepo: Repository<WorksheetDetail> = trxMgr
+    ? trxMgr.getRepository(WorksheetDetail)
+    : getRepository(WorksheetDetail)
+  const orderInventoryRepo: Repository<OrderInventory> = trxMgr
+    ? trxMgr.getRepository(OrderInventory)
+    : getRepository(OrderInventory)
+  const releaseGoodRepo: Repository<ReleaseGood> = trxMgr
+    ? trxMgr.getRepository(ReleaseGood)
+    : getRepository(ReleaseGood)
 
-  const foundWorksheet: Worksheet = await repository(Worksheet).findOne({
+  const foundWorksheet: Worksheet = await worksheetRepo.findOne({
     where: {
       domain,
       name: worksheetNo,
@@ -55,7 +64,7 @@ export async function activateLoading(
    */
   await Promise.all(
     loadingWorksheetDetails.map(async (loadingWorksheetDetail: WorksheetDetail) => {
-      await repository(WorksheetDetail).update(
+      await worksheetDetailRepo.update(
         {
           domain,
           bizplace: customerBizplace,
@@ -81,12 +90,12 @@ export async function activateLoading(
       updater: user
     }
   })
-  await repository(OrderInventory).save(targetInventories)
+  await orderInventoryRepo.save(targetInventories)
 
   /**
    * 4. Update loading Worksheet (status: DEACTIVATED => EXECUTING)
    */
-  const worksheet: Worksheet = await repository(Worksheet).save({
+  const worksheet: Worksheet = await worksheetRepo.save({
     ...foundWorksheet,
     status: WORKSHEET_STATUS.EXECUTING,
     startedAt: new Date(),
@@ -97,7 +106,7 @@ export async function activateLoading(
    * 5. Update Release Good (status: READY_TO_PICK => PICKING)
    */
   const releaseGood: ReleaseGood = foundWorksheet.releaseGood
-  await repository(ReleaseGood).save({
+  await releaseGoodRepo.save({
     ...releaseGood,
     status: ORDER_STATUS.LOADING,
     updater: user
