@@ -23,7 +23,7 @@ export const picking = {
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.PICKING
         },
-        relations: ['worksheet', 'targetInventory', 'targetInventory.inventory']
+        relations: ['worksheet', 'worksheet.releaseGood', 'targetInventory', 'targetInventory.inventory']
       })
       if (!worksheetDetail) throw new Error(`Worksheet Details doesn't exists`)
       let targetInventory: OrderInventory = worksheetDetail.targetInventory
@@ -57,7 +57,7 @@ export const picking = {
         productId: inventory.product.id,
         warehouseId: inventory.warehouse.id,
         locationId: inventory.location.id,
-        refOrderId: worksheetDetail.worksheet.id,
+        refOrderId: worksheetDetail.worksheet.releaseGood.id,
         creator: context.state.user,
         updater: context.state.user
       }
