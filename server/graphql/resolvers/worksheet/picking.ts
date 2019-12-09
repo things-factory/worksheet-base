@@ -54,6 +54,8 @@ export const picking = {
         name: InventoryNoGenerator.inventoryHistoryName(),
         seq: inventory.lastSeq,
         transactionType: INVENTORY_TRANSACTION_TYPE.PICKING,
+        openingQty: inventory.qty,
+        openingWeight: inventory.weight,
         productId: inventory.product.id,
         warehouseId: inventory.warehouse.id,
         locationId: inventory.location.id,
