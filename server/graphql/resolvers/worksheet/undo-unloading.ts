@@ -32,6 +32,8 @@ export const undoUnloading = {
         relations: ['location']
       })
       const bufferLocation: Location = inventory.location
+      const inventoryQty = inventory.qty
+      const inventoryWeight = inventory.weight
 
       await trxMgr.getRepository(OrderProduct).save({
         ...foundWorksheetDetail.targetProduct,
@@ -60,8 +62,11 @@ export const undoUnloading = {
         where: { id: inventory.id },
         relations: ['bizplace', 'product', 'warehouse', 'location']
       })
+
       const inventoryHistory: InventoryHistory = {
         ...inventory,
+        qty: -inventoryQty,
+        weight: -inventoryWeight,
         domain: context.state.domain,
         name: InventoryNoGenerator.inventoryHistoryName(),
         seq: inventory.lastSeq,
