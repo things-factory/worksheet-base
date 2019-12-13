@@ -1,4 +1,4 @@
-import { OrderInventory, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
+import { OrderInventory, ORDER_INVENTORY_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import {
   Inventory,
   InventoryHistory,
@@ -27,6 +27,7 @@ export const picking = {
       })
       if (!worksheetDetail) throw new Error(`Worksheet Details doesn't exists`)
       let targetInventory: OrderInventory = worksheetDetail.targetInventory
+      const releaseGood: ReleaseGood = worksheetDetail.worksheet.releaseGood
       let inventory: Inventory = targetInventory.inventory
       if (inventory.palletId !== palletId) throw new Error('Pallet ID is invalid')
 
@@ -59,7 +60,9 @@ export const picking = {
         productId: inventory.product.id,
         warehouseId: inventory.warehouse.id,
         locationId: inventory.location.id,
-        refOrderId: worksheetDetail.worksheet.releaseGood.id,
+        refOrderId: releaseGood.id,
+        orderRefNo: releaseGood.refNo || null,
+        orderNo: releaseGood.name,
         creator: context.state.user,
         updater: context.state.user
       }
@@ -99,6 +102,9 @@ export const picking = {
           name: InventoryNoGenerator.inventoryHistoryName(),
           seq: inventory.lastSeq + 1,
           transactionType: INVENTORY_TRANSACTION_TYPE.TERMINATED,
+          refOrderId: releaseGood.id,
+          orderRefNo: releaseGood.refNo || null,
+          orderNo: releaseGood.name,
           productId: inventory.product.id,
           warehouseId: inventory.warehouse.id,
           locationId: inventory.location.id,

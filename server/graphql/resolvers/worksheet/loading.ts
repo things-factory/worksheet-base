@@ -3,15 +3,15 @@ import {
   Inventory,
   InventoryHistory,
   InventoryNoGenerator,
-  INVENTORY_STATUS,
   INVENTORY_TRANSACTION_TYPE
 } from '@things-factory/warehouse-base'
-import { getManager, Not, Equal } from 'typeorm'
+import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
+import { generateDeliveryOrder } from '@things-factory/sales-base'
 
 export const loading = {
-  async loading(_: any, { worksheetDetailName, palletId }, context: any) {
+  async loading(_: any, { worksheetDetailName, palletId, deliveryOrder }, context: any) {
     return await getManager().transaction(async trxMgr => {
       // 1. get worksheet detail
       const worksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
@@ -54,6 +54,8 @@ export const loading = {
         status: ORDER_INVENTORY_STATUS.LOADED,
         updater: context.state.user
       })
+
+      await generateDeliveryOrder(deliveryOrder, context.state.domain, context.state.user, trxMgr)
 
       // 6. update status of worksheet details (EXECUTING = > DONE)
       await trxMgr.getRepository(WorksheetDetail).save({

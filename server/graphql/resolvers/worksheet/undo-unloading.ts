@@ -17,10 +17,11 @@ export const undoUnloading = {
     return await getManager().transaction(async trxMgr => {
       const foundWorksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
         where: { domain: context.state.domain, name: worksheetDetailName, status: WORKSHEET_STATUS.EXECUTING },
-        relations: ['bizplace', 'targetProduct']
+        relations: ['bizplace', 'targetProduct', 'worksheet', 'worksheet.arrivalNotice']
       })
 
       if (!foundWorksheetDetail) throw new Error("Worksheet doesn't exists")
+      const arrivalNotice = foundWorksheetDetail.worksheet.arrivalNotice
 
       // 1. find inventory
       let inventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
@@ -66,6 +67,9 @@ export const undoUnloading = {
         name: InventoryNoGenerator.inventoryHistoryName(),
         seq: inventory.lastSeq,
         transactionType: INVENTORY_TRANSACTION_TYPE.UNDO_UNLOADING,
+        orderRefNo: arrivalNotice.refNo || null,
+        refOrderId: arrivalNotice.id,
+        orderNo: arrivalNotice.name,
         productId: inventory.product.id,
         warehouseId: inventory.warehouse.id,
         locationId: inventory.location.id,

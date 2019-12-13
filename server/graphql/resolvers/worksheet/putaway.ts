@@ -24,9 +24,10 @@ export const putaway = {
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.PUTAWAY
         },
-        relations: ['worksheet', 'targetInventory', 'targetInventory.inventory']
+        relations: ['worksheet', 'worksheet.arrivalNotice', 'targetInventory', 'targetInventory.inventory']
       })
       if (!worksheetDetail) throw new Error(`Worksheet Details doesn't exists`)
+      const arrivalNotice = worksheetDetail.worksheet.arrivalNotice
       let targetInventory: OrderInventory = worksheetDetail.targetInventory
       let inventory: Inventory = targetInventory.inventory
       if (inventory.palletId !== palletId) throw new Error('Pallet ID is invalid')
@@ -72,6 +73,9 @@ export const putaway = {
         name: InventoryNoGenerator.inventoryHistoryName(),
         seq: inventory.lastSeq,
         transactionType: INVENTORY_TRANSACTION_TYPE.PUTAWAY,
+        refOrderId: arrivalNotice.id,
+        orderRefNo: arrivalNotice.refNo || null,
+        orderNo: arrivalNotice.name,
         productId: inventory.product.id,
         warehouseId: inventory.warehouse.id,
         locationId: inventory.location.id,
