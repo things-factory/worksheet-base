@@ -1,4 +1,4 @@
-import { getPermittedBizplaceIds } from '@things-factory/sales-base'
+import { getPermittedBizplaceIds } from '@things-factory/biz-base'
 import { getRepository, In } from 'typeorm'
 import { Worksheet } from '../../../entities'
 
