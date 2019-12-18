@@ -88,7 +88,7 @@ export const activatePutaway = {
       /**
        * 6. Generate the Goods Received Note straight away
        */
-      const grn = { customer: foundWorksheet.bizplace.id, refNo: foundWorksheet.arrivalNotice.name }
+      const grn = { refNo: arrivalNotice.name, customer: foundWorksheet.bizplace.id }
       await generateGoodsReceivalNote(grn, context.state.domain, context.state.user)
 
       return worksheet
