@@ -1,4 +1,4 @@
-import { OrderInventory, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
+import { OrderInventory, ReleaseGood, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
 import {
   Inventory,
   InventoryHistory,
@@ -21,11 +21,12 @@ export const loading = {
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.LOADING
         },
-        relations: ['worksheet', 'targetInventory', 'targetInventory.inventory']
+        relations: ['worksheet', 'worksheet.releaseGood', 'targetInventory', 'targetInventory.inventory']
       })
       if (!worksheetDetail) throw new Error(`Worksheet Details doesn't exists`)
       let targetInventory: OrderInventory = worksheetDetail.targetInventory
       let inventory: Inventory = targetInventory.inventory
+      let releaseGood: ReleaseGood = worksheetDetail.worksheet.releaseGood
       if (inventory.palletId !== palletId) throw new Error('Pallet ID is invalid')
 
       // 3. add inventory history
@@ -55,7 +56,7 @@ export const loading = {
         updater: context.state.user
       })
 
-      await generateDeliveryOrder(deliveryOrder, context.state.domain, context.state.user, trxMgr)
+      await generateDeliveryOrder(deliveryOrder, releaseGood, context.state.domain, context.state.user, trxMgr)
 
       // 6. update status of worksheet details (EXECUTING = > DONE)
       await trxMgr.getRepository(WorksheetDetail).save({

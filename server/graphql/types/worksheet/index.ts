@@ -76,6 +76,11 @@ export const Mutation = `
     worksheetDetails: [WorksheetDetailPatch]
   ): Worksheet
 
+  completeLoading (
+    releaseGoodNo: String!
+    worksheetDetails: [WorksheetDetailPatch]
+  ): Worksheet
+
   putaway (
     worksheetDetailName: String!
     palletId: String!
@@ -84,7 +89,8 @@ export const Mutation = `
 
   loading (
     worksheetDetailName: String!
-    palletId: String!
+    palletId: [String!]
+    deliveryOrder: ObjectRef!
   ): Boolean
 
   transfer (

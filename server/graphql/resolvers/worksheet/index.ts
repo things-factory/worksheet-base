@@ -5,6 +5,7 @@ import { activateLoadingResolver } from './activate-loading'
 import { activateVas } from './activate-vas'
 import { completePicking } from './complete-picking'
 import { completePutaway } from './complete-putaway'
+import { completeLoading } from './complete-loading'
 import { completeUnloading } from './complete-unloading'
 import { completeVas } from './complete-vas'
 import { createWorksheet } from './create-worksheet'
@@ -56,6 +57,7 @@ export const Mutation = {
   ...unload,
   ...undoUnloading,
   ...completeUnloading,
+  ...completeLoading,
   ...putaway,
   ...loading,
   ...transfer,
