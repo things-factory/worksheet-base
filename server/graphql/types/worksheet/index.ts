@@ -136,7 +136,7 @@ export const Query = `
   worksheet(name: String!): Worksheet
   unloadingWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   unloadedInventories(worksheetDetailName: String!): [Inventory]
-  loadedInventories(releaseGoodNo: String!): DeliveryWorksheet
+  loadedInventories(releaseGoodNo: String!, transportDriver: String!, transportVehicle: String!): DeliveryWorksheet
   loadingWorksheet(releaseGoodNo: String!): ExecutingWorksheet
   putawayWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   vasWorksheet(orderNo: String!, orderType: String!): ExecutingWorksheet
