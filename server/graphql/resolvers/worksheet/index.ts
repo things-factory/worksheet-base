@@ -24,6 +24,7 @@ import { undoUnloading } from './undo-unloading'
 import { undoVas } from './undo-vas'
 import { unload } from './unload'
 import { unloadedInventories } from './unloaded-inventories'
+import { loadedInventories } from './loaded-inventories'
 import { unloadingWorksheetResolver } from './unloading-worksheet'
 import { updateWorksheet } from './update-worksheet'
 import { loadingWorksheetResolver } from './loading-worksheet'
@@ -39,7 +40,8 @@ export const Query = {
   ...pickingWorksheetResolver,
   ...vasWorksheetResolver,
   ...loadingWorksheetResolver,
-  ...unloadedInventories
+  ...unloadedInventories,
+  ...loadedInventories
 }
 
 export const Mutation = {

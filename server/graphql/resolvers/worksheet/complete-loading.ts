@@ -8,7 +8,7 @@ export const completeLoading = {
   async completeLoading(_: any, { releaseGoodNo }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const releaseGood: ReleaseGood = await trxMgr.getRepository(ReleaseGood).findOne({
-        where: { domain: context.state.domain, name: releaseGoodNo, status: ORDER_STATUS.PICKING },
+        where: { domain: context.state.domain, name: releaseGoodNo, status: ORDER_STATUS.LOADING },
         relations: ['bizplace', 'orderInventories']
       })
 
@@ -19,7 +19,7 @@ export const completeLoading = {
           domain: context.state.domain,
           bizplace: customerBizplace,
           status: WORKSHEET_STATUS.EXECUTING,
-          type: WORKSHEET_TYPE.PICKING,
+          type: WORKSHEET_TYPE.LOADING,
           releaseGood
         },
         relations: [

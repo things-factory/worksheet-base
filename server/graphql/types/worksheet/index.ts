@@ -1,11 +1,14 @@
 import { ArrivalNoticeWorksheet } from './arrival-notice-worksheet'
 import { ExecutingWorksheet } from './executing-worksheet'
+import { DeliveryWorksheet } from './delivery-worksheet'
 import { NewWorksheet } from './new-worksheet'
 import { ReleaseGoodWorksheet } from './release-good-worksheet'
 import { VasOrderWorksheet } from './vas-order-worksheet'
 import { Worksheet } from './worksheet'
 import { WorksheetDetailInfo } from './worksheet-detail-info'
 import { WorksheetInfo } from './worksheet-info'
+import { DeliveryInfo } from './delivery-info'
+import { InventoryInfo } from './inventory-info'
 import { WorksheetList } from './worksheet-list'
 import { WorksheetPatch } from './worksheet-patch'
 
@@ -88,9 +91,10 @@ export const Mutation = `
   ): Boolean
 
   loading (
-    worksheetDetailName: String!
-    palletId: [String!]
-    deliveryOrder: ObjectRef!
+    worksheetDetailNames: [String]!
+    releaseGoodNo: String!
+    transportDriver: ObjectRef!
+    transportVehicle: ObjectRef!
   ): Boolean
 
   transfer (
@@ -132,6 +136,7 @@ export const Query = `
   worksheet(name: String!): Worksheet
   unloadingWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   unloadedInventories(worksheetDetailName: String!): [Inventory]
+  loadedInventories(releaseGoodNo: String!): DeliveryWorksheet
   loadingWorksheet(releaseGoodNo: String!): ExecutingWorksheet
   putawayWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   vasWorksheet(orderNo: String!, orderType: String!): ExecutingWorksheet
@@ -147,6 +152,9 @@ export const Types = [
   ReleaseGoodWorksheet,
   VasOrderWorksheet,
   WorksheetInfo,
+  DeliveryInfo,
+  InventoryInfo,
+  DeliveryWorksheet,
   WorksheetDetailInfo,
   ExecutingWorksheet
 ]
