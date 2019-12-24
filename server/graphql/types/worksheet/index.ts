@@ -8,7 +8,6 @@ import { Worksheet } from './worksheet'
 import { WorksheetDetailInfo } from './worksheet-detail-info'
 import { WorksheetInfo } from './worksheet-info'
 import { DeliveryInfo } from './delivery-info'
-import { InventoryInfo } from './inventory-info'
 import { WorksheetList } from './worksheet-list'
 import { WorksheetPatch } from './worksheet-patch'
 
@@ -153,7 +152,6 @@ export const Types = [
   VasOrderWorksheet,
   WorksheetInfo,
   DeliveryInfo,
-  InventoryInfo,
   DeliveryWorksheet,
   WorksheetDetailInfo,
   ExecutingWorksheet

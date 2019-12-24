@@ -2,8 +2,10 @@ import { gql } from 'apollo-server-koa'
 
 export const DeliveryInfo = gql`
   type DeliveryInfo {
-    deliveryOrder: DeliveryOrder
-    transportDriver: TransportDriver
-    transportVehicle: TransportVehicle
+    palletId: String
+    batchId: String
+    product: Product
+    truckNo: String
+    driver: String
   }
 `
