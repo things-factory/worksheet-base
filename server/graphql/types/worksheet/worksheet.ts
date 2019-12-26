@@ -6,8 +6,6 @@ export const Worksheet = gql`
     domain: Domain
     bizplace: Bizplace
     bufferLocation: Location
-    transportDriver: TransportDriver
-    transportVehicle: TransportVehicle
     arrivalNotice: ArrivalNotice
     releaseGood: ReleaseGood
     shippingOrder: ShippingOrder

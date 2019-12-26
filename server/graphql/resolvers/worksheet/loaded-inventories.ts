@@ -1,7 +1,7 @@
 import { ORDER_STATUS, Bizplace, ReleaseGood, DeliveryOrder } from '@things-factory/sales-base'
 import { INVENTORY_STATUS, OrderInventory, Inventory } from '@things-factory/warehouse-base'
 import { getRepository, In } from 'typeorm'
-import { WorksheetDetail } from 'server/entities'
+import { WorksheetDetail } from '../../../entities'
 
 export const loadedInventories = {
   async loadedInventories(_: any, { releaseGoodNo, transportDriver, transportVehicle }, context: any) {
