@@ -4,9 +4,9 @@ import {
   OrderInventory,
   ORDER_INVENTORY_STATUS,
   ORDER_STATUS,
-  ReleaseGood
+  ReleaseGood,
+  OrderNoGenerator
 } from '@things-factory/sales-base'
-import { Inventory } from '@things-factory/warehouse-base'
 import { getManager, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
@@ -18,6 +18,7 @@ export const loading = {
         where: { domain: context.state.domain, name: releaseGoodNo, status: ORDER_STATUS.LOADING },
         relations: ['bizplace']
       })
+
       const wsdNames: string[] = loadedWorksheetDetails.map((wsd: any) => wsd.name)
       const worksheetDetails: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
         where: {
@@ -26,7 +27,12 @@ export const loading = {
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.LOADING
         },
-        relations: ['targetInventory']
+        relations: [
+          'targetInventory',
+          'targetInventories.bizplace',
+          'targetInventory.inventory',
+          'targetInventory.releaseGood'
+        ]
       })
       const pickedInventories: any[] = worksheetDetails.map((wsd: WorksheetDetail) => {
         return {
@@ -40,9 +46,9 @@ export const loading = {
           // Compare loaded qty with picked qty
           const orderInventory: OrderInventory = pickedInv.orderInventory
           const pickedQty: number = orderInventory.releaseQty
-          const loadedQty: number = loadedWorksheetDetails
-            .find((loadedWSD: any) => loadedWSD.name === pickedInv.worksheetDetailName)
-            .map((loadedWSD: any) => loadedWSD.loadedQty)
+          const loadedQty: number = loadedWorksheetDetails.find(
+            (loadedWSD: any) => loadedWSD.name === pickedInv.worksheetDetailName
+          ).loadedQty
 
           // loadedQty > pickedQty => Error
           if (loadedQty > pickedQty) {
@@ -72,6 +78,7 @@ export const loading = {
             // 2. Calculate remain qty of original order inventory and update the record
             const loadedOrderInventoy: OrderInventory = {
               ...orderInventory,
+              name: OrderNoGenerator.orderInventory(),
               status: ORDER_INVENTORY_STATUS.LOADED,
               releaseQty: loadedQty,
               creator: context.state.user,
@@ -90,13 +97,12 @@ export const loading = {
       )
 
       const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
-      const customerBizplace: Bizplace = releaseGood.bizplace
 
       await generateDeliveryOrder(
         transportDriver,
         transportVehicle,
         targetInventories,
-        customerBizplace,
+        releaseGood.bizplace,
         releaseGood,
         context.state.domain,
         context.state.user,
