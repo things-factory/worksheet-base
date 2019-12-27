@@ -1,13 +1,14 @@
 import { ArrivalNoticeWorksheet } from './arrival-notice-worksheet'
-import { ExecutingWorksheet } from './executing-worksheet'
+import { DeliveryInfo } from './delivery-info'
 import { DeliveryWorksheet } from './delivery-worksheet'
+import { ExecutingWorksheet } from './executing-worksheet'
+import { LoadedWorksheetDetail } from './loaded-worksheet-detail'
 import { NewWorksheet } from './new-worksheet'
 import { ReleaseGoodWorksheet } from './release-good-worksheet'
 import { VasOrderWorksheet } from './vas-order-worksheet'
 import { Worksheet } from './worksheet'
 import { WorksheetDetailInfo } from './worksheet-detail-info'
 import { WorksheetInfo } from './worksheet-info'
-import { DeliveryInfo } from './delivery-info'
 import { WorksheetList } from './worksheet-list'
 import { WorksheetPatch } from './worksheet-patch'
 
@@ -90,7 +91,7 @@ export const Mutation = `
   ): Boolean
 
   loading (
-    worksheetDetailNames: [String]!
+    loadedWorksheetDetails: [LoadedWorksheetDetail]!
     releaseGoodNo: String!
     transportDriver: ObjectRef!
     transportVehicle: ObjectRef!
@@ -135,7 +136,7 @@ export const Query = `
   worksheet(name: String!): Worksheet
   unloadingWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   unloadedInventories(worksheetDetailName: String!): [Inventory]
-  loadedInventories(releaseGoodNo: String!, transportDriver: String!, transportVehicle: String!): DeliveryWorksheet
+  loadedInventories(releaseGoodNo: String!): DeliveryWorksheet
   loadingWorksheet(releaseGoodNo: String!): ExecutingWorksheet
   putawayWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   vasWorksheet(orderNo: String!, orderType: String!): ExecutingWorksheet
@@ -154,5 +155,6 @@ export const Types = [
   DeliveryInfo,
   DeliveryWorksheet,
   WorksheetDetailInfo,
-  ExecutingWorksheet
+  ExecutingWorksheet,
+  LoadedWorksheetDetail
 ]
