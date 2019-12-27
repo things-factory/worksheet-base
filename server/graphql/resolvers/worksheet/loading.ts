@@ -1,15 +1,14 @@
-import { Bizplace } from '@things-factory/biz-base'
 import {
   generateDeliveryOrder,
   OrderInventory,
+  OrderNoGenerator,
   ORDER_INVENTORY_STATUS,
   ORDER_STATUS,
-  ReleaseGood,
-  OrderNoGenerator
+  ReleaseGood
 } from '@things-factory/sales-base'
 import { getManager, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { WorksheetDetail } from '../../../entities'
+import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const loading = {
   async loading(_: any, { loadedWorksheetDetails, releaseGoodNo, transportDriver, transportVehicle }, context: any) {
@@ -28,8 +27,10 @@ export const loading = {
           type: WORKSHEET_TYPE.LOADING
         },
         relations: [
+          'worksheet',
+          'worksheet.worksheetDetails',
           'targetInventory',
-          'targetInventories.bizplace',
+          'targetInventory.bizplace',
           'targetInventory.inventory',
           'targetInventory.releaseGood'
         ]
@@ -76,11 +77,17 @@ export const loading = {
             // loadedQty < picked
             // 1. Create new order inventory which has LOADED as status and qty same as loadedQty
             // 2. Calculate remain qty of original order inventory and update the record
+            const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+              where: { releaseGood, type: WORKSHEET_TYPE.LOADING },
+              relations: ['worksheetDetails']
+            })
+            const seq: number = worksheet.worksheetDetails.length
             const loadedOrderInventoy: OrderInventory = {
               ...orderInventory,
               name: OrderNoGenerator.orderInventory(),
               status: ORDER_INVENTORY_STATUS.LOADED,
               releaseQty: loadedQty,
+              seq,
               creator: context.state.user,
               updater: context.state.user
             }
