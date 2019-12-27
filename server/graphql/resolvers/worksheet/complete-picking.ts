@@ -64,18 +64,10 @@ export const completePicking = {
             updater: context.state.user
           })
 
-          if (releaseGood.ownTransport) {
-            return {
-              ...targetInventory,
-              status: ORDER_INVENTORY_STATUS.TERMINATED,
-              updater: context.state.user
-            }
-          } else {
-            return {
-              ...targetInventory,
-              status: ORDER_INVENTORY_STATUS.PICKED,
-              updater: context.state.user
-            }
+          return {
+            ...targetInventory,
+            status: ORDER_INVENTORY_STATUS.PICKED,
+            updater: context.state.user
           }
         })
       )
@@ -99,67 +91,58 @@ export const completePicking = {
       })
 
       if (relatedWorksheetCnt <= 0) {
-        if (!releaseGood.ownTransport) {
-          // 3. create loading worksheet
-          const loadingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).save({
+        // 3. create loading worksheet
+        const loadingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).save({
+          domain: context.state.domain,
+          releaseGood: releaseGood,
+          bizplace: customerBizplace,
+          name: WorksheetNoGenerator.loading(),
+          type: WORKSHEET_TYPE.LOADING,
+          status: WORKSHEET_STATUS.DEACTIVATED,
+          creator: context.state.user,
+          updater: context.state.user
+        })
+
+        // 2) Create loading worksheet details
+        const loadingWorksheetDetails = targetInventories.map((targetInventory: OrderInventory) => {
+          return {
             domain: context.state.domain,
-            releaseGood: releaseGood,
             bizplace: customerBizplace,
-            name: WorksheetNoGenerator.loading(),
+            worksheet: loadingWorksheet,
+            name: WorksheetNoGenerator.loadingDetail(),
+            targetInventory,
             type: WORKSHEET_TYPE.LOADING,
             status: WORKSHEET_STATUS.DEACTIVATED,
             creator: context.state.user,
             updater: context.state.user
-          })
+          }
+        })
+        await trxMgr.getRepository(WorksheetDetail).save(loadingWorksheetDetails)
 
-          // 2) Create loading worksheet details
-          const loadingWorksheetDetails = targetInventories.map((targetInventory: OrderInventory) => {
-            return {
-              domain: context.state.domain,
-              bizplace: customerBizplace,
-              worksheet: loadingWorksheet,
-              name: WorksheetNoGenerator.loadingDetail(),
-              targetInventory,
-              type: WORKSHEET_TYPE.LOADING,
-              status: WORKSHEET_STATUS.DEACTIVATED,
-              creator: context.state.user,
-              updater: context.state.user
-            }
-          })
-          await trxMgr.getRepository(WorksheetDetail).save(loadingWorksheetDetails)
+        const foundLoadingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+          where: {
+            domain: context.state.domain,
+            releaseGood: releaseGood.id,
+            type: WORKSHEET_TYPE.LOADING,
+            status: WORKSHEET_STATUS.DEACTIVATED
+          },
+          relations: ['worksheetDetails']
+        })
 
-          const foundLoadingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-            where: {
-              domain: context.state.domain,
-              releaseGood: releaseGood.id,
-              type: WORKSHEET_TYPE.LOADING,
-              status: WORKSHEET_STATUS.DEACTIVATED
-            },
-            relations: ['worksheetDetails']
-          })
+        await activateLoading(
+          foundLoadingWorksheet.name,
+          foundLoadingWorksheet.worksheetDetails,
+          context.state.domain,
+          context.state.user,
+          trxMgr
+        )
 
-          await activateLoading(
-            foundLoadingWorksheet.name,
-            foundLoadingWorksheet.worksheetDetails,
-            context.state.domain,
-            context.state.user,
-            trxMgr
-          )
-
-          // 3. update status of release good
-          await trxMgr.getRepository(ReleaseGood).save({
-            ...releaseGood,
-            status: ORDER_STATUS.LOADING,
-            updater: context.state.user
-          })
-        } else {
-          // 3. update status of release good
-          await trxMgr.getRepository(ReleaseGood).save({
-            ...releaseGood,
-            status: ORDER_STATUS.DONE,
-            updater: context.state.user
-          })
-        }
+        // 3. update status of release good
+        await trxMgr.getRepository(ReleaseGood).save({
+          ...releaseGood,
+          status: ORDER_STATUS.LOADING,
+          updater: context.state.user
+        })
       }
     })
   }
