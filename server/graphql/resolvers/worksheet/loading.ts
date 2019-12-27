@@ -81,6 +81,18 @@ export const loading = {
       )
       await trxMgr.getRepository(OrderInventory).save(targetInventories)
 
+      // update status of worksheet details (EXECUTING = > DONE)
+      worksheetDetails = await Promise.all(
+        worksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
+          return {
+            ...worksheetDetail,
+            status: ORDER_INVENTORY_STATUS.LOADED,
+            updater: context.state.user
+          }
+        })
+      )
+      await trxMgr.getRepository(WorksheetDetail).save(worksheetDetails)
+
       await generateDeliveryOrder(
         transportDriver,
         transportVehicle,
@@ -91,18 +103,6 @@ export const loading = {
         context.state.user,
         trxMgr
       )
-
-      // update status of worksheet details (EXECUTING = > DONE)
-      worksheetDetails = await Promise.all(
-        worksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
-          return {
-            ...worksheetDetail,
-            status: ORDER_INVENTORY_STATUS.DONE,
-            updater: context.state.user
-          }
-        })
-      )
-      await trxMgr.getRepository(WorksheetDetail).save(worksheetDetails)
     })
   }
 }
