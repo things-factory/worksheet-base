@@ -1,4 +1,5 @@
 import { Bizplace } from '@things-factory/biz-base'
+import { sendNotification } from '@things-factory/shell'
 import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
 import { Equal, getManager, Not } from 'typeorm'
@@ -73,6 +74,38 @@ export const completePicking = {
       )
 
       await trxMgr.getRepository(OrderInventory).save(targetInventories)
+
+      // notification logics
+      // get Customer Users
+      const users: any[] = await trxMgr
+        .getRepository('bizplaces_users')
+        .createQueryBuilder('bu')
+        .select('bu.user_id', 'id')
+        .where(qb => {
+          const subQuery = qb
+            .subQuery()
+            .select('bizplace.id')
+            .from(Bizplace, 'bizplace')
+            .where('bizplace.name = :bizplaceName', { bizplaceName: customerBizplace.name })
+            .getQuery()
+          return 'bu.bizplace_id IN ' + subQuery
+        })
+        .getRawMany()
+
+      // send notification to Customer Users
+      if (users?.length) {
+        const msg = {
+          title: `Picking has been completed`,
+          message: `Items now are ready to be loaded`,
+          url: context.header.referer
+        }
+        users.forEach(user => {
+          sendNotification({
+            receiver: user.id,
+            message: JSON.stringify(msg)
+          })
+        })
+      }
 
       // Update status and endedAt of worksheet
       await trxMgr.getRepository(Worksheet).save({

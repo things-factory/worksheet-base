@@ -2,6 +2,7 @@ import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { Inventory, Location, LOCATION_STATUS } from '@things-factory/warehouse-base'
 import { Equal, getManager, Not } from 'typeorm'
+import { sendNotification } from '@things-factory/shell'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -81,6 +82,38 @@ export const completePutaway = {
         arrivalNotice,
         status: Not(Equal(WORKSHEET_STATUS.DONE))
       })
+
+      // notification logics
+      // get Customer Users
+      const users: any[] = await trxMgr
+        .getRepository('bizplaces_users')
+        .createQueryBuilder('bu')
+        .select('bu.user_id', 'id')
+        .where(qb => {
+          const subQuery = qb
+            .subQuery()
+            .select('bizplace.id')
+            .from(Bizplace, 'bizplace')
+            .where('bizplace.name = :bizplaceName', { bizplaceName: customerBizplace.name })
+            .getQuery()
+          return 'bu.bizplace_id IN ' + subQuery
+        })
+        .getRawMany()
+
+      // send notification to Customer Users
+      if (users?.length) {
+        const msg = {
+          title: `Putaway has been completed`,
+          message: `${arrivalNoticeNo} is done`,
+          url: context.header.referer
+        }
+        users.forEach(user => {
+          sendNotification({
+            receiver: user.id,
+            message: JSON.stringify(msg)
+          })
+        })
+      }
 
       if (!relatedWorksheets || (relatedWorksheets && relatedWorksheets.length === 0)) {
         // 3. update status of arrival notice
