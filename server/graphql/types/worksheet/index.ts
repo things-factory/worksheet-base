@@ -9,6 +9,7 @@ import { VasOrderWorksheet } from './vas-order-worksheet'
 import { Worksheet } from './worksheet'
 import { WorksheetDetailInfo } from './worksheet-detail-info'
 import { WorksheetInfo } from './worksheet-info'
+import { TransportInfo } from './transport-info'
 import { WorksheetList } from './worksheet-list'
 import { WorksheetPatch } from './worksheet-patch'
 
@@ -95,7 +96,7 @@ export const Mutation = `
     releaseGoodNo: String!
     transportDriver: ObjectRef!
     transportVehicle: ObjectRef!
-  ): Boolean
+  ): TransportInfo
 
   transfer (
     palletId: String!
@@ -136,7 +137,7 @@ export const Query = `
   worksheet(name: String!): Worksheet
   unloadingWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   unloadedInventories(worksheetDetailName: String!): [Inventory]
-  loadedInventories(releaseGoodNo: String!): DeliveryWorksheet
+  loadedInventories(releaseGoodNo: String!, transportDriver: String!, transportVehicle: String!): DeliveryWorksheet
   loadingWorksheet(releaseGoodNo: String!): ExecutingWorksheet
   putawayWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   vasWorksheet(orderNo: String!, orderType: String!): ExecutingWorksheet
@@ -153,6 +154,7 @@ export const Types = [
   VasOrderWorksheet,
   WorksheetInfo,
   DeliveryInfo,
+  TransportInfo,
   DeliveryWorksheet,
   WorksheetDetailInfo,
   ExecutingWorksheet,

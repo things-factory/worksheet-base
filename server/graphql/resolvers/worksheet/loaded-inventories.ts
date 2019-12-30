@@ -1,5 +1,6 @@
-import { ORDER_STATUS, Bizplace, ReleaseGood, DeliveryOrder } from '@things-factory/sales-base'
-import { INVENTORY_STATUS, OrderInventory, Inventory } from '@things-factory/warehouse-base'
+import { ORDER_STATUS, ReleaseGood, DeliveryOrder, OrderInventory } from '@things-factory/sales-base'
+import { INVENTORY_STATUS, Inventory } from '@things-factory/warehouse-base'
+import { Bizplace } from '@things-factory/biz-base'
 import { getRepository, In } from 'typeorm'
 import { WorksheetDetail } from '../../../entities'
 
@@ -14,7 +15,7 @@ export const loadedInventories = {
       relations: ['bizplace']
     })
     if (!foundRO) throw new Error('Release order is not found')
-    const customerBizplace: Bizplace = foundRO.name
+    const customerBizplace: Bizplace = foundRO.bizplace
 
     const foundDO: DeliveryOrder = await getRepository(DeliveryOrder).findOne({
       where: {
@@ -37,7 +38,7 @@ export const loadedInventories = {
         deliveryOrder: foundDO,
         status: INVENTORY_STATUS.LOADED
       },
-      relations: ['worksheetDetails', 'inventory', 'inventory.product']
+      relations: ['inventory', 'inventory.product']
     })
 
     const worksheetDetails: WorksheetDetail[] = await getRepository(WorksheetDetail).find({

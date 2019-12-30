@@ -13,7 +13,7 @@ import { Worksheet, WorksheetDetail } from '../../../entities'
 export const loading = {
   async loading(_: any, { loadedWorksheetDetails, releaseGoodNo, transportDriver, transportVehicle }, context: any) {
     return await getManager().transaction(async trxMgr => {
-      const releaseGood: ReleaseGood = trxMgr.getRepository(ReleaseGood).findOne({
+      const releaseGood: ReleaseGood = await trxMgr.getRepository(ReleaseGood).findOne({
         where: { domain: context.state.domain, name: releaseGoodNo, status: ORDER_STATUS.LOADING },
         relations: ['bizplace']
       })
@@ -58,13 +58,14 @@ export const loading = {
             // loadedQty == pickedQty
             // 1. Change status of current worksheet detail
             // 2. Change status of order inventory
-            // 3. Create inventory history ????
+            // 3. Create inventory history
             const targetWSD: WorksheetDetail = worksheetDetails.find(
               (wsd: WorksheetDetail) => wsd.name === pickedInv.worksheetDetailName
             )
+
             await trxMgr.getRepository(WorksheetDetail).save({
               ...targetWSD,
-              status: ORDER_INVENTORY_STATUS.LOADED,
+              status: ORDER_INVENTORY_STATUS.DONE,
               updater: context.state.user
             })
 
@@ -82,7 +83,7 @@ export const loading = {
               relations: ['worksheetDetails']
             })
             const seq: number = worksheet.worksheetDetails.length
-            const loadedOrderInventoy: OrderInventory = {
+            const loadedOrderInventory: OrderInventory = {
               ...orderInventory,
               name: OrderNoGenerator.orderInventory(),
               status: ORDER_INVENTORY_STATUS.LOADED,
@@ -91,9 +92,9 @@ export const loading = {
               creator: context.state.user,
               updater: context.state.user
             }
-            delete loadedOrderInventoy.id
+            delete loadedOrderInventory.id
 
-            await trxMgr.getRepository(OrderInventory).save(loadedOrderInventoy)
+            await trxMgr.getRepository(OrderInventory).save(loadedOrderInventory)
             await trxMgr.getRepository(OrderInventory).save({
               ...orderInventory,
               releaseQty: pickedQty - loadedQty,
@@ -115,6 +116,12 @@ export const loading = {
         context.state.user,
         trxMgr
       )
+
+      return {
+        releaseGoodNo,
+        transportDriver,
+        transportVehicle
+      }
     })
   }
 }
