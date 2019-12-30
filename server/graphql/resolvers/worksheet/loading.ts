@@ -42,67 +42,66 @@ export const loading = {
         }
       })
 
-      await Promise.all(
-        pickedInventories.map(async (pickedInv: { worksheetDetailName: string; orderInventory: OrderInventory }) => {
-          // Compare loaded qty with picked qty
-          const orderInventory: OrderInventory = pickedInv.orderInventory
-          const pickedQty: number = orderInventory.releaseQty
-          const loadedQty: number = loadedWorksheetDetails.find(
-            (loadedWSD: any) => loadedWSD.name === pickedInv.worksheetDetailName
-          ).loadedQty
+      for (let i = 0; i < pickedInventories.length; i++) {
+        const pickedInv = pickedInventories[i]
+        // Compare loaded qty with picked qty
+        const orderInventory: OrderInventory = pickedInv.orderInventory
+        const pickedQty: number = orderInventory.releaseQty
+        const loadedQty: number = loadedWorksheetDetails.find(
+          (loadedWSD: any) => loadedWSD.name === pickedInv.worksheetDetailName
+        ).loadedQty
 
-          // loadedQty > pickedQty => Error
-          if (loadedQty > pickedQty) {
-            throw new Error(`Loaded QTY can't exceed Picked QTY`)
-          } else if (loadedQty == pickedQty) {
-            // loadedQty == pickedQty
-            // 1. Change status of current worksheet detail
-            // 2. Change status of order inventory
-            // 3. Create inventory history
-            const targetWSD: WorksheetDetail = worksheetDetails.find(
-              (wsd: WorksheetDetail) => wsd.name === pickedInv.worksheetDetailName
-            )
+        // loadedQty > pickedQty => Error
+        if (loadedQty > pickedQty) {
+          throw new Error(`Loaded QTY can't exceed Picked QTY`)
+        } else if (loadedQty == pickedQty) {
+          // loadedQty == pickedQty
+          // 1. Change status of current worksheet detail
+          // 2. Change status of order inventory
+          // 3. Create inventory history
+          const targetWSD: WorksheetDetail = worksheetDetails.find(
+            (wsd: WorksheetDetail) => wsd.name === pickedInv.worksheetDetailName
+          )
 
-            await trxMgr.getRepository(WorksheetDetail).save({
-              ...targetWSD,
-              status: ORDER_INVENTORY_STATUS.DONE,
-              updater: context.state.user
-            })
+          await trxMgr.getRepository(WorksheetDetail).save({
+            ...targetWSD,
+            status: ORDER_INVENTORY_STATUS.DONE,
+            updater: context.state.user
+          })
 
-            await trxMgr.getRepository(OrderInventory).save({
-              ...orderInventory,
-              status: ORDER_INVENTORY_STATUS.LOADED,
-              updater: context.state.user
-            })
-          } else if (loadedQty < pickedQty) {
-            // loadedQty < picked
-            // 1. Create new order inventory which has LOADED as status and qty same as loadedQty
-            // 2. Calculate remain qty of original order inventory and update the record
-            const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-              where: { releaseGood, type: WORKSHEET_TYPE.LOADING },
-              relations: ['worksheetDetails']
-            })
-            const seq: number = worksheet.worksheetDetails.length
-            const loadedOrderInventory: OrderInventory = {
-              ...orderInventory,
-              name: OrderNoGenerator.orderInventory(),
-              status: ORDER_INVENTORY_STATUS.LOADED,
-              releaseQty: loadedQty,
-              seq,
-              creator: context.state.user,
-              updater: context.state.user
-            }
-            delete loadedOrderInventory.id
-
-            await trxMgr.getRepository(OrderInventory).save(loadedOrderInventory)
-            await trxMgr.getRepository(OrderInventory).save({
-              ...orderInventory,
-              releaseQty: pickedQty - loadedQty,
-              updater: context.state.user
-            })
+          await trxMgr.getRepository(OrderInventory).save({
+            ...orderInventory,
+            status: ORDER_INVENTORY_STATUS.LOADED,
+            updater: context.state.user
+          })
+        } else if (loadedQty < pickedQty) {
+          // loadedQty < picked
+          // 1. Create new order inventory which has LOADED as status and qty same as loadedQty
+          // 2. Calculate remain qty of original order inventory and update the record
+          const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+            where: { releaseGood, type: WORKSHEET_TYPE.LOADING },
+            relations: ['worksheetDetails']
+          })
+          const seq: number = worksheet.worksheetDetails.length
+          const loadedOrderInventory: OrderInventory = {
+            ...orderInventory,
+            name: OrderNoGenerator.orderInventory(),
+            status: ORDER_INVENTORY_STATUS.LOADED,
+            releaseQty: loadedQty,
+            seq,
+            creator: context.state.user,
+            updater: context.state.user
           }
-        })
-      )
+          delete loadedOrderInventory.id
+
+          await trxMgr.getRepository(OrderInventory).save(loadedOrderInventory)
+          await trxMgr.getRepository(OrderInventory).save({
+            ...orderInventory,
+            releaseQty: pickedQty - loadedQty,
+            updater: context.state.user
+          })
+        }
+      }
 
       const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
 
