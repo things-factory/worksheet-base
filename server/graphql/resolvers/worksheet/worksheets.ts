@@ -1,4 +1,5 @@
 import { Bizplace } from '@things-factory/biz-base'
+import { getPermittedBizplaceIds } from '@things-factory/biz-base'
 import { ArrivalNotice, ReleaseGood } from '@things-factory/sales-base'
 import { convertListParams, ListParam } from '@things-factory/shell'
 import { getRepository, In, IsNull } from 'typeorm'
@@ -54,7 +55,7 @@ export const worksheetsResolver = {
         convertedParams.where.bizplace = IsNull()
       }
     } else {
-      convertedParams.where.bizplace = In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id))
+      convertedParams.where.bizplace = In(await getPermittedBizplaceIds(context.state.domain, context.state.user))
     }
 
     const [items, total] = await getRepository(Worksheet).findAndCount({
