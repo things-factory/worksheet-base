@@ -27,7 +27,8 @@
     "@things-factory/biz-base": "^1.0.0-alpha.1",
     "@things-factory/sales-base": "^1.0.0-alpha.1",
     "@things-factory/shell": "^1.0.0-alpha.1",
-    "@things-factory/warehouse-base": "^1.0.0-alpha.1"
+    "@things-factory/warehouse-base": "^1.0.0-alpha.1",
+    "@things-factory/transport-base": "^1.0.0-alpha.1"
   },
   "devDependencies": {}
 }

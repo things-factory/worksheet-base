@@ -1,5 +1,4 @@
 import {
-  generateDeliveryOrder,
   OrderInventory,
   OrderNoGenerator,
   ORDER_INVENTORY_STATUS,
@@ -103,18 +102,7 @@ export const loading = {
         }
       }
 
-      const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
-
-      await generateDeliveryOrder(
-        transportDriver,
-        transportVehicle,
-        targetInventories,
-        releaseGood.bizplace,
-        releaseGood,
-        context.state.domain,
-        context.state.user,
-        trxMgr
-      )
+      // const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
 
       return {
         releaseGoodNo,
