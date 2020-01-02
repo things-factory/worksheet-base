@@ -1,8 +1,14 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
+import {
+  OrderInventory,
+  ORDER_INVENTORY_STATUS,
+  ORDER_STATUS,
+  ORDER_TYPES,
+  ReleaseGood
+} from '@things-factory/sales-base'
 import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { Worksheet, WorksheetDetail } from '../../../entities'
+import { Worksheet } from '../../../entities'
 
 export const completeLoading = {
   async completeLoading(_: any, { releaseGoodNo }, context: any) {
@@ -21,30 +27,22 @@ export const completeLoading = {
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.LOADING,
           releaseGood
-        },
-        relations: [
-          'worksheetDetails',
-          'worksheetDetails.targetInventory',
-          'worksheetDetails.targetInventory.inventory'
-        ]
+        }
       })
 
       if (!foundLoadingWorksheet) throw new Error(`Worksheet doesn't exists.`)
-      const worksheetDetails: WorksheetDetail[] = foundLoadingWorksheet.worksheetDetails
-      let targetInventories: OrderInventory[] = worksheetDetails.map(
-        (worksheetDetail: WorksheetDetail) => worksheetDetail.targetInventory
-      )
+      let targetInventories: OrderInventory[] = await trxMgr.getRepository(OrderInventory).find({
+        where: { releaseGood, type: ORDER_TYPES.RELEASE_OF_GOODS }
+      })
 
       // Update status of order inventories & remove locked_qty and locked_weight if it's exists
-      targetInventories = await Promise.all(
-        targetInventories.map(async (targetInventory: OrderInventory) => {
-          return {
-            ...targetInventory,
-            status: ORDER_INVENTORY_STATUS.TERMINATED,
-            updater: context.state.user
-          }
-        })
-      )
+      targetInventories = targetInventories.map(async (targetInventory: OrderInventory) => {
+        return {
+          ...targetInventory,
+          status: ORDER_INVENTORY_STATUS.TERMINATED,
+          updater: context.state.user
+        }
+      })
 
       await trxMgr.getRepository(OrderInventory).save(targetInventories)
 

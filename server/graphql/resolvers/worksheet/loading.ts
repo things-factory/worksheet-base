@@ -9,7 +9,7 @@ import {
 } from '@things-factory/sales-base'
 import { getManager, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { Worksheet, WorksheetDetail } from '../../../entities'
+import { WorksheetDetail } from '../../../entities'
 
 export const loading = {
   async loading(_: any, { loadedWorksheetDetails, releaseGoodNo, transportDriver, transportVehicle }, context: any) {
