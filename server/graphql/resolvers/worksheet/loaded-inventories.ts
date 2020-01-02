@@ -1,9 +1,5 @@
-import { OrderInventory, ORDER_STATUS, ReleaseGood, DeliveryOrder } from '@things-factory/sales-base'
-import { TransportDriver, TransportVehicle } from '@things-factory/transport-base'
-import { Inventory } from '@things-factory/warehouse-base'
+import { DeliveryOrder, OrderInventory, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { getRepository, In } from 'typeorm'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const loadedInventories = {
   async loadedInventories(_: any, { releaseGoodNo }, context: any) {
@@ -21,17 +17,21 @@ export const loadedInventories = {
       where: { releaseGood: foundRO }
     })
 
-    return await getRepository(OrderInventory).find({
-      where: {
-        deliveryOrder: In(deliveryOrders.map((deliveryOrder: DeliveryOrder) => deliveryOrder.id))
-      },
-      relations: [
-        'inventory',
-        'product',
-        'deliveryOrder',
-        'deliveryOrder.transportDriver',
-        'deliveryOrder.transportVehicle'
-      ]
-    })
+    if (deliveryOrders?.length) {
+      return await getRepository(OrderInventory).find({
+        where: {
+          deliveryOrder: In(deliveryOrders.map((deliveryOrder: DeliveryOrder) => deliveryOrder.id))
+        },
+        relations: [
+          'inventory',
+          'inventory.product',
+          'deliveryOrder',
+          'deliveryOrder.transportDriver',
+          'deliveryOrder.transportVehicle'
+        ]
+      })
+    } else {
+      return []
+    }
   }
 }

@@ -30,17 +30,7 @@ export const completeLoading = {
       })
 
       if (!foundLoadingWorksheet) throw new Error(`Worksheet doesn't exists.`)
-      const worksheetDetails: WorksheetDetail[] = foundLoadingWorksheet.worksheetDetails.map(
-        (worksheetDetail: WorksheetDetail) => {
-          return {
-            ...worksheetDetail,
-            status: WORKSHEET_STATUS.DONE,
-            updater: context.state.user
-          }
-        }
-      )
-      await trxMgr.getRepository(WorksheetDetail).save(worksheetDetails)
-
+      const worksheetDetails: WorksheetDetail[] = foundLoadingWorksheet.worksheetDetails
       let targetInventories: OrderInventory[] = worksheetDetails.map(
         (worksheetDetail: WorksheetDetail) => worksheetDetail.targetInventory
       )
