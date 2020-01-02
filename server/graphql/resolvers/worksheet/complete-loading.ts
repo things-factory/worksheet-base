@@ -36,7 +36,7 @@ export const completeLoading = {
       })
 
       // Update status of order inventories & remove locked_qty and locked_weight if it's exists
-      targetInventories = targetInventories.map(async (targetInventory: OrderInventory) => {
+      targetInventories = targetInventories.map((targetInventory: OrderInventory) => {
         return {
           ...targetInventory,
           status: ORDER_INVENTORY_STATUS.TERMINATED,

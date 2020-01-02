@@ -40,74 +40,73 @@ export const loading = {
       let targetInventories: OrderInventory[] = []
       if (wsdNames.length !== worksheetDetails.length) throw new Error(`Can't find some of worksheet details`)
 
-      await Promise.all(
-        worksheetDetails.map(async (wsd: WorksheetDetail) => {
-          const orderInventory: OrderInventory = wsd.targetInventory
-          const pickedQty: number = orderInventory.releaseQty
-          const loadedQty: number = loadedWorksheetDetails.find((loadedWSD: any) => loadedWSD.name === wsd.name)
-            .loadedQty
+      for (let i = 0; i < worksheetDetails.length; i++) {
+        const wsd: WorksheetDetail = worksheetDetails[i]
 
-          if (loadedQty > pickedQty) {
-            throw new Error(`Loaded QTY can't excced Picked QTY`)
-          } else if (loadedQty == pickedQty) {
-            // 1. Change status of current worksheet detail
-            // 2. Change status of order inventory
-            // 3. Create inventory history
-            await trxMgr.getRepository(WorksheetDetail).save({
-              ...wsd,
-              status: WORKSHEET_STATUS.DONE,
-              updater: context.state.user
-            })
+        const orderInventory: OrderInventory = wsd.targetInventory
+        const pickedQty: number = orderInventory.releaseQty
+        const loadedQty: number = loadedWorksheetDetails.find((loadedWSD: any) => loadedWSD.name === wsd.name).loadedQty
 
-            const targetInventory: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
-              ...orderInventory,
-              status: ORDER_INVENTORY_STATUS.LOADED,
-              updater: context.state.user
-            })
+        if (loadedQty > pickedQty) {
+          throw new Error(`Loaded QTY can't excced Picked QTY`)
+        } else if (loadedQty == pickedQty) {
+          // 1. Change status of current worksheet detail
+          // 2. Change status of order inventory
+          // 3. Create inventory history
+          await trxMgr.getRepository(WorksheetDetail).save({
+            ...wsd,
+            status: WORKSHEET_STATUS.DONE,
+            updater: context.state.user
+          })
 
-            targetInventories.push(targetInventory)
-          } else if (loadedQty < pickedQty) {
-            const remainQty: number = pickedQty - loadedQty
-            const pickedWeight: number = orderInventory.releaseWeight
-            const loadedWeight: number = parseFloat(((pickedWeight / pickedQty) * loadedQty).toFixed(2))
-            const remainWeight: number = parseFloat((pickedWeight - loadedWeight).toFixed(2))
+          const targetInventory: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
+            ...orderInventory,
+            status: ORDER_INVENTORY_STATUS.LOADED,
+            updater: context.state.user
+          })
 
-            const lastSeq: number = await trxMgr.getRepository(OrderInventory).count({
-              where: { releaseGood, type: ORDER_TYPES.RELEASE_OF_GOODS }
-            })
+          targetInventories.push(targetInventory)
+        } else if (loadedQty < pickedQty) {
+          const remainQty: number = pickedQty - loadedQty
+          const pickedWeight: number = orderInventory.releaseWeight
+          const loadedWeight: number = parseFloat(((pickedWeight / pickedQty) * loadedQty).toFixed(2))
+          const remainWeight: number = parseFloat((pickedWeight - loadedWeight).toFixed(2))
 
-            const targetInventory: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
-              ...orderInventory,
-              status: ORDER_INVENTORY_STATUS.LOADED,
-              releaseQty: loadedQty,
-              releaseWeight: loadedWeight,
-              updater: context.state.user
-            })
+          const lastSeq: number = await trxMgr.getRepository(OrderInventory).count({
+            where: { releaseGood, type: ORDER_TYPES.RELEASE_OF_GOODS }
+          })
 
-            targetInventories.push(targetInventory)
+          const targetInventory: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
+            ...orderInventory,
+            status: ORDER_INVENTORY_STATUS.LOADED,
+            releaseQty: loadedQty,
+            releaseWeight: loadedWeight,
+            updater: context.state.user
+          })
 
-            let newOrderInventory: OrderInventory = {
-              ...orderInventory,
-              name: OrderNoGenerator.orderInventory(),
-              status: ORDER_INVENTORY_STATUS.LOADING,
-              worksheetdetail: wsd,
-              releaseQty: remainQty,
-              releaseWeight: remainWeight,
-              seq: lastSeq + 1,
-              creator: context.state.user,
-              updater: context.state.user
-            }
-            delete newOrderInventory.id
+          targetInventories.push(targetInventory)
 
-            newOrderInventory = await trxMgr.getRepository(OrderInventory).save(newOrderInventory)
-            await trxMgr.getRepository(WorksheetDetail).save({
-              ...wsd,
-              targetInventory: newOrderInventory,
-              updater: context.state.user
-            })
+          let newOrderInventory: OrderInventory = {
+            ...orderInventory,
+            name: OrderNoGenerator.orderInventory(),
+            status: ORDER_INVENTORY_STATUS.LOADING,
+            worksheetdetail: wsd,
+            releaseQty: remainQty,
+            releaseWeight: remainWeight,
+            seq: lastSeq + 1,
+            creator: context.state.user,
+            updater: context.state.user
           }
-        })
-      )
+          delete newOrderInventory.id
+
+          newOrderInventory = await trxMgr.getRepository(OrderInventory).save(newOrderInventory)
+          await trxMgr.getRepository(WorksheetDetail).save({
+            ...wsd,
+            targetInventory: newOrderInventory,
+            updater: context.state.user
+          })
+        }
+      }
 
       await generateDeliveryOrder(
         transportDriver,
