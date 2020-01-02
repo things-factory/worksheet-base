@@ -1,4 +1,5 @@
 import {
+  generateDeliveryOrder,
   OrderInventory,
   OrderNoGenerator,
   ORDER_INVENTORY_STATUS,
@@ -64,7 +65,7 @@ export const loading = {
 
           await trxMgr.getRepository(WorksheetDetail).save({
             ...targetWSD,
-            status: ORDER_INVENTORY_STATUS.DONE,
+            status: WORKSHEET_STATUS.DONE,
             updater: context.state.user
           })
 
@@ -102,7 +103,18 @@ export const loading = {
         }
       }
 
-      // const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
+      const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
+
+      await generateDeliveryOrder(
+        transportDriver,
+        transportVehicle,
+        targetInventories,
+        releaseGood.bizplace,
+        releaseGood,
+        context.state.domain,
+        context.state.user,
+        trxMgr
+      )
 
       return {
         releaseGoodNo,
