@@ -4,6 +4,7 @@ import {
   OrderNoGenerator,
   ORDER_INVENTORY_STATUS,
   ORDER_STATUS,
+  ORDER_TYPES,
   ReleaseGood
 } from '@things-factory/sales-base'
 import { getManager, In } from 'typeorm'
@@ -70,11 +71,10 @@ export const loading = {
             const pickedWeight: number = orderInventory.releaseWeight
             const loadedWeight: number = parseFloat(((pickedWeight / pickedQty) * loadedQty).toFixed(2))
             const remainWeight: number = parseFloat((pickedWeight - loadedWeight).toFixed(2))
-            const ws: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-              where: { releaseGood, type: WORKSHEET_TYPE.LOADING },
-              relations: ['worksheetDetails']
+
+            const lastSeq: number = await trxMgr.getRepository(OrderInventory).count({
+              where: { releaseGood, type: ORDER_TYPES.RELEASE_OF_GOODS }
             })
-            const seq: number = ws.worksheetDetails.length + 1
 
             const targetInventory: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
               ...orderInventory,
@@ -93,7 +93,7 @@ export const loading = {
               worksheetdetail: wsd,
               releaseQty: remainQty,
               releaseWeight: remainWeight,
-              seq,
+              seq: lastSeq + 1,
               creator: context.state.user,
               updater: context.state.user
             }
