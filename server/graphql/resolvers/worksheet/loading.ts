@@ -19,7 +19,7 @@ export const loading = {
       })
 
       const wsdNames: string[] = loadedWorksheetDetails.map((wsd: any) => wsd.name)
-      const worksheetDetails: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
+      let worksheetDetails: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
         where: {
           domain: context.state.domain,
           name: In(wsdNames),
@@ -35,73 +35,83 @@ export const loading = {
           'targetInventory.releaseGood'
         ]
       })
-      const pickedInventories: any[] = worksheetDetails.map((wsd: WorksheetDetail) => {
-        return {
-          worksheetDetailName: wsd.name,
-          orderInventory: wsd.targetInventory
-        }
-      })
 
-      for (let i = 0; i < pickedInventories.length; i++) {
-        const pickedInv = pickedInventories[i]
-        // Compare loaded qty with picked qty
-        const orderInventory: OrderInventory = pickedInv.orderInventory
-        const pickedQty: number = orderInventory.releaseQty
-        const loadedQty: number = loadedWorksheetDetails.find(
-          (loadedWSD: any) => loadedWSD.name === pickedInv.worksheetDetailName
-        ).loadedQty
+      if (wsdNames.length !== worksheetDetails.length) throw new Error(`Can't find some of worksheet details`)
 
-        // loadedQty > pickedQty => Error
-        if (loadedQty > pickedQty) {
-          throw new Error(`Loaded QTY can't exceed Picked QTY`)
-        } else if (loadedQty == pickedQty) {
-          // loadedQty == pickedQty
-          // 1. Change status of current worksheet detail
-          // 2. Change status of order inventory
-          // 3. Create inventory history
-          const targetWSD: WorksheetDetail = worksheetDetails.find(
-            (wsd: WorksheetDetail) => wsd.name === pickedInv.worksheetDetailName
-          )
+      await Promise.all(
+        worksheetDetails.map(async (wsd: WorksheetDetail) => {
+          const orderInventory: OrderInventory = wsd.targetInventory
+          const pickedQty: number = orderInventory.releaseQty
+          const loadedQty: number = loadedWorksheetDetails.find((loadedWSD: any) => loadedWSD.name === wsd.name)
+            .loadedQty
 
-          await trxMgr.getRepository(WorksheetDetail).save({
-            ...targetWSD,
-            status: WORKSHEET_STATUS.DONE,
-            updater: context.state.user
-          })
+          if (loadedQty > pickedQty) {
+            throw new Error(`Loaded QTY can't excced Picked QTY`)
+          } else if (loadedQty == pickedQty) {
+            // 1. Change status of current worksheet detail
+            // 2. Change status of order inventory
+            // 3. Create inventory history
+            await trxMgr.getRepository(WorksheetDetail).save({
+              ...wsd,
+              status: WORKSHEET_STATUS.DONE,
+              updater: context.state.user
+            })
 
-          await trxMgr.getRepository(OrderInventory).save({
-            ...orderInventory,
-            status: ORDER_INVENTORY_STATUS.LOADED,
-            updater: context.state.user
-          })
-        } else if (loadedQty < pickedQty) {
-          // loadedQty < picked
-          // 1. Create new order inventory which has LOADED as status and qty same as loadedQty
-          // 2. Calculate remain qty of original order inventory and update the record
-          const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-            where: { releaseGood, type: WORKSHEET_TYPE.LOADING },
-            relations: ['worksheetDetails']
-          })
-          const seq: number = worksheet.worksheetDetails.length
-          const loadedOrderInventory: OrderInventory = {
-            ...orderInventory,
-            name: OrderNoGenerator.orderInventory(),
-            status: ORDER_INVENTORY_STATUS.LOADED,
-            releaseQty: loadedQty,
-            seq,
-            creator: context.state.user,
-            updater: context.state.user
+            await trxMgr.getRepository(OrderInventory).save({
+              ...orderInventory,
+              status: ORDER_INVENTORY_STATUS.LOADED,
+              updater: context.state.user
+            })
+          } else if (loadedQty < pickedQty) {
+            const remainQty: number = pickedQty - loadedQty
+            const pickedWeight: number = orderInventory.releaseWeight
+            const loadedWeight: number = parseFloat(((pickedWeight / pickedQty) * loadedQty).toFixed(2))
+            const remainWeight: number = parseFloat((pickedWeight - loadedWeight).toFixed(2))
+            const ws: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+              where: { releaseGood, type: WORKSHEET_TYPE.LOADING },
+              relations: ['worksheetDetails']
+            })
+            const seq: number = ws.worksheetDetails.length
+
+            await trxMgr.getRepository(OrderInventory).save({
+              ...orderInventory,
+              status: ORDER_INVENTORY_STATUS.LOADED,
+              releaseQty: loadedQty,
+              releaseWeight: loadedWeight,
+              updater: context.state.user
+            })
+
+            const newOrderInventory: OrderInventory = {
+              ...orderInventory,
+              name: OrderNoGenerator.orderInventory(),
+              status: ORDER_INVENTORY_STATUS.LOADING,
+              worksheetdetail: wsd,
+              releaseQty: remainQty,
+              releaseWeight: remainWeight,
+              seq,
+              creator: context.state.user,
+              updater: context.state.user
+            }
+            delete newOrderInventory.id
+
+            await trxMgr.getRepository(OrderInventory).save(newOrderInventory)
           }
-          delete loadedOrderInventory.id
+        })
+      )
 
-          await trxMgr.getRepository(OrderInventory).save(loadedOrderInventory)
-          await trxMgr.getRepository(OrderInventory).save({
-            ...orderInventory,
-            releaseQty: pickedQty - loadedQty,
-            updater: context.state.user
-          })
-        }
-      }
+      worksheetDetails = await trxMgr.getRepository(WorksheetDetail).find({
+        where: {
+          domain: context.state.domain,
+          name: In(wsdNames),
+          type: WORKSHEET_TYPE.LOADING
+        },
+        relations: [
+          'targetInventory',
+          'targetInventory.bizplace',
+          'targetInventory.inventory',
+          'targetInventory.releaseGood'
+        ]
+      })
 
       const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
 
