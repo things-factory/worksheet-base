@@ -30,6 +30,7 @@ export const loading = {
           'worksheet',
           'worksheet.worksheetDetails',
           'targetInventory',
+          'targetInventory.domain',
           'targetInventory.bizplace',
           'targetInventory.inventory',
           'targetInventory.releaseGood'
@@ -71,7 +72,7 @@ export const loading = {
               where: { releaseGood, type: WORKSHEET_TYPE.LOADING },
               relations: ['worksheetDetails']
             })
-            const seq: number = ws.worksheetDetails.length
+            const seq: number = ws.worksheetDetails.length++
 
             await trxMgr.getRepository(OrderInventory).save({
               ...orderInventory,
