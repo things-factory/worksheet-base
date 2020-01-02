@@ -19,7 +19,7 @@ export const loading = {
       })
 
       const wsdNames: string[] = loadedWorksheetDetails.map((wsd: any) => wsd.name)
-      let worksheetDetails: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
+      const worksheetDetails: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
         where: {
           domain: context.state.domain,
           name: In(wsdNames),
@@ -36,7 +36,7 @@ export const loading = {
           'targetInventory.releaseGood'
         ]
       })
-
+      let targetInventories: OrderInventory[] = []
       if (wsdNames.length !== worksheetDetails.length) throw new Error(`Can't find some of worksheet details`)
 
       await Promise.all(
@@ -58,11 +58,13 @@ export const loading = {
               updater: context.state.user
             })
 
-            await trxMgr.getRepository(OrderInventory).save({
+            const targetInventory: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
               ...orderInventory,
               status: ORDER_INVENTORY_STATUS.LOADED,
               updater: context.state.user
             })
+
+            targetInventories.push(targetInventory)
           } else if (loadedQty < pickedQty) {
             const remainQty: number = pickedQty - loadedQty
             const pickedWeight: number = orderInventory.releaseWeight
@@ -72,9 +74,9 @@ export const loading = {
               where: { releaseGood, type: WORKSHEET_TYPE.LOADING },
               relations: ['worksheetDetails']
             })
-            const seq: number = ws.worksheetDetails.length++
+            const seq: number = ws.worksheetDetails.length + 1
 
-            await trxMgr.getRepository(OrderInventory).save({
+            const targetInventory: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
               ...orderInventory,
               status: ORDER_INVENTORY_STATUS.LOADED,
               releaseQty: loadedQty,
@@ -82,7 +84,9 @@ export const loading = {
               updater: context.state.user
             })
 
-            const newOrderInventory: OrderInventory = {
+            targetInventories.push(targetInventory)
+
+            let newOrderInventory: OrderInventory = {
               ...orderInventory,
               name: OrderNoGenerator.orderInventory(),
               status: ORDER_INVENTORY_STATUS.LOADING,
@@ -95,26 +99,15 @@ export const loading = {
             }
             delete newOrderInventory.id
 
-            await trxMgr.getRepository(OrderInventory).save(newOrderInventory)
+            newOrderInventory = await trxMgr.getRepository(OrderInventory).save(newOrderInventory)
+            await trxMgr.getRepository(WorksheetDetail).save({
+              ...wsd,
+              targetInventory: newOrderInventory,
+              updater: context.state.user
+            })
           }
         })
       )
-
-      worksheetDetails = await trxMgr.getRepository(WorksheetDetail).find({
-        where: {
-          domain: context.state.domain,
-          name: In(wsdNames),
-          type: WORKSHEET_TYPE.LOADING
-        },
-        relations: [
-          'targetInventory',
-          'targetInventory.bizplace',
-          'targetInventory.inventory',
-          'targetInventory.releaseGood'
-        ]
-      })
-
-      const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
 
       await generateDeliveryOrder(
         transportDriver,
