@@ -57,7 +57,8 @@ export const loadingWorksheetResolver = {
           status: loadingWSD.status,
           description: loadingWSD.description,
           targetName: targetInventory.name,
-          packingType: inventory.packingType
+          packingType: inventory.packingType,
+          inventory: targetInventory.inventory
         }
       })
     }
