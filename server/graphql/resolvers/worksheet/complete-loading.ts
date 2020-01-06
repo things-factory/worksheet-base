@@ -9,6 +9,7 @@ import {
 import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet } from '../../../entities'
+import { Inventory } from '@things-factory/warehouse-base'
 
 export const completeLoading = {
   async completeLoading(_: any, { releaseGoodNo }, context: any) {
@@ -32,19 +33,42 @@ export const completeLoading = {
 
       if (!foundLoadingWorksheet) throw new Error(`Worksheet doesn't exists.`)
       let targetInventories: OrderInventory[] = await trxMgr.getRepository(OrderInventory).find({
-        where: { releaseGood, type: ORDER_TYPES.RELEASE_OF_GOODS }
+        where: { releaseGood, type: ORDER_TYPES.RELEASE_OF_GOODS },
+        relations: ['inventory']
       })
 
       // Update status of order inventories & remove locked_qty and locked_weight if it's exists
-      targetInventories = targetInventories.map((targetInventory: OrderInventory) => {
-        return {
-          ...targetInventory,
-          status: ORDER_INVENTORY_STATUS.TERMINATED,
-          updater: context.state.user
+      let { loadedInventories, remainInventories } = targetInventories.reduce(
+        (obj, orderInv: OrderInventory) => {
+          if (orderInv.status === ORDER_INVENTORY_STATUS.LOADED) {
+            obj.loadedInventories.push(orderInv)
+          } else {
+            obj.remainInventories.push(orderInv)
+          }
+          return obj
+        },
+        {
+          loadedInventories: [],
+          remainInventories: []
         }
-      })
+      )
 
-      await trxMgr.getRepository(OrderInventory).save(targetInventories)
+      // generate putaway worksheet with remain order inventories
+      if (remainInventories?.length) {
+        const inventories: Inventory[] = remainInventories.map((orderInv: OrderInventory) => orderInv.inventory)
+        // await createReturnWorksheet(context.state.domain, customerBizplace, inventories, context.state.user, trxMgr)
+      }
+
+      // Update status of loaded order inventories
+      await trxMgr.getRepository(OrderInventory).save(
+        loadedInventories.map((targetInventory: OrderInventory) => {
+          return {
+            ...targetInventory,
+            status: ORDER_INVENTORY_STATUS.TERMINATED,
+            updater: context.state.user
+          }
+        })
+      )
 
       // Update status and endedAt of worksheet
       await trxMgr.getRepository(Worksheet).save({
@@ -73,3 +97,6 @@ export const completeLoading = {
     })
   }
 }
+
+// TODO: Generating worksheet for returning process
+export async function createReturnWorksheet(): Promise<void> {}
