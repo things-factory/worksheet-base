@@ -1,4 +1,6 @@
 import { Bizplace } from '@things-factory/biz-base'
+import { Role } from '@things-factory/auth-base'
+import { sendNotification } from '@things-factory/shell'
 import {
   ArrivalNotice,
   OrderInventory,
@@ -165,6 +167,38 @@ export const completeUnloading = {
             )
           })
         )
+
+        // notification logics
+        // get Office Admin Users
+        const users: any[] = await trxMgr
+          .getRepository('users_roles')
+          .createQueryBuilder('ur')
+          .select('ur.users_id', 'id')
+          .where(qb => {
+            const subQuery = qb
+              .subQuery()
+              .select('role.id')
+              .from(Role, 'role')
+              .where("role.name = 'Office Admin'")
+              .getQuery()
+            return 'ur.roles_id IN ' + subQuery
+          })
+          .getRawMany()
+
+        // send notification to Office Admin Users
+        if (users?.length) {
+          const msg = {
+            title: `Unloading Completed`,
+            message: `${arrivalNoticeNo} is ready for putaway`,
+            url: context.header.referer
+          }
+          users.forEach(user => {
+            sendNotification({
+              receiver: user.id,
+              message: JSON.stringify(msg)
+            })
+          })
+        }
 
         return await trxMgr.getRepository(Worksheet).findOne({
           where: { id: foundWorksheet.id },

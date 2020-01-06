@@ -18,12 +18,12 @@ export const Mutation = `
   ): Worksheet
 
   updateWorksheet (
-    name: String!
+    id: String!
     patch: WorksheetPatch!
   ): Worksheet
 
   deleteWorksheet (
-    name: String!
+    id: String!
   ): Boolean
 
   generateArrivalNoticeWorksheet (
@@ -93,7 +93,6 @@ export const Mutation = `
   loading (
     loadedWorksheetDetails: [LoadedWorksheetDetail]!
     releaseGoodNo: String!
-    transportDriver: ObjectRef!
     transportVehicle: ObjectRef!
   ): Boolean
 
@@ -136,7 +135,7 @@ export const Query = `
   worksheet(name: String!): Worksheet
   unloadingWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   unloadedInventories(worksheetDetailName: String!): [Inventory]
-  loadedInventories(releaseGoodNo: String!): DeliveryWorksheet
+  loadedInventories(releaseGoodNo: String!): [OrderInventory]
   loadingWorksheet(releaseGoodNo: String!): ExecutingWorksheet
   putawayWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   vasWorksheet(orderNo: String!, orderType: String!): ExecutingWorksheet

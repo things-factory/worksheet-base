@@ -1,13 +1,16 @@
-import { Worker } from '@things-factory/biz-base'
+import { getPermittedBizplaceIds, Worker } from '@things-factory/biz-base'
 import { OrderProduct, OrderVas } from '@things-factory/sales-base'
-import { Location } from '@things-factory/warehouse-base'
 import { getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const createWorksheetDetail = {
   async createWorksheetDetail(_: any, { worksheetDetail }, context: any) {
     worksheetDetail.worksheet = await getRepository(Worksheet).findOne({
-      where: { domain: context.state.domain, bizplace: context.state.bizplaces[0], id: worksheetDetail.worksheet.id }
+      where: {
+        domain: context.state.domain,
+        bizplace: await getPermittedBizplaceIds(context.state.domain, context.state.user),
+        id: worksheetDetail.worksheet.id
+      }
     })
 
     if (worksheetDetail.worker && worksheetDetail.worker.id) {

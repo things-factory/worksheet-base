@@ -54,10 +54,12 @@ export const loadingWorksheetResolver = {
           batchId: inventory.batchId,
           product: inventory.product,
           releaseQty: targetInventory.releaseQty,
+          releaseWeight: targetInventory.releaseQty,
           status: loadingWSD.status,
           description: loadingWSD.description,
           targetName: targetInventory.name,
-          packingType: inventory.packingType
+          packingType: inventory.packingType,
+          inventory: targetInventory.inventory
         }
       })
     }

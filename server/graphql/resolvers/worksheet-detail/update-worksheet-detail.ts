@@ -1,16 +1,15 @@
-import { Worker, Bizplace } from '@things-factory/biz-base'
+import { getPermittedBizplaceIds, Worker } from '@things-factory/biz-base'
 import { OrderProduct, OrderVas } from '@things-factory/sales-base'
-import { Location } from '@things-factory/warehouse-base'
 import { getRepository, In } from 'typeorm'
 import { WorksheetDetail } from '../../../entities'
 
 export const updateWorksheetDetail = {
-  async updateWorksheetDetail(_: any, { name, patch }, context: any) {
+  async updateWorksheetDetail(_: any, { id, patch }, context: any) {
     const worksheetDetail: WorksheetDetail = await getRepository(WorksheetDetail).findOne({
       where: {
         domain: context.state.domain,
-        bizplace: In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id)),
-        name
+        bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user)),
+        id
       }
     })
 

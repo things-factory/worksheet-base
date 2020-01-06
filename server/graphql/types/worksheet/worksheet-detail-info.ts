@@ -13,6 +13,7 @@ export const WorksheetDetailInfo = gql`
     actualPackQty: Int
     qty: Int
     releaseQty: Int
+    releaseWeight: Float
     operationGuide: String
     vas: Vas
     targetName: String
@@ -22,5 +23,6 @@ export const WorksheetDetailInfo = gql`
     status: String
     location: Location
     toLocation: Location
+    inventory: Inventory
   }
 `

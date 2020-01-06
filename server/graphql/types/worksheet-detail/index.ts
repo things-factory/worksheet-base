@@ -9,12 +9,12 @@ export const Mutation = `
   ): WorksheetDetail
 
   updateWorksheetDetail (
-    name: String!
+    id: String!
     patch: WorksheetDetailPatch!
   ): WorksheetDetail
 
   deleteWorksheetDetail (
-    name: String!
+    id: String!
   ): Boolean
 `
 

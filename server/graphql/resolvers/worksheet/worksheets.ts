@@ -1,5 +1,4 @@
-import { Bizplace } from '@things-factory/biz-base'
-import { getPermittedBizplaceIds } from '@things-factory/biz-base'
+import { Bizplace, getPermittedBizplaceIds } from '@things-factory/biz-base'
 import { ArrivalNotice, ReleaseGood } from '@things-factory/sales-base'
 import { convertListParams, ListParam } from '@things-factory/shell'
 import { getRepository, In, IsNull } from 'typeorm'
@@ -46,7 +45,7 @@ export const worksheetsResolver = {
       const foundBizplaces: Bizplace[] = await getRepository(Bizplace).find({
         where: {
           ...convertListParams({ filters: [{ ...bizplaceParam, name: 'name' }] }).where,
-          bizplace: In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id))
+          bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user))
         }
       })
       if (foundBizplaces && foundBizplaces.length) {

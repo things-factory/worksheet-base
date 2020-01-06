@@ -1,4 +1,4 @@
-import { Bizplace } from '@things-factory/biz-base'
+import { Bizplace, getPermittedBizplaceIds } from '@things-factory/biz-base'
 import { OrderVas, ORDER_STATUS, ORDER_VAS_STATUS, VasOrder } from '@things-factory/sales-base'
 import { getManager, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -12,7 +12,7 @@ export const generateVasOrderWorksheet = {
         where: {
           domain: context.state.domain,
           name: vasNo,
-          bizplace: In(context.state.bizplaces.map((bizplace: Bizplace) => bizplace.id)),
+          bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user)),
           status: ORDER_STATUS.PENDING_RECEIVE
         },
         relations: ['bizplace', 'orderVass']
