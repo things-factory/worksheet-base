@@ -10,6 +10,7 @@ import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet } from '../../../entities'
 import { createPutawayWorksheet } from './complete-unloading'
+import { Inventory } from '@things-factory/warehouse-base'
 
 export const completeLoading = {
   async completeLoading(_: any, { releaseGoodNo }, context: any) {
@@ -33,7 +34,8 @@ export const completeLoading = {
 
       if (!foundLoadingWorksheet) throw new Error(`Worksheet doesn't exists.`)
       let targetInventories: OrderInventory[] = await trxMgr.getRepository(OrderInventory).find({
-        where: { releaseGood, type: ORDER_TYPES.RELEASE_OF_GOODS }
+        where: { releaseGood, type: ORDER_TYPES.RELEASE_OF_GOODS },
+        relations: ['inventory']
       })
 
       // Update status of order inventories & remove locked_qty and locked_weight if it's exists
@@ -57,13 +59,8 @@ export const completeLoading = {
 
       // generate putaway worksheet with remain order inventories
       if (remainInventories?.length) {
-        await createPutawayWorksheet(
-          context.state.domain,
-          customerBizplace,
-          remainInventories,
-          context.state.user,
-          trxMgr
-        )
+        const inventories: Inventory[] = remainInventories.map((orderInv: OrderInventory) => orderInv.Inventory)
+        await createPutawayWorksheet(context.state.domain, customerBizplace, inventories, context.state.user, trxMgr)
       }
 
       // Update status of loaded order inventories
