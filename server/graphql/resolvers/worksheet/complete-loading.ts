@@ -9,6 +9,7 @@ import {
 import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet } from '../../../entities'
+import { createPutawayWorksheet } from './complete-unloading'
 
 export const completeLoading = {
   async completeLoading(_: any, { releaseGoodNo }, context: any) {
@@ -36,15 +37,45 @@ export const completeLoading = {
       })
 
       // Update status of order inventories & remove locked_qty and locked_weight if it's exists
-      targetInventories = targetInventories.map((targetInventory: OrderInventory) => {
-        return {
-          ...targetInventory,
-          status: ORDER_INVENTORY_STATUS.TERMINATED,
-          updater: context.state.user
+      let {
+        loadedInventories,
+        remainInventories
+      }: { loadedInventories: OrderInventory[]; remainInventories: OrderInventory[] } = targetInventories.reduce(
+        (obj, orderInv: OrderInventory) => {
+          if (orderInv.status === ORDER_INVENTORY_STATUS.LOADED) {
+            obj.loadedInventories.push(orderInv)
+          } else {
+            obj.remainInventories.push(orderInv)
+          }
+          return obj
+        },
+        {
+          loadedInventories: [],
+          remainInventories: []
         }
-      })
+      )
 
-      await trxMgr.getRepository(OrderInventory).save(targetInventories)
+      // generate putaway worksheet with remain order inventories
+      if (remainInventories?.length) {
+        await createPutawayWorksheet(
+          context.state.domain,
+          customerBizplace,
+          remainInventories,
+          context.state.user,
+          trxMgr
+        )
+      }
+
+      // Update status of loaded order inventories
+      await trxMgr.getRepository(OrderInventory).save(
+        loadedInventories.map((targetInventory: OrderInventory) => {
+          return {
+            ...targetInventory,
+            status: ORDER_INVENTORY_STATUS.TERMINATED,
+            updater: context.state.user
+          }
+        })
+      )
 
       // Update status and endedAt of worksheet
       await trxMgr.getRepository(Worksheet).save({
