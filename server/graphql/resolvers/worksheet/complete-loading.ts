@@ -9,7 +9,6 @@ import {
 import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet } from '../../../entities'
-import { createPutawayWorksheet } from './complete-unloading'
 import { Inventory } from '@things-factory/warehouse-base'
 
 export const completeLoading = {
@@ -39,10 +38,7 @@ export const completeLoading = {
       })
 
       // Update status of order inventories & remove locked_qty and locked_weight if it's exists
-      let {
-        loadedInventories,
-        remainInventories
-      }: { loadedInventories: OrderInventory[]; remainInventories: OrderInventory[] } = targetInventories.reduce(
+      let { loadedInventories, remainInventories } = targetInventories.reduce(
         (obj, orderInv: OrderInventory) => {
           if (orderInv.status === ORDER_INVENTORY_STATUS.LOADED) {
             obj.loadedInventories.push(orderInv)
@@ -59,8 +55,8 @@ export const completeLoading = {
 
       // generate putaway worksheet with remain order inventories
       if (remainInventories?.length) {
-        const inventories: Inventory[] = remainInventories.map((orderInv: OrderInventory) => orderInv.Inventory)
-        await createPutawayWorksheet(context.state.domain, customerBizplace, inventories, context.state.user, trxMgr)
+        const inventories: Inventory[] = remainInventories.map((orderInv: OrderInventory) => orderInv.inventory)
+        // await createReturnWorksheet(context.state.domain, customerBizplace, inventories, context.state.user, trxMgr)
       }
 
       // Update status of loaded order inventories
@@ -101,3 +97,6 @@ export const completeLoading = {
     })
   }
 }
+
+// TODO: Generating worksheet for returning process
+export async function createReturnWorksheet(): Promise<void> {}
