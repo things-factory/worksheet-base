@@ -1,6 +1,6 @@
 {
   "name": "@things-factory/worksheet-base",
-  "version": "2.0.1",
+  "version": "1.0.0-alpha.24",
   "main": "dist-server/index.js",
   "browser": "client/index.js",
   "things-factory": true,
@@ -23,12 +23,12 @@
     "migration:revert": "node ./node_modules/typeorm/cli.js migration:revert"
   },
   "dependencies": {
-    "@things-factory/auth-base": "^2.0.0",
-    "@things-factory/biz-base": "^2.0.0",
-    "@things-factory/sales-base": "^2.0.0",
-    "@things-factory/shell": "^2.0.0",
-    "@things-factory/transport-base": "^2.0.0",
-    "@things-factory/warehouse-base": "^2.0.0"
+    "@things-factory/auth-base": "^1.0.0-alpha.1",
+    "@things-factory/biz-base": "^1.0.0-alpha.1",
+    "@things-factory/sales-base": "^1.0.0-alpha.1",
+    "@things-factory/shell": "^1.0.0-alpha.1",
+    "@things-factory/transport-base": "^1.0.0-alpha.1",
+    "@things-factory/warehouse-base": "^1.0.0-alpha.1"
   },
   "devDependencies": {}
 }
