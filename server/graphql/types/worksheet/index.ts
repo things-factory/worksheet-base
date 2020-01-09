@@ -93,7 +93,7 @@ export const Mutation = `
   loading (
     loadedWorksheetDetails: [LoadedWorksheetDetail]!
     releaseGoodNo: String!
-    transportVehicle: ObjectRef!
+    orderInfo: WorksheetPatch
   ): Boolean
 
   transfer (
