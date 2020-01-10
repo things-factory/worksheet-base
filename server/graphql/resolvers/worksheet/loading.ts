@@ -12,7 +12,7 @@ import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
 
 export const loading = {
-  async loading(_: any, { loadedWorksheetDetails, releaseGoodNo, transportVehicle }, context: any) {
+  async loading(_: any, { loadedWorksheetDetails, releaseGoodNo, orderInfo }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const releaseGood: ReleaseGood = await trxMgr.getRepository(ReleaseGood).findOne({
         where: { domain: context.state.domain, name: releaseGoodNo, status: ORDER_STATUS.LOADING },
@@ -109,8 +109,8 @@ export const loading = {
       }
 
       await generateDeliveryOrder(
-        null,
-        transportVehicle,
+        // null,
+        orderInfo,
         targetInventories,
         releaseGood.bizplace,
         releaseGood,
