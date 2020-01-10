@@ -4,5 +4,3 @@ dist-client/
 .vscode
 .editorconfig
 .prettierrc
-config.production.js
-config.development.js
