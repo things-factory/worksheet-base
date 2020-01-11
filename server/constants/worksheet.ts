@@ -3,7 +3,8 @@ export const WORKSHEET_TYPE = {
   PUTAWAY: 'PUTAWAY',
   VAS: 'VAS',
   PICKING: 'PICKING',
-  LOADING: 'LOADING'
+  LOADING: 'LOADING',
+  RETURN: 'RETURN'
 }
 
 export const WORKSHEET_STATUS = {

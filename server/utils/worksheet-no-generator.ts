@@ -13,6 +13,10 @@ export class WorksheetNoGenerator {
     return `LOAD-${uuid()}`
   }
 
+  static return() {
+    return `RETURN-${uuid()}`
+  }
+
   static picking() {
     return `PICK-${uuid()}`
   }
@@ -31,6 +35,10 @@ export class WorksheetNoGenerator {
 
   static loadingDetail() {
     return `LOAD-DETAIL-${uuid()}`
+  }
+
+  static returnDetail() {
+    return `RETURN-DETAIL-${uuid()}`
   }
 
   static pickingDetail() {
