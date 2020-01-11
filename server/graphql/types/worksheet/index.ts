@@ -54,6 +54,11 @@ export const Mutation = `
     loadingWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet
 
+  activateReturn (
+    worksheetNo: String!
+    returnWorksheetDetails: [WorksheetDetailPatch]
+  ): Worksheet
+
   activateVas (
     worksheetNo: String!
     vasWorksheetDetails: [WorksheetDetailPatch]
@@ -90,6 +95,12 @@ export const Mutation = `
     toLocation: String!
   ): Boolean
 
+  returning (
+    worksheetDetailName: String!
+    palletId: String!
+    toLocation: String!
+  ): Boolean
+
   loading (
     loadedWorksheetDetails: [LoadedWorksheetDetail]!
     releaseGoodNo: String!
@@ -104,6 +115,10 @@ export const Mutation = `
 
   completePutaway (
     arrivalNoticeNo: String!
+  ): Boolean
+
+  completeReturn (
+    releaseGoodNo: String!
   ): Boolean
 
   picking (
@@ -138,6 +153,7 @@ export const Query = `
   loadedInventories(releaseGoodNo: String!): [OrderInventory]
   loadingWorksheet(releaseGoodNo: String!): ExecutingWorksheet
   putawayWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
+  returnWorksheet(releaseGoodNo: String!): ExecutingWorksheet
   vasWorksheet(orderNo: String!, orderType: String!): ExecutingWorksheet
   pickingWorksheet(releaseGoodNo: String!): ExecutingWorksheet
 `
