@@ -32,10 +32,22 @@ export const completeLoading = {
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.LOADING,
           releaseGood
-        }
+        },
+        relations: ['worksheetDetails']
       })
 
       if (!foundLoadingWorksheet) throw new Error(`Worksheet doesn't exists.`)
+      const worksheetDetails: WorksheetDetail[] = foundLoadingWorksheet.worksheetDetails.map(
+        (worksheetDetail: WorksheetDetail) => {
+          return {
+            ...worksheetDetail,
+            status: WORKSHEET_STATUS.DONE,
+            updater: context.state.user
+          }
+        }
+      )
+      await trxMgr.getRepository(WorksheetDetail).save(worksheetDetails)
+
       let targetInventories: OrderInventory[] = await trxMgr.getRepository(OrderInventory).find({
         where: { releaseGood, type: ORDER_TYPES.RELEASE_OF_GOODS },
         relations: ['inventory']
@@ -59,7 +71,20 @@ export const completeLoading = {
 
       // Update status of loaded order inventories
       await trxMgr.getRepository(OrderInventory).save(
-        loadedInventories.map((targetInventory: OrderInventory) => {
+        loadedInventories.map(async (targetInventory: OrderInventory) => {
+          const inventory: Inventory = targetInventory.inventory
+          let lockedQty: number = inventory.lockedQty || 0
+          let lockedWeight: number = inventory.lockedWeight || 0
+          const releaseQty: number = targetInventory.releaseQty || 0
+          const releaseWeight: number = targetInventory.releaseWeight || 0
+
+          await trxMgr.getRepository(Inventory).save({
+            ...inventory,
+            lockedQty: lockedQty - releaseQty,
+            lockedWeight: lockedWeight - releaseWeight,
+            updater: context.state.user
+          })
+
           return {
             ...targetInventory,
             status: ORDER_INVENTORY_STATUS.TERMINATED,
@@ -70,6 +95,22 @@ export const completeLoading = {
 
       // generate putaway worksheet with remain order inventories
       if (remainInventories?.length) {
+        // Update status of remained order inventories
+        remainInventories.map(async (targetInventory: OrderInventory) => {
+          const inventory: Inventory = targetInventory.inventory
+          let lockedQty: number = inventory.lockedQty || 0
+          let lockedWeight: number = inventory.lockedWeight || 0
+          const releaseQty: number = targetInventory.releaseQty || 0
+          const releaseWeight: number = targetInventory.releaseWeight || 0
+
+          await trxMgr.getRepository(Inventory).save({
+            ...inventory,
+            lockedQty: lockedQty - releaseQty,
+            lockedWeight: lockedWeight - releaseWeight,
+            updater: context.state.user
+          })
+        })
+
         const inventories: Inventory[] = remainInventories.map((orderInv: OrderInventory) => orderInv.inventory)
         await createReturnWorksheet(
           context.state.domain,
