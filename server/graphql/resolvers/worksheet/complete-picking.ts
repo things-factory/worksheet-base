@@ -8,7 +8,7 @@ import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
 import { activateLoading } from './activate-loading'
 
 export const completePicking = {
-  async completePicking(_: any, { releaseGoodNo }, context: any) {
+  async completePicking(_: any, { releaseGoodNo, pallet }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const releaseGood: ReleaseGood = await trxMgr.getRepository(ReleaseGood).findOne({
         where: { domain: context.state.domain, name: releaseGoodNo, status: ORDER_STATUS.PICKING },
