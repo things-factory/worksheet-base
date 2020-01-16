@@ -1,6 +1,6 @@
 {
   "name": "@things-factory/worksheet-base",
-  "version": "2.0.6",
+  "version": "2.0.7",
   "main": "dist-server/index.js",
   "browser": "client/index.js",
   "things-factory": true,
@@ -28,6 +28,7 @@
     "@things-factory/sales-base": "^2.0.0",
     "@things-factory/shell": "^2.0.0",
     "@things-factory/transport-base": "^2.0.0",
+    "@things-factory/utils": "^0.0.1",
     "@things-factory/warehouse-base": "^2.0.0"
   },
   "devDependencies": {}
