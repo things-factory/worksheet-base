@@ -70,28 +70,27 @@ export const completeLoading = {
       )
 
       // Update status of loaded order inventories
-      await trxMgr.getRepository(OrderInventory).save(
-        loadedInventories.map(async (targetInventory: OrderInventory) => {
-          const inventory: Inventory = targetInventory.inventory
-          let lockedQty: number = inventory.lockedQty || 0
-          let lockedWeight: number = inventory.lockedWeight || 0
-          const releaseQty: number = targetInventory.releaseQty || 0
-          const releaseWeight: number = targetInventory.releaseWeight || 0
+      const orderInventories: OrderInventory[] = loadedInventories.map(async (targetInventory: OrderInventory) => {
+        const inventory: Inventory = targetInventory.inventory
+        let lockedQty: number = inventory.lockedQty || 0
+        let lockedWeight: number = inventory.lockedWeight || 0
+        const releaseQty: number = targetInventory.releaseQty || 0
+        const releaseWeight: number = targetInventory.releaseWeight || 0
 
-          await trxMgr.getRepository(Inventory).save({
-            ...inventory,
-            lockedQty: lockedQty - releaseQty,
-            lockedWeight: lockedWeight - releaseWeight,
-            updater: context.state.user
-          })
-
-          return {
-            ...targetInventory,
-            status: ORDER_INVENTORY_STATUS.TERMINATED,
-            updater: context.state.user
-          }
+        await trxMgr.getRepository(Inventory).save({
+          ...inventory,
+          lockedQty: lockedQty - releaseQty,
+          lockedWeight: lockedWeight - releaseWeight,
+          updater: context.state.user
         })
-      )
+
+        return {
+          ...targetInventory,
+          status: ORDER_INVENTORY_STATUS.TERMINATED,
+          updater: context.state.user
+        }
+      })
+      await trxMgr.getRepository(OrderInventory).save(orderInventories)
 
       // generate putaway worksheet with remain order inventories
       if (remainInventories?.length) {
