@@ -70,14 +70,14 @@ export const completeLoading = {
       )
 
       // Update status of loaded order inventories
-      const orderInventories: OrderInventory[] = loadedInventories.map(async (targetInventory: OrderInventory) => {
+      const orderInventories: OrderInventory[] = loadedInventories.map((targetInventory: OrderInventory) => {
         const inventory: Inventory = targetInventory.inventory
         let lockedQty: number = inventory.lockedQty || 0
         let lockedWeight: number = inventory.lockedWeight || 0
         const releaseQty: number = targetInventory.releaseQty || 0
         const releaseWeight: number = targetInventory.releaseWeight || 0
 
-        await trxMgr.getRepository(Inventory).save({
+        trxMgr.getRepository(Inventory).save({
           ...inventory,
           lockedQty: lockedQty - releaseQty,
           lockedWeight: lockedWeight - releaseWeight,
