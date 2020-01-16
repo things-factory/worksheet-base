@@ -9,8 +9,11 @@ import { VasOrderWorksheet } from './vas-order-worksheet'
 import { Worksheet } from './worksheet'
 import { WorksheetDetailInfo } from './worksheet-detail-info'
 import { WorksheetInfo } from './worksheet-info'
+import { DeliveryOrderInfo } from './delivery-order-info'
 import { WorksheetList } from './worksheet-list'
 import { WorksheetPatch } from './worksheet-patch'
+import { GoodsDeliveryNote } from './goods-delivery-note'
+import { LoadedInventoryInfo } from './loaded-inventory-info'
 
 export const Mutation = `
   createWorksheet (
@@ -154,6 +157,7 @@ export const Query = `
   loadingWorksheet(releaseGoodNo: String!): ExecutingWorksheet
   putawayWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   returnWorksheet(releaseGoodNo: String!): ExecutingWorksheet
+  deliveryOrderByWorksheet(name: String!): GoodsDeliveryNote
   vasWorksheet(orderNo: String!, orderType: String!): ExecutingWorksheet
   pickingWorksheet(releaseGoodNo: String!): ExecutingWorksheet
 `
@@ -167,9 +171,12 @@ export const Types = [
   ReleaseGoodWorksheet,
   VasOrderWorksheet,
   WorksheetInfo,
+  LoadedInventoryInfo,
+  DeliveryOrderInfo,
   DeliveryInfo,
   DeliveryWorksheet,
   WorksheetDetailInfo,
   ExecutingWorksheet,
+  GoodsDeliveryNote,
   LoadedWorksheetDetail
 ]
