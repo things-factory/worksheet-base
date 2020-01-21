@@ -221,7 +221,6 @@ export async function createInventoryHistory(
       updater: user
     })
 
-    // 4. 1) if status of inventory is TERMINATED, check whether related inventory with specific location exists or not
     const relatedInventory: Inventory = await inventoryRepo.findOne({
       where: {
         domain,
@@ -236,24 +235,25 @@ export async function createInventoryHistory(
         status: LOCATION_STATUS.EMPTY,
         updater: user
       })
-
-      const inventoryHistory: InventoryHistory = {
-        ...inventory,
-        domain,
-        name: InventoryNoGenerator.inventoryHistoryName(),
-        seq: inventory.lastSeq + 1,
-        transactionType: INVENTORY_TRANSACTION_TYPE.TERMINATED,
-        refOrderId: releaseGood.id,
-        orderRefNo: releaseGood.refNo || null,
-        orderNo: releaseGood.name,
-        productId: inventory.product.id,
-        warehouseId: inventory.warehouse.id,
-        locationId: inventory.location.id,
-        creator: user,
-        updater: user
-      }
-      delete inventoryHistory.id
-      await inventoryHistoryRepo.save(inventoryHistory)
     }
+
+    // 4. 1) if status of inventory is TERMINATED, check whether related inventory with specific location exists or not
+    const inventoryHistory: InventoryHistory = {
+      ...inventory,
+      domain,
+      name: InventoryNoGenerator.inventoryHistoryName(),
+      seq: inventory.lastSeq + 1,
+      transactionType: INVENTORY_TRANSACTION_TYPE.TERMINATED,
+      refOrderId: releaseGood.id,
+      orderRefNo: releaseGood.refNo || null,
+      orderNo: releaseGood.name,
+      productId: inventory.product.id,
+      warehouseId: inventory.warehouse.id,
+      locationId: inventory.location.id,
+      creator: user,
+      updater: user
+    }
+    delete inventoryHistory.id
+    await inventoryHistoryRepo.save(inventoryHistory)
   }
 }
