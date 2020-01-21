@@ -129,7 +129,6 @@ export const Mutation = `
 
   completePicking (
     releaseGoodNo: String!
-    pallet: [Pallet]
   ): Boolean
 
   executeVas (
