@@ -21,6 +21,7 @@ import {
 import { EntityManager, Equal, getManager, getRepository, In, Not, Repository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
+import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
 
 export const loading = {
   async loading(_: any, { loadedWorksheetDetails, releaseGoodNo, orderInfo }, context: any) {
@@ -39,8 +40,8 @@ export const loading = {
           type: WORKSHEET_TYPE.LOADING
         },
         relations: [
-          'worksheet',
-          'worksheet.worksheetDetails',
+          'bizplace',
+          'domain',
           'targetInventory',
           'targetInventory.domain',
           'targetInventory.bizplace',
@@ -103,6 +104,12 @@ export const loading = {
             updater: context.state.user
           })
 
+          await trxMgr.getRepository(WorksheetDetail).save({
+            ...wsd,
+            status: WORKSHEET_STATUS.DONE,
+            updater: context.state.user
+          })
+
           targetInventories.push(targetInventory)
 
           // create inventory history for loaded item
@@ -117,7 +124,7 @@ export const loading = {
           )
 
           // Create order inventory for remaining item
-          let newOrderInventory: OrderInventory = {
+          let remainOrderInv: OrderInventory = {
             ...orderInventory,
             name: OrderNoGenerator.orderInventory(),
             status: ORDER_INVENTORY_STATUS.LOADING,
@@ -127,14 +134,19 @@ export const loading = {
             creator: context.state.user,
             updater: context.state.user
           }
-          delete newOrderInventory.id
+          delete remainOrderInv.id
+          remainOrderInv = await trxMgr.getRepository(OrderInventory).save(remainOrderInv)
 
-          newOrderInventory = await trxMgr.getRepository(OrderInventory).save(newOrderInventory)
-          await trxMgr.getRepository(WorksheetDetail).save({
+          let remainWorksheetDetail: WorksheetDetail = {
             ...wsd,
-            targetInventory: newOrderInventory,
+            name: WorksheetNoGenerator.loading(),
+            status: WORKSHEET_STATUS.EXECUTING,
+            targetInventory: remainOrderInv,
+            creator: context.state.user,
             updater: context.state.user
-          })
+          }
+          delete remainWorksheetDetail.id
+          await trxMgr.getRepository(WorksheetDetail).save(remainWorksheetDetail)
         }
       }
 

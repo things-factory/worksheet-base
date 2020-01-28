@@ -130,13 +130,9 @@ export const undoLoading = {
             })
           } else {
             await trxMgr.getRepository(OrderInventory).save(targetInv)
-            const orderInv: OrderInventory = await trxMgr.getRepository(OrderInventory).findOne({
-              where: { releaseGood: targetInv.releaseGood, inventory: targetInv.inventory },
-              order: { seq: 'DESC' }
-            })
             const worksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
               where: {
-                targetInventory: orderInv,
+                targetInventory: targetInv,
                 type: WORKSHEET_TYPE.LOADING,
                 status: WORKSHEET_STATUS.DONE
               }
