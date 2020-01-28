@@ -8,6 +8,8 @@ import {
   INVENTORY_TRANSACTION_TYPE
 } from '@things-factory/warehouse-base'
 import { Equal, getManager, Not } from 'typeorm'
+import { WorksheetDetail } from '../../../entities'
+import { WORKSHEET_TYPE, WORKSHEET_STATUS } from '../../../constants'
 
 export const undoLoading = {
   async undoLoading(_: any, { deliveryOrder, palletIds }, context: any) {
@@ -37,7 +39,8 @@ export const undoLoading = {
           return {
             ...targetInv,
             deliveryOrder: null,
-            status: ORDER_INVENTORY_STATUS.LOADING
+            status: ORDER_INVENTORY_STATUS.LOADING,
+            updater: context.state.user
           }
         })
 
@@ -117,12 +120,30 @@ export const undoLoading = {
 
           // 8. If targetInv is merged into previous target inventory
           //    TERMINATE order inventory
-          if (prevTargetInv)
+          //    else
+          //    Save order inventory
+          if (prevTargetInv) {
             await trxMgr.getRepository(OrderInventory).save({
               ...targetInv,
               status: ORDER_INVENTORY_STATUS.TERMINATED,
               updater: context.state.user
             })
+          } else {
+            await trxMgr.getRepository(OrderInventory).save(targetInv)
+            const worksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
+              where: {
+                targetInventory: targetInv,
+                type: WORKSHEET_TYPE.LOADING,
+                status: WORKSHEET_STATUS.DONE
+              }
+            })
+
+            await trxMgr.getRepository(WorksheetDetail).save({
+              ...worksheetDetail,
+              status: WORKSHEET_STATUS.EXECUTING,
+              updater: context.state.user
+            })
+          }
         })
       )
     })
