@@ -115,7 +115,13 @@ export const undoLoading = {
           await trxMgr.getRepository(InventoryHistory).save(inventoryHistory)
 
           // 8. If targetInv is merged into previous target inventory
-          if (prevTargetInv) await trxMgr.getRepository(OrderInventory).delete(targetInv.id)
+          //    TERMINATE order inventory
+          if (prevTargetInv)
+            await trxMgr.getRepository(OrderInventory).save({
+              ...targetInv,
+              status: ORDER_INVENTORY_STATUS.TERMINATED,
+              updater: context.state.user
+            })
         })
       )
     })
