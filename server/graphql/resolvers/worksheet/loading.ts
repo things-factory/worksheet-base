@@ -1,4 +1,3 @@
-import { Domain } from '@things-factory/shell'
 import { User } from '@things-factory/auth-base'
 import {
   generateDeliveryOrder,
@@ -9,16 +8,17 @@ import {
   ORDER_TYPES,
   ReleaseGood
 } from '@things-factory/sales-base'
-import { getManager, In, Not, Equal, EntityManager, getRepository, Repository } from 'typeorm'
+import { Domain } from '@things-factory/shell'
 import {
   Inventory,
   InventoryHistory,
-  INVENTORY_STATUS,
   InventoryNoGenerator,
+  INVENTORY_STATUS,
   INVENTORY_TRANSACTION_TYPE,
   Location,
   LOCATION_STATUS
 } from '@things-factory/warehouse-base'
+import { EntityManager, Equal, getManager, getRepository, In, Not, Repository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
 
@@ -121,7 +121,6 @@ export const loading = {
             ...orderInventory,
             name: OrderNoGenerator.orderInventory(),
             status: ORDER_INVENTORY_STATUS.LOADING,
-            worksheetDetail: wsd,
             releaseQty: remainQty,
             releaseWeight: remainWeight,
             seq: lastSeq + 1,

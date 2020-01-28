@@ -8,8 +8,6 @@ import {
   INVENTORY_TRANSACTION_TYPE
 } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
-import { WORKSHEET_TYPE } from '../../../constants/worksheet'
-import { WorksheetDetail } from '../../../entities'
 
 export const undoLoading = {
   async undoLoading(_: any, { deliveryOrder, palletIds }, context: any) {
@@ -29,7 +27,7 @@ export const undoLoading = {
           deliveryOrder: foundDO,
           status: ORDER_INVENTORY_STATUS.LOADED
         },
-        relations: ['inventory']
+        relations: ['inventory', 'releaseGood']
       })
 
       // 2. Filter out inventories which is included palletIds list.
@@ -55,22 +53,16 @@ export const undoLoading = {
         }
       })
 
-      if (remainTargetInv) await trxMgr.getRepository(DeliveryOrder).delete(foundDO.id)
+      if (!remainTargetInv) await trxMgr.getRepository(DeliveryOrder).delete(foundDO.id)
 
       // 5. If there was remained items => Merge into previous order inventories
       await Promise.all(
         targetInventories.map(async (targetInv: OrderInventory) => {
-          const worksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
-            where: {
-              targetInventory: targetInv,
-              type: WORKSHEET_TYPE.LOADING
-            }
-          })
           const prevTargetInv: OrderInventory = await trxMgr.getRepository(OrderInventory).findOne({
             where: {
-              worksheetDetail,
-              seq: targetInv.seq + 1,
-              status: ORDER_INVENTORY_STATUS.LOADING
+              releaseGood: targetInv.releaseGood,
+              status: ORDER_INVENTORY_STATUS.LOADING,
+              seq: targetInv.seq + 1
             }
           })
 
@@ -103,7 +95,7 @@ export const undoLoading = {
             ...inventory,
             qty: targetInv.releaseQty,
             weight: targetInv.releaseWeight,
-            status: INVENTORY_STATUS.LOADING,
+            status: INVENTORY_STATUS.STORED,
             domain: context.state.domain,
             name: InventoryNoGenerator.inventoryHistoryName(),
             seq: inventory.lastSeq,
