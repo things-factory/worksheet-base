@@ -121,7 +121,7 @@ export const loading = {
             ...orderInventory,
             name: OrderNoGenerator.orderInventory(),
             status: ORDER_INVENTORY_STATUS.LOADING,
-            worksheetdetail: wsd,
+            worksheetDetail: wsd,
             releaseQty: remainQty,
             releaseWeight: remainWeight,
             seq: lastSeq + 1,
@@ -154,7 +154,7 @@ export const loading = {
   }
 }
 
-// Generating worksheet for returning process
+// Creating inventory history
 export async function createInventoryHistory(
   domain: Domain,
   releaseGood: ReleaseGood,
@@ -179,7 +179,8 @@ export async function createInventoryHistory(
     ...inventory,
     qty: leftQty,
     weight: inventory.weight - wsd.targetInventory.releaseWeight,
-    lastSeq: inventory.lastSeq + 1
+    lastSeq: inventory.lastSeq + 1,
+    updater: user
   })
 
   // 3. add inventory history

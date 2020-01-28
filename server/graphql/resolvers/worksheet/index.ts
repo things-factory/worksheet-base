@@ -17,6 +17,7 @@ import { generateArrivalNoticeWorksheet } from './generate-arrival-notice-worksh
 import { generateReleaseGoodWorksheet } from './generate-release-good-worksheet'
 import { generateVasOrderWorksheet } from './generate-vas-order-worksheet'
 import { loading } from './loading'
+import { undoLoading } from './undo-loading'
 import { picking } from './picking'
 import { pickingWorksheetResolver } from './picking-worksheet'
 import { putaway } from './putaway'
@@ -70,6 +71,7 @@ export const Mutation = {
   ...completeReturn,
   ...putaway,
   ...loading,
+  ...undoLoading,
   ...transfer,
   ...completePutaway,
   ...picking,

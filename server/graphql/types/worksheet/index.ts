@@ -107,6 +107,11 @@ export const Mutation = `
     orderInfo: WorksheetPatch
   ): Boolean
 
+  undoLoading (
+    deliveryOrder: ObjectRef!
+    palletIds: [String]!
+  ): Boolean
+
   transfer (
     palletId: String!
     toPalletId: String!
