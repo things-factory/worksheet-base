@@ -7,7 +7,7 @@ import {
   INVENTORY_STATUS,
   INVENTORY_TRANSACTION_TYPE
 } from '@things-factory/warehouse-base'
-import { getManager } from 'typeorm'
+import { Equal, getManager, Not } from 'typeorm'
 
 export const undoLoading = {
   async undoLoading(_: any, { deliveryOrder, palletIds }, context: any) {
@@ -60,9 +60,10 @@ export const undoLoading = {
         targetInventories.map(async (targetInv: OrderInventory) => {
           const prevTargetInv: OrderInventory = await trxMgr.getRepository(OrderInventory).findOne({
             where: {
+              id: Not(Equal(targetInv.id)),
               releaseGood: targetInv.releaseGood,
               status: ORDER_INVENTORY_STATUS.LOADING,
-              seq: targetInv.seq + 1
+              inventory: targetInv.inventory
             }
           })
 
