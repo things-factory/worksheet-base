@@ -1,13 +1,14 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { DeliveryOrder, ReleaseGood, ORDER_INVENTORY_STATUS, OrderInventory } from '@things-factory/sales-base'
-import { getManager } from 'typeorm'
+import { DeliveryOrder, OrderInventory, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
 import {
   Inventory,
-  INVENTORY_TRANSACTION_TYPE,
   InventoryHistory,
   InventoryNoGenerator,
-  INVENTORY_STATUS
+  INVENTORY_STATUS,
+  INVENTORY_TRANSACTION_TYPE
 } from '@things-factory/warehouse-base'
+import { getManager } from 'typeorm'
+import { WORKSHEET_TYPE } from '../../../constants/worksheet'
 import { WorksheetDetail } from '../../../entities'
 
 export const undoLoading = {
@@ -28,7 +29,7 @@ export const undoLoading = {
           deliveryOrder: foundDO,
           status: ORDER_INVENTORY_STATUS.LOADED
         },
-        relations: ['inventory', 'worksheetDetail']
+        relations: ['inventory']
       })
 
       // 2. Filter out inventories which is included palletIds list.
@@ -59,7 +60,12 @@ export const undoLoading = {
       // 5. If there was remained items => Merge into previous order inventories
       await Promise.all(
         targetInventories.map(async (targetInv: OrderInventory) => {
-          const worksheetDetail: WorksheetDetail = targetInv.worksheetDetail
+          const worksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
+            where: {
+              targetInventory: targetInv,
+              type: WORKSHEET_TYPE.LOADING
+            }
+          })
           const prevTargetInv: OrderInventory = await trxMgr.getRepository(OrderInventory).findOne({
             where: {
               worksheetDetail,
