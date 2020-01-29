@@ -1,4 +1,3 @@
-import { User } from '@things-factory/auth-base'
 import {
   generateDeliveryOrder,
   OrderInventory,
@@ -8,19 +7,11 @@ import {
   ORDER_TYPES,
   ReleaseGood
 } from '@things-factory/sales-base'
-import { Domain } from '@things-factory/shell'
-import {
-  Inventory,
-  InventoryHistory,
-  InventoryNoGenerator,
-  INVENTORY_STATUS,
-  INVENTORY_TRANSACTION_TYPE,
-  Location,
-  LOCATION_STATUS
-} from '@things-factory/warehouse-base'
-import { EntityManager, Equal, getManager, getRepository, In, Not, Repository } from 'typeorm'
+import { Inventory, INVENTORY_TRANSACTION_TYPE } from '@things-factory/warehouse-base'
+import { getManager, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
+import { generateInventoryHistory } from '../../../utils/inventory-history-generator'
 import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
 
 export const loading = {
@@ -47,6 +38,10 @@ export const loading = {
           'targetInventory.domain',
           'targetInventory.bizplace',
           'targetInventory.inventory',
+          'targetInventory.inventory.bizplace',
+          'targetInventory.inventory.product',
+          'targetInventory.inventory.warehouse',
+          'targetInventory.inventory.location',
           'targetInventory.releaseGood'
         ]
       })
@@ -57,6 +52,7 @@ export const loading = {
         const wsd: WorksheetDetail = worksheetDetails[i]
 
         const orderInventory: OrderInventory = wsd.targetInventory
+        let inventory: Inventory = wsd.targetInventory.inventory
         const pickedQty: number = orderInventory.releaseQty
         const loadedQty: number = loadedWorksheetDetails.find((loadedWSD: any) => loadedWSD.name === wsd.name).loadedQty
 
@@ -78,20 +74,19 @@ export const loading = {
           })
           targetInventories.push(targetInventory)
 
-          await createInventoryHistory(
-            context.state.domain,
-            releaseGood,
-            targetInventory,
-            wsd,
-            loadedQty,
+          await generateInventoryHistory(
+            inventory,
+            targetInventory.releaseGood,
+            INVENTORY_TRANSACTION_TYPE.LOADING,
+            0,
+            0,
             context.state.user,
             trxMgr
           )
         } else if (loadedQty < pickedQty) {
           const remainQty: number = pickedQty - loadedQty
-          const pickedWeight: number = orderInventory.releaseWeight
-          const loadedWeight: number = parseFloat(((pickedWeight / pickedQty) * loadedQty).toFixed(2))
-          const remainWeight: number = parseFloat((pickedWeight - loadedWeight).toFixed(2))
+          const loadedWeight: number = parseFloat(((orderInventory.releaseWeight / pickedQty) * loadedQty).toFixed(2))
+          const remainWeight: number = parseFloat((orderInventory.releaseWeight - loadedWeight).toFixed(2))
 
           const lastSeq: number = await trxMgr.getRepository(OrderInventory).count({
             where: { releaseGood, type: ORDER_TYPES.RELEASE_OF_GOODS }
@@ -112,17 +107,6 @@ export const loading = {
           })
 
           targetInventories.push(targetInventory)
-
-          // create inventory history for loaded item
-          await createInventoryHistory(
-            context.state.domain,
-            releaseGood,
-            targetInventory,
-            wsd,
-            loadedQty,
-            context.state.user,
-            trxMgr
-          )
 
           // Create order inventory for remaining item
           let remainOrderInv: OrderInventory = {
@@ -148,6 +132,16 @@ export const loading = {
           }
           delete remainWorksheetDetail.id
           await trxMgr.getRepository(WorksheetDetail).save(remainWorksheetDetail)
+
+          await generateInventoryHistory(
+            inventory,
+            targetInventory.releaseGood,
+            INVENTORY_TRANSACTION_TYPE.LOADING,
+            0,
+            0,
+            context.state.user,
+            trxMgr
+          )
         }
       }
 
@@ -163,110 +157,5 @@ export const loading = {
 
       return
     })
-  }
-}
-
-// Creating inventory history
-export async function createInventoryHistory(
-  domain: Domain,
-  releaseGood: ReleaseGood,
-  targetInventory: OrderInventory,
-  wsd: WorksheetDetail,
-  loadedQty: number,
-  user: User,
-  trxMgr?: EntityManager
-): Promise<void> {
-  const inventoryHistoryRepo: Repository<InventoryHistory> = trxMgr
-    ? trxMgr.getRepository(InventoryHistory)
-    : getRepository(InventoryHistory)
-  const inventoryRepo: Repository<Inventory> = trxMgr ? trxMgr.getRepository(Inventory) : getRepository(Inventory)
-  const locationRepo: Repository<Location> = trxMgr ? trxMgr.getRepository(Location) : getRepository(Location)
-
-  let inventory: Inventory = targetInventory.inventory
-  const leftQty = inventory.qty - loadedQty
-
-  if (leftQty < 0) throw new Error(`Invalid qty, can't exceed limitation`)
-
-  inventory = await inventoryRepo.save({
-    ...inventory,
-    qty: leftQty,
-    weight: inventory.weight - wsd.targetInventory.releaseWeight,
-    lastSeq: inventory.lastSeq + 1,
-    updater: user
-  })
-
-  // 3. add inventory history
-  inventory = await inventoryRepo.findOne({
-    where: { id: inventory.id },
-    relations: ['bizplace', 'product', 'warehouse', 'location']
-  })
-
-  // create inventory history for loaded item
-  const inventoryHistory: InventoryHistory = {
-    ...inventory,
-    qty: -loadedQty,
-    weight: -wsd.targetInventory.releaseWeight,
-    status: INVENTORY_STATUS.LOADED,
-    domain,
-    name: InventoryNoGenerator.inventoryHistoryName(),
-    seq: inventory.lastSeq,
-    transactionType: INVENTORY_TRANSACTION_TYPE.LOADING,
-    openingQty: inventory.qty + loadedQty,
-    openingWeight: inventory.weight + wsd.targetInventory.releaseWeight,
-    productId: inventory.product.id,
-    warehouseId: inventory.warehouse.id,
-    locationId: inventory.location.id,
-    refOrderId: releaseGood.id,
-    orderRefNo: releaseGood.refNo || null,
-    orderNo: releaseGood.name,
-    creator: user,
-    updater: user
-  }
-  delete inventoryHistory.id
-  await inventoryHistoryRepo.save(inventoryHistory)
-
-  // create inventory history for terminated inventory
-  if (inventory.qty <= 0) {
-    inventory = await inventoryRepo.save({
-      ...inventory,
-      status: INVENTORY_STATUS.TERMINATED,
-      qty: 0,
-      updater: user
-    })
-
-    const relatedInventory: Inventory = await inventoryRepo.findOne({
-      where: {
-        domain,
-        location: inventory.location,
-        status: Not(Equal(INVENTORY_STATUS.TERMINATED))
-      }
-    })
-    if (!relatedInventory) {
-      // 4. 1) - 1 if location doesn't have other inventories => update status of location (status: OCCUPIED or FULL => EMPTY)
-      await locationRepo.save({
-        ...inventory.location,
-        status: LOCATION_STATUS.EMPTY,
-        updater: user
-      })
-    }
-
-    // 4. 1) if status of inventory is TERMINATED, check whether related inventory with specific location exists or not
-    const inventoryHistory: InventoryHistory = {
-      ...inventory,
-      domain,
-      name: InventoryNoGenerator.inventoryHistoryName(),
-      seq: inventory.lastSeq + 1,
-      transactionType: INVENTORY_TRANSACTION_TYPE.TERMINATED,
-      refOrderId: releaseGood.id,
-      orderRefNo: releaseGood.refNo || null,
-      orderNo: releaseGood.name,
-      productId: inventory.product.id,
-      warehouseId: inventory.warehouse.id,
-      locationId: inventory.location.id,
-      creator: user,
-      updater: user
-    }
-    delete inventoryHistory.id
-    await inventoryHistoryRepo.save(inventoryHistory)
   }
 }
