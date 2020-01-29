@@ -42,6 +42,7 @@ export const loading = {
         relations: [
           'bizplace',
           'domain',
+          'worksheet',
           'targetInventory',
           'targetInventory.domain',
           'targetInventory.bizplace',

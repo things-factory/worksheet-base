@@ -8,8 +8,8 @@ import {
   INVENTORY_TRANSACTION_TYPE
 } from '@things-factory/warehouse-base'
 import { Equal, getManager, Not } from 'typeorm'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
-import { WORKSHEET_TYPE, WORKSHEET_STATUS } from '../../../constants'
 
 export const undoLoading = {
   async undoLoading(_: any, { deliveryOrder, palletIds }, context: any) {
@@ -127,6 +127,12 @@ export const undoLoading = {
               ...targetInv,
               status: ORDER_INVENTORY_STATUS.TERMINATED,
               updater: context.state.user
+            })
+
+            await trxMgr.getRepository(WorksheetDetail).delete({
+              targetInventory: targetInv.id,
+              type: WORKSHEET_TYPE.LOADING,
+              status: WORKSHEET_STATUS.DONE
             })
           } else {
             await trxMgr.getRepository(OrderInventory).save(targetInv)

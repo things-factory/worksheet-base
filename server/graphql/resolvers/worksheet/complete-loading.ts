@@ -37,16 +37,6 @@ export const completeLoading = {
       })
 
       if (!foundLoadingWorksheet) throw new Error(`Worksheet doesn't exists.`)
-      const worksheetDetails: WorksheetDetail[] = foundLoadingWorksheet.worksheetDetails.map(
-        (worksheetDetail: WorksheetDetail) => {
-          return {
-            ...worksheetDetail,
-            status: WORKSHEET_STATUS.DONE,
-            updater: context.state.user
-          }
-        }
-      )
-      await trxMgr.getRepository(WorksheetDetail).save(worksheetDetails)
 
       let targetInventories: OrderInventory[] = await trxMgr.getRepository(OrderInventory).find({
         where: { releaseGood, type: ORDER_TYPES.RELEASE_OF_GOODS },
@@ -58,7 +48,7 @@ export const completeLoading = {
         (obj, orderInv: OrderInventory) => {
           if (orderInv.status === ORDER_INVENTORY_STATUS.LOADED) {
             obj.loadedInventories.push(orderInv)
-          } else {
+          } else if (orderInv.status === ORDER_INVENTORY_STATUS.LOADING) {
             obj.remainInventories.push(orderInv)
           }
           return obj
