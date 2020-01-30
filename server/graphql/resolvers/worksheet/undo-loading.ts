@@ -1,15 +1,10 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { DeliveryOrder, OrderInventory, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
-import {
-  Inventory,
-  InventoryHistory,
-  InventoryNoGenerator,
-  INVENTORY_STATUS,
-  INVENTORY_TRANSACTION_TYPE
-} from '@things-factory/warehouse-base'
+import { Inventory, INVENTORY_TRANSACTION_TYPE } from '@things-factory/warehouse-base'
 import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
+import { generateInventoryHistory } from '../../../utils/inventory-history-generator'
 
 export const undoLoading = {
   async undoLoading(_: any, { deliveryOrder, palletIds }, context: any) {
@@ -79,46 +74,23 @@ export const undoLoading = {
             })
           }
 
-          // 6. Update Inventory
+          // 6. Create Inventory Hisotry
           let inventory: Inventory = targetInv.inventory
-          await trxMgr.getRepository(Inventory).save({
-            ...inventory,
-            qty: inventory.qty + targetInv.releaseQty,
-            weight: inventory.weight + targetInv.releaseWeight,
-            lastSeq: inventory.lastSeq + 1,
-            updater: context.state.user
-          })
-
-          // 7. Create Inventory Hisotry
           inventory = await trxMgr.getRepository(Inventory).findOne({
             where: { id: inventory.id },
             relations: ['bizplace', 'product', 'warehouse', 'location']
           })
 
-          const inventoryHistory: InventoryHistory = {
-            ...inventory,
-            qty: targetInv.releaseQty,
-            weight: targetInv.releaseWeight,
-            status: INVENTORY_STATUS.STORED,
-            domain: context.state.domain,
-            name: InventoryNoGenerator.inventoryHistoryName(),
-            seq: inventory.lastSeq,
-            transactionType: INVENTORY_TRANSACTION_TYPE.UNDO_LOADING,
-            openingQty: inventory.qty - targetInv.releaseQty,
-            openingWeight: inventory.weight - targetInv.releaseWeight,
-            productId: inventory.product.id,
-            warehouseId: inventory.warehouse.id,
-            locationId: inventory.location.id,
-            refOrderId: foundDO.releaseGood.id,
-            orderRefNo: foundDO.releaseGood.refNo || null,
-            orderNo: foundDO.releaseGood.name,
-            creator: context.state.user,
-            updater: context.state.user
-          }
-          delete inventoryHistory.id
-          await trxMgr.getRepository(InventoryHistory).save(inventoryHistory)
+          await generateInventoryHistory(
+            inventory,
+            foundDO.releaseGood,
+            INVENTORY_TRANSACTION_TYPE.UNDO_LOADING,
+            0,
+            0,
+            context.state.user
+          )
 
-          // 8. If targetInv is merged into previous target inventory
+          // 7. If targetInv is merged into previous target inventory
           //    TERMINATE order inventory
           //    else
           //    Save order inventory
