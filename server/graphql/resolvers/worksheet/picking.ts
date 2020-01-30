@@ -1,11 +1,11 @@
 import { OrderInventory, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
 import {
   Inventory,
-  Location,
-  LOCATION_STATUS,
-  INVENTORY_STATUS,
   InventoryHistory,
-  INVENTORY_TRANSACTION_TYPE
+  INVENTORY_STATUS,
+  INVENTORY_TRANSACTION_TYPE,
+  Location,
+  LOCATION_STATUS
 } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -13,7 +13,7 @@ import { WorksheetDetail } from '../../../entities'
 import { generateInventoryHistory } from '../../../utils/inventory-history-generator'
 
 export const picking = {
-  async picking(_: any, { worksheetDetailName, palletId, releaseQty }, context: any) {
+  async picking(_: any, { worksheetDetailName, palletId, locationName, releaseQty }, context: any) {
     return await getManager().transaction(async trxMgr => {
       // get worksheet detail
       const worksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
@@ -35,6 +35,13 @@ export const picking = {
         ]
       })
       if (!worksheetDetail) throw new Error(`Worksheet Details doesn't exists`)
+
+      // get location by name
+      const location: Location = await trxMgr.getRepository(Location).findOne({
+        where: { domain: context.state.domain, name: locationName }
+      })
+      if (!location) throw new Error(`Location doesn't exists`)
+
       let targetInventory: OrderInventory = worksheetDetail.targetInventory
       let inventory: Inventory = targetInventory.inventory
 
@@ -68,6 +75,24 @@ export const picking = {
         context.state.user,
         trxMgr
       )
+
+      // If loation is not same with inventory.location => Relocate inventory
+      if (location.id !== inventory.location.id) {
+        inventory = await trxMgr.getRepository(Inventory).save({
+          ...inventory,
+          location,
+          updater: context.state.user
+        })
+
+        await generateInventoryHistory(
+          inventory,
+          worksheetDetail.worksheet.releaseGood,
+          INVENTORY_TRANSACTION_TYPE.RELOCATE,
+          0,
+          0,
+          trxMgr
+        )
+      }
 
       // update status of worksheet details (EXECUTING = > DONE)
       await trxMgr.getRepository(WorksheetDetail).save({
