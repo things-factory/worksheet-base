@@ -55,6 +55,7 @@ export const undoUnloading = {
         lastSeq: inventory.lastSeq + 1,
         status: INVENTORY_STATUS.DELETED,
         qty: 0,
+        weight: 0,
         updater: context.state.user
       })
 
