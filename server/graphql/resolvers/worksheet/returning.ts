@@ -9,7 +9,7 @@ import {
   Location,
   LOCATION_STATUS
 } from '@things-factory/warehouse-base'
-import { EntityManager, getManager, getRepository, Repository } from 'typeorm'
+import { EntityManager, Equal, getManager, getRepository, Not, Repository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { generateInventoryHistory } from '../../../utils/inventory-history-generator'
@@ -177,7 +177,7 @@ export async function checkPalletDuplication(
   const duplicatedPalletCnt: number = await invRepo.count({
     domain,
     bizplace,
-    status: INVENTORY_STATUS.STORED,
+    status: Not(Equal(INVENTORY_STATUS.TERMINATED)),
     palletId
   })
 

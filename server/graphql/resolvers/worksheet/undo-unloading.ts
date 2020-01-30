@@ -1,8 +1,6 @@
 import { OrderProduct, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
 import {
   Inventory,
-  InventoryHistory,
-  InventoryNoGenerator,
   INVENTORY_STATUS,
   INVENTORY_TRANSACTION_TYPE,
   Location,
@@ -11,6 +9,7 @@ import {
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
+import { generateInventoryHistory } from '../../../utils/inventory-history-generator'
 
 export const undoUnloading = {
   async undoUnloading(_: any, { worksheetDetailName, palletId }, context: any) {
@@ -64,33 +63,25 @@ export const undoUnloading = {
         relations: ['bizplace', 'product', 'warehouse', 'location']
       })
 
-      const inventoryHistory: InventoryHistory = {
-        ...inventory,
-        qty: -inventoryQty,
-        weight: -inventoryWeight,
-        domain: context.state.domain,
-        name: InventoryNoGenerator.inventoryHistoryName(),
-        seq: inventory.lastSeq,
-        transactionType: INVENTORY_TRANSACTION_TYPE.UNDO_UNLOADING,
-        orderRefNo: arrivalNotice.refNo || null,
-        refOrderId: arrivalNotice.id,
-        orderNo: arrivalNotice.name,
-        productId: inventory.product.id,
-        warehouseId: inventory.warehouse.id,
-        locationId: inventory.location.id,
-        creator: context.state.user,
-        updater: context.state.user
-      }
-      delete inventoryHistory.id
-      await trxMgr.getRepository(InventoryHistory).save(inventoryHistory)
+      await generateInventoryHistory(
+        inventory,
+        arrivalNotice,
+        INVENTORY_TRANSACTION_TYPE.UNDO_UNLOADING,
+        -inventoryQty,
+        -inventoryWeight,
+        context.state.user,
+        trxMgr
+      )
+
       await trxMgr.getRepository(Inventory).delete(inventory.id)
 
       // Check whether related worksheet exists or not with specific buffer location
-      const relatedWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-        where: { domain: context.state.domain, bufferLocation: bufferLocation }
-      })
+      const relatedWorksheetCnt: number = await trxMgr
+        .getRepository(Worksheet)
+        .count({ domain: context.state.domain, bufferLocation })
+
       // if there's no related worksheet => update status of location to EMPTY
-      if (!relatedWorksheet) {
+      if (!relatedWorksheetCnt) {
         await trxMgr.getRepository(Location).save({
           ...bufferLocation,
           status: LOCATION_STATUS.EMPTY,
