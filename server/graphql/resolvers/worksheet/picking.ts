@@ -78,6 +78,13 @@ export const picking = {
 
       // If loation is not same with inventory.location => Relocate inventory
       if (location.id !== inventory.location.id) {
+        const existingInvCnt: number = await trxMgr.getRepository(Inventory).count({
+          status: INVENTORY_STATUS.STORED,
+          location
+        })
+
+        if (existingInvCnt) throw new Error(`There's items already.`)
+
         inventory = await trxMgr.getRepository(Inventory).save({
           ...inventory,
           location,

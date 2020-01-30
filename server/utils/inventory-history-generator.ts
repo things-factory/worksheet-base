@@ -39,10 +39,10 @@ export async function generateInventoryHistory(
   let openingWeight: number = 0
 
   if (seq) {
-    const lastInvHistory: InventoryHistory = invHistoryRepo.findOne({
+    const lastInvHistory: InventoryHistory = await invHistoryRepo.findOne({
       domain: inventory.domain,
       palletId: inventory.palletId,
-      lastSeq: seq - 1
+      seq: seq - 1
     })
     openingQty = lastInvHistory.openingQty + lastInvHistory.qty
     openingWeight = lastInvHistory.openingWeight + lastInvHistory.weight
