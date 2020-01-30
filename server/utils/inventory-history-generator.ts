@@ -46,9 +46,9 @@ export async function generateInventoryHistory(
     warehouseId: inventory.warehouse.id,
     locationId: inventory.location.id,
     qty,
-    openingQty: inventory.qty,
+    openingQty: inventory.qty + qty,
     weight,
-    openingWeight: inventory.weight,
+    openingWeight: inventory.weight + weight,
     creator: user,
     updater: user
   }
