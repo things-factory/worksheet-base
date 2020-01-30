@@ -35,6 +35,14 @@ export async function generateInventoryHistory(
   }
 
   const seq: number = await invHistoryRepo.count({ domain: inventory.domain, palletId: inventory.palletId })
+  let openingQty: number = 0
+  let openingWeight: number = 0
+
+  if (seq) {
+    openingQty = inventory.qty + qty
+    openingWeight = inventory.weight + weight
+  }
+
   let inventoryHistory: InventoryHistory = {
     ...inventory,
     name: InventoryNoGenerator.inventoryHistoryName(),
@@ -46,9 +54,9 @@ export async function generateInventoryHistory(
     warehouseId: inventory.warehouse.id,
     locationId: inventory.location.id,
     qty,
-    openingQty: inventory.qty + qty,
+    openingQty,
     weight,
-    openingWeight: inventory.weight + weight,
+    openingWeight,
     creator: user,
     updater: user
   }
