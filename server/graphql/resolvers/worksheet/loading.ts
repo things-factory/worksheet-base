@@ -11,8 +11,7 @@ import { Inventory, INVENTORY_TRANSACTION_TYPE } from '@things-factory/warehouse
 import { getManager, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
-import { generateInventoryHistory } from '../../../utils/inventory-history-generator'
-import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
+import { generateInventoryHistory, WorksheetNoGenerator } from '../../../utils'
 
 export const loading = {
   async loading(_: any, { loadedWorksheetDetails, releaseGoodNo, orderInfo }, context: any) {

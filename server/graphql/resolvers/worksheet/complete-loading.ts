@@ -8,11 +8,10 @@ import {
   ReleaseGood
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory } from '@things-factory/warehouse-base'
 import { EntityManager, getManager, getRepository, Repository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
+import { WorksheetNoGenerator } from '../../../utils'
 
 export const completeLoading = {
   async completeLoading(_: any, { releaseGoodNo }, context: any) {

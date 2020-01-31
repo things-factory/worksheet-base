@@ -9,7 +9,7 @@ import {
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { generateInventoryHistory } from '../../../utils/inventory-history-generator'
+import { generateInventoryHistory } from '../../../utils'
 
 export const undoUnloading = {
   async undoUnloading(_: any, { worksheetDetailName, palletId }, context: any) {

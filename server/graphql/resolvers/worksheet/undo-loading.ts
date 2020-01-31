@@ -4,7 +4,7 @@ import { Inventory, INVENTORY_TRANSACTION_TYPE } from '@things-factory/warehouse
 import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
-import { generateInventoryHistory } from '../../../utils/inventory-history-generator'
+import { generateInventoryHistory } from '../../../utils'
 
 export const undoLoading = {
   async undoLoading(_: any, { deliveryOrder, palletIds }, context: any) {

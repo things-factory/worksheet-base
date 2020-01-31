@@ -3,7 +3,7 @@ import { OrderVas, ORDER_STATUS, ORDER_VAS_STATUS, VasOrder } from '@things-fact
 import { getManager, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
+import { WorksheetNoGenerator } from '../../../utils'
 
 export const generateVasOrderWorksheet = {
   async generateVasOrderWorksheet(_: any, { vasNo }, context: any) {

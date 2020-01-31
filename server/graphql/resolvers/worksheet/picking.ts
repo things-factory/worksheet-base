@@ -1,16 +1,9 @@
 import { OrderInventory, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
-import {
-  Inventory,
-  InventoryHistory,
-  INVENTORY_STATUS,
-  INVENTORY_TRANSACTION_TYPE,
-  Location,
-  LOCATION_STATUS
-} from '@things-factory/warehouse-base'
+import { Inventory, INVENTORY_STATUS, INVENTORY_TRANSACTION_TYPE, Location } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
-import { generateInventoryHistory } from '../../../utils/inventory-history-generator'
+import { generateInventoryHistory, switchLocationStatus } from '../../../utils'
 
 export const picking = {
   async picking(_: any, { worksheetDetailName, palletId, locationName, releaseQty }, context: any) {
@@ -37,10 +30,12 @@ export const picking = {
       if (!worksheetDetail) throw new Error(`Worksheet Details doesn't exists`)
 
       // get location by name
-      const location: Location = await trxMgr.getRepository(Location).findOne({
-        where: { domain: context.state.domain, name: locationName }
+      const fromLocation: Location = worksheetDetail.targetInventory.inventory.location
+      const toLocation: Location = await trxMgr.getRepository(Location).findOne({
+        where: { domain: context.state.domain, name: locationName },
+        relations: ['warehouse']
       })
-      if (!location) throw new Error(`Location doesn't exists`)
+      if (!toLocation) throw new Error(`Location doesn't exists`)
 
       let targetInventory: OrderInventory = worksheetDetail.targetInventory
       let inventory: Inventory = targetInventory.inventory
@@ -76,18 +71,20 @@ export const picking = {
         trxMgr
       )
 
-      // If loation is not same with inventory.location => Relocate inventory
-      if (location.id !== inventory.location.id) {
+      // If toLocation is not same with fromLocation => Relocate inventory
+      if (fromLocation.id !== toLocation.id) {
         const existingInvCnt: number = await trxMgr.getRepository(Inventory).count({
           status: INVENTORY_STATUS.STORED,
-          location
+          location: toLocation
         })
 
         if (existingInvCnt) throw new Error(`There's items already.`)
 
         inventory = await trxMgr.getRepository(Inventory).save({
           ...inventory,
-          location,
+          location: toLocation,
+          warehouse: toLocation.warehouse,
+          zone: toLocation.zone,
           updater: context.state.user
         })
 
@@ -110,14 +107,14 @@ export const picking = {
       })
 
       // No more item for the pallet => TERMINATE inventory
-      if (leftQty === 0 && inventory.qty) {
+      if (leftQty === 0) {
         inventory = await trxMgr.getRepository(Inventory).save({
           ...inventory,
           status: INVENTORY_STATUS.TERMINATED,
           updater: context.state.user
         })
 
-        const inventoryHistory: InventoryHistory = await generateInventoryHistory(
+        await generateInventoryHistory(
           inventory,
           worksheetDetail.worksheet.releaseGood,
           INVENTORY_TRANSACTION_TYPE.TERMINATED,
@@ -126,21 +123,13 @@ export const picking = {
           context.state.user,
           trxMgr
         )
+      }
 
-        const location: Location = await trxMgr.getRepository(Location).findOne(inventoryHistory.locationId)
-        const allocatedItemsCnt: number = await trxMgr.getRepository(Inventory).count({
-          domain: context.state.domain,
-          status: INVENTORY_STATUS.STORED,
-          location
-        })
-
-        if (!allocatedItemsCnt && location.status !== LOCATION_STATUS.OCCUPIED) {
-          await trxMgr.getRepository(Location).save({
-            ...location,
-            status: LOCATION_STATUS.OCCUPIED,
-            updater: context.state.user
-          })
-        }
+      // Check toLocation
+      await switchLocationStatus(context.state.domain, toLocation, context.state.user, trxMgr)
+      if (fromLocation.id !== toLocation.id) {
+        // Check fromLocation cause pallet is relocated.
+        await switchLocationStatus(context.state.domain, fromLocation, context.state.user, trxMgr)
       }
     })
   }

@@ -12,7 +12,7 @@ import {
 import { EntityManager, Equal, getManager, getRepository, Not, Repository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { generateInventoryHistory } from '../../../utils/inventory-history-generator'
+import { generateInventoryHistory, switchLocationStatus } from '../../../utils'
 
 export const returning = {
   async returning(_: any, { worksheetDetailName, palletId, toLocation }, context: any) {
@@ -56,6 +56,10 @@ export const returning = {
 
       const isPalletDiff: boolean = originPalletId === palletId
       const isLocationDiff: boolean = originLocation.id === foundLocation.id
+
+      if ((foundLocation.status !== LOCATION_STATUS.EMPTY && isPalletDiff) || isLocationDiff)
+        throw new Error(`Location is already occupied.`)
+
       // Case 1. Return back with SAME PALLET and SAME LOCATION.
       //      1) sum stored qty and returned qty
       if (!isPalletDiff && !isLocationDiff) {
@@ -104,13 +108,6 @@ export const returning = {
           trxMgr
         )
         if (isDuplicated) throw new Error('Pallet ID is duplicated.')
-
-        const existingInvCnt: number = await trxMgr.getRepository(Inventory).count({
-          status: INVENTORY_STATUS.STORED,
-          location: foundLocation
-        })
-        if (existingInvCnt) throw new Error(`There's items already.`)
-
         const newInventory: Inventory = {
           ...inventory,
           domain: context.state.domain,
@@ -131,15 +128,6 @@ export const returning = {
         inventory = await trxMgr.getRepository(Inventory).save(newInventory)
       }
 
-      // 4. 1) Update status of location
-      if (foundLocation.status === LOCATION_STATUS.EMPTY) {
-        await trxMgr.getRepository(Location).save({
-          ...foundLocation,
-          status: LOCATION_STATUS.OCCUPIED,
-          updater: context.state.user
-        })
-      }
-
       await generateInventoryHistory(
         inventory,
         releaseGood,
@@ -150,14 +138,17 @@ export const returning = {
         trxMgr
       )
 
-      // 6. update status of order inventory
+      // 6. update status of location
+      await switchLocationStatus(context.state.domain, foundLocation, context.state.user, trxMgr)
+
+      // 7. update status of order inventory
       await trxMgr.getRepository(OrderInventory).save({
         ...targetInventory,
         status: ORDER_INVENTORY_STATUS.TERMINATED,
         updater: context.state.user
       })
 
-      // 7. update status of worksheet details (EXECUTING => DONE)
+      // 8. update status of worksheet details (EXECUTING => DONE)
       await trxMgr.getRepository(WorksheetDetail).save({
         ...worksheetDetail,
         status: WORKSHEET_STATUS.DONE,

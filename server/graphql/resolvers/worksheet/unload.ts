@@ -11,7 +11,7 @@ import {
 import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { generateInventoryHistory } from '../../../utils/inventory-history-generator'
+import { generateInventoryHistory } from '../../../utils'
 
 export const unload = {
   async unload(_: any, { worksheetDetailName, inventory }, context: any) {
