@@ -11,7 +11,7 @@ import { Location } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
+import { WorksheetNoGenerator } from '../../../utils'
 
 export const generateArrivalNoticeWorksheet = {
   async generateArrivalNoticeWorksheet(_: any, { arrivalNoticeNo, bufferLocation }, context: any) {

@@ -2,7 +2,6 @@ import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderProduct, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
 import {
   Inventory,
-  InventoryHistory,
   InventoryNoGenerator,
   INVENTORY_STATUS,
   INVENTORY_TRANSACTION_TYPE,
@@ -12,6 +11,7 @@ import {
 import { Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
+import { generateInventoryHistory } from '../../../utils'
 
 export const unload = {
   async unload(_: any, { worksheetDetailName, inventory }, context: any) {
@@ -89,27 +89,16 @@ export const unload = {
         updater: context.state.user
       })
 
-      inventory = await trxMgr.getRepository(Inventory).findOne({
-        where: { id: newInventory.id },
-        relations: ['bizplace', 'product', 'warehouse', 'location']
-      })
       // 4. Create new inventory history data
-      let inventoryHistory: InventoryHistory = {
-        ...inventory,
-        domain: context.state.domain,
-        name: InventoryNoGenerator.inventoryHistoryName(),
-        seq: newInventory.lastSeq,
-        transactionType: INVENTORY_TRANSACTION_TYPE.UNLOADING,
-        orderRefNo: arrivalNotice.refNo || null,
-        refOrderId: arrivalNotice.id,
-        orderNo: arrivalNotice.name,
-        productId: newInventory.product.id,
-        warehouseId: newInventory.warehouse.id,
-        locationId: newInventory.location.id,
-        creator: context.state.user,
-        updater: context.state.user
-      }
-      await trxMgr.getRepository(InventoryHistory).save(inventoryHistory)
+      await generateInventoryHistory(
+        newInventory,
+        arrivalNotice,
+        INVENTORY_TRANSACTION_TYPE.UNLOADING,
+        qty,
+        inventory.qty * foundWorksheetDetail.targetProduct.weight,
+        context.state.user,
+        trxMgr
+      )
 
       // 5. Update status and qty of targetProduct
       await trxMgr.getRepository(OrderProduct).save({

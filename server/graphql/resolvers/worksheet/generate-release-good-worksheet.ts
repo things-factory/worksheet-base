@@ -10,7 +10,7 @@ import {
 import { getManager, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
+import { WorksheetNoGenerator } from '../../../utils'
 
 export const generateReleaseGoodWorksheet = {
   async generateReleaseGoodWorksheet(_: any, { releaseGoodNo }, context: any) {

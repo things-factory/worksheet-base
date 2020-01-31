@@ -8,12 +8,10 @@ import {
   ReleaseGood
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory } from '@things-factory/warehouse-base'
 import { EntityManager, getManager, getRepository, Repository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
-// import { activateReturn } from './activate-return'
+import { WorksheetNoGenerator } from '../../../utils'
 
 export const completeLoading = {
   async completeLoading(_: any, { releaseGoodNo }, context: any) {
@@ -37,16 +35,6 @@ export const completeLoading = {
       })
 
       if (!foundLoadingWorksheet) throw new Error(`Worksheet doesn't exists.`)
-      const worksheetDetails: WorksheetDetail[] = foundLoadingWorksheet.worksheetDetails.map(
-        (worksheetDetail: WorksheetDetail) => {
-          return {
-            ...worksheetDetail,
-            status: WORKSHEET_STATUS.DONE,
-            updater: context.state.user
-          }
-        }
-      )
-      await trxMgr.getRepository(WorksheetDetail).save(worksheetDetails)
 
       let targetInventories: OrderInventory[] = await trxMgr.getRepository(OrderInventory).find({
         where: { releaseGood, type: ORDER_TYPES.RELEASE_OF_GOODS },
@@ -58,7 +46,7 @@ export const completeLoading = {
         (obj, orderInv: OrderInventory) => {
           if (orderInv.status === ORDER_INVENTORY_STATUS.LOADED) {
             obj.loadedInventories.push(orderInv)
-          } else {
+          } else if (orderInv.status === ORDER_INVENTORY_STATUS.LOADING) {
             obj.remainInventories.push(orderInv)
           }
           return obj
@@ -70,52 +58,22 @@ export const completeLoading = {
       )
 
       // Update status of loaded order inventories
-      const orderInventories: OrderInventory[] = loadedInventories.map((targetInventory: OrderInventory) => {
-        const inventory: Inventory = targetInventory.inventory
-        let lockedQty: number = inventory.lockedQty || 0
-        let lockedWeight: number = inventory.lockedWeight || 0
-        const releaseQty: number = targetInventory.releaseQty || 0
-        const releaseWeight: number = targetInventory.releaseWeight || 0
-
-        trxMgr.getRepository(Inventory).save({
-          ...inventory,
-          lockedQty: lockedQty - releaseQty,
-          lockedWeight: lockedWeight - releaseWeight,
-          updater: context.state.user
-        })
-
+      loadedInventories = loadedInventories.map((targetInventory: OrderInventory) => {
         return {
           ...targetInventory,
           status: ORDER_INVENTORY_STATUS.TERMINATED,
           updater: context.state.user
         }
       })
-      await trxMgr.getRepository(OrderInventory).save(orderInventories)
+      await trxMgr.getRepository(OrderInventory).save(loadedInventories)
 
       // generate putaway worksheet with remain order inventories
       if (remainInventories?.length) {
-        // Update status of remained order inventories
-        remainInventories.map(async (targetInventory: OrderInventory) => {
-          const inventory: Inventory = targetInventory.inventory
-          let lockedQty: number = inventory.lockedQty || 0
-          let lockedWeight: number = inventory.lockedWeight || 0
-          const releaseQty: number = targetInventory.releaseQty || 0
-          const releaseWeight: number = targetInventory.releaseWeight || 0
-
-          await trxMgr.getRepository(Inventory).save({
-            ...inventory,
-            lockedQty: lockedQty - releaseQty,
-            lockedWeight: lockedWeight - releaseWeight,
-            updater: context.state.user
-          })
-        })
-
-        const inventories: Inventory[] = remainInventories.map((orderInv: OrderInventory) => orderInv.inventory)
         await createReturnWorksheet(
           context.state.domain,
           customerBizplace,
           releaseGood,
-          inventories,
+          remainInventories,
           context.state.user,
           trxMgr
         )
@@ -149,20 +107,17 @@ export async function createReturnWorksheet(
   domain: Domain,
   customerBizplace: Bizplace,
   releaseGood: ReleaseGood,
-  inventories: Inventory,
+  orderInvs: OrderInventory[],
   user: User,
   trxMgr?: EntityManager
 ): Promise<void> {
-  const worksheetRepo: Repository<Worksheet> = trxMgr ? trxMgr.getRepository(Worksheet) : getRepository(Worksheet)
-  const worksheetDetailRepo: Repository<WorksheetDetail> = trxMgr
-    ? trxMgr.getRepository(WorksheetDetail)
-    : getRepository(WorksheetDetail)
-  const orderInventoryRepo: Repository<OrderInventory> = trxMgr
-    ? trxMgr.getRepository(OrderInventory)
-    : getRepository(OrderInventory)
+  const wsRepo: Repository<Worksheet> = trxMgr?.getRepository(Worksheet) || getRepository(Worksheet)
+  const wsdRepo: Repository<WorksheetDetail> = trxMgr?.getRepository(WorksheetDetail) || getRepository(WorksheetDetail)
+  const orderInvRepo: Repository<OrderInventory> =
+    trxMgr?.getRepository(OrderInventory) || getRepository(OrderInventory)
 
   // create return worksheet
-  const returnWorksheet: Worksheet = await worksheetRepo.save({
+  const returnWorksheet: Worksheet = await wsRepo.save({
     domain,
     releaseGood,
     bizplace: customerBizplace,
@@ -174,21 +129,15 @@ export async function createReturnWorksheet(
   })
 
   await Promise.all(
-    inventories.map(async (inventory: Inventory) => {
-      //find the order inventory for return
-      let targetInventory: OrderInventory = await orderInventoryRepo.findOne({
-        where: { domain, inventory, releaseGood, bizplace: customerBizplace, status: ORDER_INVENTORY_STATUS.LOADING }
-      })
-
-      //update the order inventory to RETURNING status
-      targetInventory = await orderInventoryRepo.save({
+    orderInvs.map(async (targetInventory: OrderInventory) => {
+      targetInventory = await orderInvRepo.save({
         ...targetInventory,
         status: ORDER_INVENTORY_STATUS.RETURNING,
         updater: user
       })
 
       // create new worksheetdetail for return process
-      await worksheetDetailRepo.save({
+      await wsdRepo.save({
         domain,
         bizplace: customerBizplace,
         name: WorksheetNoGenerator.returnDetail(),
@@ -201,16 +150,4 @@ export async function createReturnWorksheet(
       })
     })
   )
-
-  // TODO: activate return worksheet
-  // const foundReturnWorksheet: Worksheet = await worksheetRepo.findOne({
-  //   where: {
-  //     domain,
-  //     releaseGood,
-  //     type: WORKSHEET_TYPE.LOADING,
-  //     status: WORKSHEET_STATUS.DEACTIVATED
-  //   },
-  //   relations: ['worksheetDetails']
-  // })
-  // await activateReturn(foundReturnWorksheet.name, foundReturnWorksheet.worksheetDetails, domain, user, trxMgr)
 }

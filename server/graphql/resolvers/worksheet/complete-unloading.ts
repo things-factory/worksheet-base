@@ -13,7 +13,7 @@ import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { EntityManager, Equal, getManager, getRepository, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { WorksheetNoGenerator } from '../../../utils/worksheet-no-generator'
+import { WorksheetNoGenerator } from '../../../utils'
 import { activatePutaway } from './activate-putaway'
 
 export const completeUnloading = {

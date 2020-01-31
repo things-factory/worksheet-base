@@ -111,6 +111,11 @@ export const Mutation = `
     orderInfo: WorksheetPatch
   ): Boolean
 
+  undoLoading (
+    deliveryOrder: ObjectRef!
+    palletIds: [String]!
+  ): Boolean
+
   transfer (
     palletId: String!
     toPalletId: String!
@@ -128,6 +133,7 @@ export const Mutation = `
   picking (
     worksheetDetailName: String!
     palletId: String!
+    locationName: String!
     releaseQty: Int!
   ): Boolean
 

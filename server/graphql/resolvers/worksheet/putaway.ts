@@ -1,8 +1,6 @@
 import { OrderInventory, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
 import {
   Inventory,
-  InventoryHistory,
-  InventoryNoGenerator,
   INVENTORY_STATUS,
   INVENTORY_TRANSACTION_TYPE,
   Location,
@@ -12,6 +10,7 @@ import {
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
+import { generateInventoryHistory } from '../../../utils'
 
 export const putaway = {
   async putaway(_: any, { worksheetDetailName, palletId, toLocation }, context: any) {
@@ -47,7 +46,6 @@ export const putaway = {
         ...inventory,
         location,
         status: INVENTORY_STATUS.STORED,
-        lastSeq: inventory.lastSeq + 1,
         warehouse: location.warehouse,
         zone: location.warehouse.zone,
         updater: context.state.user
@@ -63,27 +61,15 @@ export const putaway = {
       }
 
       // 5. add inventory history
-      inventory = await trxMgr.getRepository(Inventory).findOne({
-        where: { id: inventory.id },
-        relations: ['bizplace', 'product', 'warehouse', 'location']
-      })
-      let inventoryHistory: InventoryHistory = {
-        ...inventory,
-        domain: context.state.domain,
-        name: InventoryNoGenerator.inventoryHistoryName(),
-        seq: inventory.lastSeq,
-        transactionType: INVENTORY_TRANSACTION_TYPE.PUTAWAY,
-        refOrderId: arrivalNotice.id,
-        orderRefNo: arrivalNotice.refNo || null,
-        orderNo: arrivalNotice.name,
-        productId: inventory.product.id,
-        warehouseId: inventory.warehouse.id,
-        locationId: inventory.location.id,
-        creator: context.state.user,
-        updater: context.state.user
-      }
-      delete inventoryHistory.id
-      await trxMgr.getRepository(InventoryHistory).save(inventoryHistory)
+      await generateInventoryHistory(
+        inventory,
+        arrivalNotice,
+        INVENTORY_TRANSACTION_TYPE.PUTAWAY,
+        0,
+        0,
+        context.state.user,
+        trxMgr
+      )
 
       // 6. update status of order inventory
       await trxMgr.getRepository(OrderInventory).save({
