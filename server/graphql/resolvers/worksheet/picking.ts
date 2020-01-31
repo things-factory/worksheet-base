@@ -97,6 +97,7 @@ export const picking = {
           INVENTORY_TRANSACTION_TYPE.RELOCATE,
           0,
           0,
+          context.state.user,
           trxMgr
         )
       }
