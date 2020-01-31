@@ -29,6 +29,7 @@ import { returning } from './returning'
 import { unloadedInventories } from './unloaded-inventories'
 import { loadedInventories } from './loaded-inventories'
 import { unloadingWorksheetResolver } from './unloading-worksheet'
+import { deliveryOrderByWorksheetResolver } from './delivery-order-by-worksheet'
 import { updateWorksheet } from './update-worksheet'
 import { loadingWorksheetResolver } from './loading-worksheet'
 import { vasWorksheetResolver } from './vas-worksheet'
@@ -40,6 +41,7 @@ export const Query = {
   ...worksheetsResolver,
   ...worksheetResolver,
   ...unloadingWorksheetResolver,
+  ...deliveryOrderByWorksheetResolver,
   ...putawayWorksheetResolver,
   ...returnWorksheetResolver,
   ...pickingWorksheetResolver,

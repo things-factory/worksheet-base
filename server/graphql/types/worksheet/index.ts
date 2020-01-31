@@ -2,6 +2,10 @@ import { ArrivalNoticeWorksheet } from './arrival-notice-worksheet'
 import { DeliveryInfo } from './delivery-info'
 import { DeliveryWorksheet } from './delivery-worksheet'
 import { ExecutingWorksheet } from './executing-worksheet'
+import { LoadedInventoryInfo } from './loaded-inventory-info'
+import { DeliveryOrderInfo } from './delivery-order-info'
+import { ContactPointInfo } from './contact-point-info'
+import { GoodsDeliveryNote } from './goods-delivery-note'
 import { LoadedWorksheetDetail } from './loaded-worksheet-detail'
 import { NewWorksheet } from './new-worksheet'
 import { ReleaseGoodWorksheet } from './release-good-worksheet'
@@ -155,6 +159,7 @@ export const Query = `
   putawayWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
   returnWorksheet(releaseGoodNo: String!): ExecutingWorksheet
   vasWorksheet(orderNo: String!, orderType: String!): ExecutingWorksheet
+  deliveryOrderByWorksheet(name: String!): GoodsDeliveryNote
   pickingWorksheet(releaseGoodNo: String!): ExecutingWorksheet
 `
 
@@ -165,6 +170,10 @@ export const Types = [
   WorksheetList,
   ArrivalNoticeWorksheet,
   ReleaseGoodWorksheet,
+  DeliveryOrderInfo,
+  GoodsDeliveryNote,
+  LoadedInventoryInfo,
+  ContactPointInfo,
   VasOrderWorksheet,
   WorksheetInfo,
   DeliveryInfo,
