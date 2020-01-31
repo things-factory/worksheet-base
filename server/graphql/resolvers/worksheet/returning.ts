@@ -52,8 +52,8 @@ export const returning = {
       })
       if (!foundLocation) throw new Error(`Location doesn't exists`)
 
-      const isPalletDiff: boolean = originPalletId === palletId
-      const isLocationDiff: boolean = originLocation.id === foundLocation.id
+      const isPalletDiff: boolean = originPalletId !== palletId
+      const isLocationDiff: boolean = originLocation.id !== foundLocation.id
 
       if (foundLocation.status !== LOCATION_STATUS.EMPTY && (isPalletDiff || isLocationDiff))
         throw new Error(`Location is already occupied.`)
