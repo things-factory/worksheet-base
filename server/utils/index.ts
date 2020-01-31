@@ -1,3 +1,2 @@
-export * from './inventory-history-generator'
-export * from './location-status-switcher'
+export * from './inventory-util'
 export * from './worksheet-no-generator'

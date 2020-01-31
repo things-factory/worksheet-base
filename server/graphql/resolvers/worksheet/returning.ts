@@ -1,6 +1,4 @@
-import { Bizplace } from '@things-factory/biz-base'
 import { OrderInventory, ORDER_INVENTORY_STATUS, ReleaseGood } from '@things-factory/sales-base'
-import { Domain } from '@things-factory/shell'
 import {
   Inventory,
   InventoryNoGenerator,
@@ -9,10 +7,10 @@ import {
   Location,
   LOCATION_STATUS
 } from '@things-factory/warehouse-base'
-import { EntityManager, Equal, getManager, getRepository, Not, Repository } from 'typeorm'
+import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { generateInventoryHistory, switchLocationStatus } from '../../../utils'
+import { checkPalletDuplication, generateInventoryHistory, switchLocationStatus } from '../../../utils'
 
 export const returning = {
   async returning(_: any, { worksheetDetailName, palletId, toLocation }, context: any) {
@@ -30,7 +28,7 @@ export const returning = {
           'worksheet',
           'worksheet.releaseGood',
           'targetInventory',
-          'targetInventory.inventory.refOrder',
+          'targetInventory.inventory',
           'targetInventory.inventory.bizplace',
           'targetInventory.inventory.product',
           'targetInventory.inventory.warehouse',
@@ -57,7 +55,7 @@ export const returning = {
       const isPalletDiff: boolean = originPalletId === palletId
       const isLocationDiff: boolean = originLocation.id === foundLocation.id
 
-      if ((foundLocation.status !== LOCATION_STATUS.EMPTY && isPalletDiff) || isLocationDiff)
+      if (foundLocation.status !== LOCATION_STATUS.EMPTY && (isPalletDiff || isLocationDiff))
         throw new Error(`Location is already occupied.`)
 
       // Case 1. Return back with SAME PALLET and SAME LOCATION.
@@ -82,17 +80,15 @@ export const returning = {
           palletId,
           trxMgr
         )
-        if (isDuplicated) {
-          throw new Error('Pallet ID is duplicated.')
-        } else {
-          inventory = await trxMgr.getRepository(Inventory).save({
-            ...inventory,
-            qty: inventory.qty + targetInventory.releaseQty,
-            weight: inventory.weight + targetInventory.releaseWeight,
-            status: INVENTORY_STATUS.STORED,
-            updater: context.state.user
-          })
-        }
+        if (isDuplicated) throw new Error('Pallet ID is duplicated.')
+
+        inventory = await trxMgr.getRepository(Inventory).save({
+          ...inventory,
+          qty: inventory.qty + targetInventory.releaseQty,
+          weight: inventory.weight + targetInventory.releaseWeight,
+          status: INVENTORY_STATUS.STORED,
+          updater: context.state.user
+        })
 
         // Case 3. Return back with DIFF PALLET and SAME LOCATION.
         //      1) Check pallet duplication
@@ -108,6 +104,7 @@ export const returning = {
           trxMgr
         )
         if (isDuplicated) throw new Error('Pallet ID is duplicated.')
+
         const newInventory: Inventory = {
           ...inventory,
           domain: context.state.domain,
@@ -156,21 +153,4 @@ export const returning = {
       })
     })
   }
-}
-
-export async function checkPalletDuplication(
-  domain: Domain,
-  bizplace: Bizplace,
-  palletId: string,
-  trxMgr?: EntityManager
-): Promise<boolean> {
-  const invRepo: Repository<Inventory> = trxMgr?.getRepository(Inventory) || getRepository(Inventory)
-  const duplicatedPalletCnt: number = await invRepo.count({
-    domain,
-    bizplace,
-    status: Not(Equal(INVENTORY_STATUS.TERMINATED)),
-    palletId
-  })
-
-  return Boolean(duplicatedPalletCnt)
 }

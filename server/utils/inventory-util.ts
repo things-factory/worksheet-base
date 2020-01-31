@@ -1,6 +1,15 @@
 import { User } from '@things-factory/auth-base'
-import { Inventory, InventoryHistory, InventoryNoGenerator } from '@things-factory/warehouse-base'
-import { EntityManager, getRepository, Repository } from 'typeorm'
+import { Bizplace } from '@things-factory/biz-base'
+import { Domain } from '@things-factory/shell'
+import {
+  Inventory,
+  InventoryHistory,
+  InventoryNoGenerator,
+  INVENTORY_STATUS,
+  Location,
+  LOCATION_STATUS
+} from '@things-factory/warehouse-base'
+import { EntityManager, Equal, getRepository, Not, Repository } from 'typeorm'
 
 /**
  * @description It will insert new record into inventory histories table.
@@ -77,4 +86,59 @@ export async function generateInventoryHistory(
   }
 
   return inventoryHistory
+}
+
+/**
+ * @description: Check location emptiness and update status of location
+ * @param domain
+ * @param location
+ * @param updater
+ * @param trxMgr
+ */
+export async function switchLocationStatus(
+  domain: Domain,
+  location: Location,
+  updater: User,
+  trxMgr?: EntityManager
+): Promise<Location> {
+  const invRepo: Repository<Inventory> = trxMgr?.getRepository(Inventory) || getRepository(Inventory)
+  const locationRepo: Repository<Location> = trxMgr?.getRepository(Location) || getRepository(Location)
+  const allocatedItemsCnt: number = await invRepo.count({
+    domain,
+    status: INVENTORY_STATUS.STORED,
+    location
+  })
+
+  if (!allocatedItemsCnt && location.status !== LOCATION_STATUS.EMPTY) {
+    location = await locationRepo.save({
+      ...location,
+      status: LOCATION_STATUS.EMPTY,
+      updater
+    })
+  } else if (allocatedItemsCnt && location.status === LOCATION_STATUS.EMPTY) {
+    location = await locationRepo.save({
+      ...location,
+      status: LOCATION_STATUS.OCCUPIED,
+      updater
+    })
+  }
+
+  return location
+}
+
+export async function checkPalletDuplication(
+  domain: Domain,
+  bizplace: Bizplace,
+  palletId: string,
+  trxMgr?: EntityManager
+): Promise<boolean> {
+  const invRepo: Repository<Inventory> = trxMgr?.getRepository(Inventory) || getRepository(Inventory)
+  const duplicatedPalletCnt: number = await invRepo.count({
+    domain,
+    bizplace,
+    status: Not(Equal(INVENTORY_STATUS.TERMINATED)),
+    palletId
+  })
+
+  return Boolean(duplicatedPalletCnt)
 }
