@@ -5,13 +5,14 @@ export const DeliveryOrderInfo = gql`
     customerBizplace: String
     attachments: [Attachment]
     truckNo: String
-    transportVehicle: TransportVehicle
     deliveryDate: String
     partnerBizplace: String
     domainBizplace: String
+    domainBrn: String
+    ownCollection: Boolean
+    domainAddress: String
     releaseGoodNo: String
     to: String
-    vehicleName: String
     updaterName: String
     doStatus: String
   }

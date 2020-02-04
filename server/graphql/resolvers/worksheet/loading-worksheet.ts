@@ -43,7 +43,8 @@ export const loadingWorksheetResolver = {
       worksheetInfo: {
         bizplaceName: releaseGood.bizplace.name,
         startedAt: foundWorksheet.startedAt,
-        refNo: releaseGood.refNo
+        refNo: releaseGood.refNo,
+        ownCollection: releaseGood.ownTransport
       },
       worksheetDetailInfos: foundWSD.map(async (loadingWSD: WorksheetDetail) => {
         const targetInventory: OrderInventory = loadingWSD.targetInventory

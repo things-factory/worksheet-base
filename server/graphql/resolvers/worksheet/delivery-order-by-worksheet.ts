@@ -1,6 +1,7 @@
 import { Attachment } from '@things-factory/attachment-base'
 import { Partner, Bizplace, ContactPoint } from '@things-factory/biz-base'
 import { DeliveryOrder, OrderInventory } from '@things-factory/sales-base'
+import { TransportVehicle } from '@things-factory/transport-base'
 import { Inventory } from '@things-factory/warehouse-base'
 import { Equal, getRepository, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -71,13 +72,14 @@ export const deliveryOrderByWorksheetResolver = {
       deliveryOrderInfo: {
         partnerBizplace: partnerBiz.name,
         domainBizplace: foundDomainBiz.name,
+        domainBrn: foundDomainBiz.description,
+        domainAddress: foundDomainBiz.address,
         attachments: foundAttachments,
         ownCollection: foundDO.ownCollection,
         to: foundDO.to || '',
         deliveryDate: foundDO.deliveryDate || '',
         releaseGoodNo: foundDO.releaseGood.name,
         truckNo: foundDO.truckNo || '',
-        // vehicleName: foundDO.transportVehicle || '',
         doStatus: foundDO.status
       },
       loadedInventoryInfo: foundWSD.map(async (wsd: WorksheetDetail) => {
