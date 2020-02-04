@@ -1,4 +1,5 @@
 import { Bizplace } from '@things-factory/biz-base'
+import { Location } from '@things-factory/warehouse-base'
 import { ArrivalNotice, OrderVas, ReleaseGood, ORDER_STATUS, ORDER_TYPES, VasOrder } from '@things-factory/sales-base'
 import { getRepository, Equal, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -75,6 +76,8 @@ export const vasWorksheetResolver = {
           'worksheetDetails',
           'worksheetDetails.targetVas',
           'worksheetDetails.targetVas.vas',
+          'worksheetDetails.targetVas.inventory',
+          'worksheetDetails.targetVas.inventory.location',
           'creator',
           'updater'
         ]
@@ -87,11 +90,13 @@ export const vasWorksheetResolver = {
         },
         worksheetDetailInfos: worksheet.worksheetDetails.map((vasWSD: WorksheetDetail) => {
           const targetVas: OrderVas = vasWSD.targetVas
+          const locationInvName: Location = vasWSD.targetVas.inventory.location.name
           return {
             name: vasWSD.name,
             batchId: targetVas.batchId,
             targetName: targetVas.name,
             vas: targetVas.vas,
+            locationInv: locationInvName,
             operationGuide: targetVas.operationGuide,
             description: vasWSD.description,
             remark: targetVas.remark,
@@ -121,6 +126,8 @@ export const vasWorksheetResolver = {
           'worksheetDetails',
           'worksheetDetails.targetVas',
           'worksheetDetails.targetVas.vas',
+          'worksheetDetails.targetVas.inventory',
+          'worksheetDetails.targetVas.inventory.location',
           'creator',
           'updater'
         ]
@@ -133,11 +140,13 @@ export const vasWorksheetResolver = {
         },
         worksheetDetailInfos: worksheet.worksheetDetails.map((vasWSD: WorksheetDetail) => {
           const targetVas: OrderVas = vasWSD.targetVas
+          const locationInvName: Location = vasWSD.targetVas.inventory.location.name
           return {
             name: vasWSD.name,
             batchId: targetVas.batchId,
             targetName: targetVas.name,
             vas: targetVas.vas,
+            locationInv: locationInvName,
             operationGuide: targetVas.operationGuide,
             description: vasWSD.description,
             remark: targetVas.remark,

@@ -22,6 +22,7 @@ export const WorksheetDetailInfo = gql`
     issue: String
     status: String
     location: Location
+    locationInv: String
     toLocation: Location
     inventory: Inventory
   }

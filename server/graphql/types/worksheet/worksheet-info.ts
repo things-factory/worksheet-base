@@ -6,6 +6,7 @@ export const WorksheetInfo = gql`
     containerNo: String
     bufferLocation: String
     startedAt: String
+    ownCollection: Boolean
     refNo: String
   }
 `

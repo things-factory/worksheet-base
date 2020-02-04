@@ -14,6 +14,7 @@ export const WorksheetDetail = gql`
     targetVas: OrderVas
     targetInventory: OrderInventory
     targetDO: DeliveryOrder
+    location: Location
     fromLocation: Location
     toLocation: Location
     status: String
