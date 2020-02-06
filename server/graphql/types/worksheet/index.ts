@@ -153,6 +153,12 @@ export const Mutation = `
     orderNo: String!
     orderType: String!
   ): Boolean
+
+  proceedExtraProducts (
+    ganNo: String!
+    approvedProducts: [ObjectRef]!
+    rejectedProducts: [ObjectRef]!
+  ): Boolean
 `
 
 export const Query = `
