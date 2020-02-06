@@ -26,10 +26,20 @@ export const completeUnloading = {
          */
         const arrivalNotice: ArrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({
           where: { domain: context.state.domain, name: arrivalNoticeNo, status: ORDER_STATUS.PROCESSING },
-          relations: ['bizplace']
+          relations: ['bizplace', 'orderProducts']
         })
 
         if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
+
+        /**
+         * 2. Validation for non-approved order products
+         *    - If there's non approved order product (status: READY_TO_APPROVED)
+         *      throw Error.
+         */
+        if (
+          arrivalNotice.orderProducts.some((op: OrderProduct) => op.status === ORDER_PRODUCT_STATUS.READY_TO_APPROVED)
+        )
+          throw new Error(`There's non-approved order products`)
         const customerBizplace: Bizplace = arrivalNotice.bizplace
         let foundWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
           where: {
