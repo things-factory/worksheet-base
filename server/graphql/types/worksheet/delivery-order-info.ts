@@ -10,6 +10,7 @@ export const DeliveryOrderInfo = gql`
     domainBizplace: String
     domainBrn: String
     updaterName: String
+    driverName: String
     palletQty: String
     ownCollection: Boolean
     domainAddress: String

@@ -74,6 +74,13 @@ export const deliveryOrderByWorksheetResolver = {
       ]
     })
 
+    let foundDriver: any = null
+    if (foundDO?.otherDriver) {
+      foundDriver = foundDO.otherDriver
+    } else {
+      foundDriver = foundDO.transportDriver.name
+    }
+
     return {
       deliveryOrderInfo: {
         partnerBizplace: partnerBiz.name,
@@ -84,6 +91,7 @@ export const deliveryOrderByWorksheetResolver = {
         ownCollection: foundDO.ownCollection,
         to: foundDO.to || '',
         palletQty: foundDO.palletQty,
+        driverName: foundDriver,
         updaterName: foundWS.updater.name,
         deliveryDate: foundDO.deliveryDate || '',
         releaseGoodNo: foundDO.releaseGood.name,
