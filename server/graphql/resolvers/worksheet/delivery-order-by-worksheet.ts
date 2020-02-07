@@ -1,6 +1,6 @@
 import { Attachment } from '@things-factory/attachment-base'
 import { Bizplace, ContactPoint, Partner } from '@things-factory/biz-base'
-import { DeliveryOrder, OrderInventory, ReleaseGood } from '@things-factory/sales-base'
+import { ORDER_STATUS, DeliveryOrder, OrderInventory, ReleaseGood } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
 import { Equal, getRepository, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -75,10 +75,12 @@ export const deliveryOrderByWorksheetResolver = {
     })
 
     let foundDriver: any = null
-    if (foundDO?.otherDriver) {
-      foundDriver = foundDO.otherDriver
-    } else {
-      foundDriver = foundDO.transportDriver.name
+    if (foundDO.status !== ORDER_STATUS.READY_TO_DISPATCH) {
+      if (foundDO?.ownCollection && foundDO?.otherDriver) {
+        foundDriver = foundDO.otherDriver
+      } else {
+        foundDriver = foundDO.transportDriver.name
+      }
     }
 
     return {
