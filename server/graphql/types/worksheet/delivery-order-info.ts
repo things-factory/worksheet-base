@@ -9,11 +9,12 @@ export const DeliveryOrderInfo = gql`
     partnerBizplace: String
     domainBizplace: String
     domainBrn: String
+    updaterName: String
+    palletQty: String
     ownCollection: Boolean
     domainAddress: String
     releaseGoodNo: String
     to: String
-    updaterName: String
     doStatus: String
   }
 `

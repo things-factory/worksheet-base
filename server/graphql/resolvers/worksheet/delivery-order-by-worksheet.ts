@@ -1,11 +1,10 @@
 import { Attachment } from '@things-factory/attachment-base'
-import { Partner, Bizplace, ContactPoint } from '@things-factory/biz-base'
-import { DeliveryOrder, OrderInventory } from '@things-factory/sales-base'
-import { TransportVehicle } from '@things-factory/transport-base'
+import { Bizplace, ContactPoint, Partner } from '@things-factory/biz-base'
+import { DeliveryOrder, OrderInventory, ReleaseGood } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
 import { Equal, getRepository, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { WorksheetDetail } from '../../../entities'
+import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const deliveryOrderByWorksheetResolver = {
   async deliveryOrderByWorksheet(_: any, { name }, context: any) {
@@ -16,6 +15,8 @@ export const deliveryOrderByWorksheetResolver = {
       },
       relations: ['domain', 'bizplace', 'transportDriver', 'transportVehicle', 'releaseGood', 'creator', 'updater']
     })
+
+    const foundRO: ReleaseGood = foundDO.releaseGood
 
     const partnerBiz: Bizplace = await getRepository(Bizplace).findOne({
       where: { id: foundDO.bizplace.id }
@@ -45,6 +46,11 @@ export const deliveryOrderByWorksheetResolver = {
         }
       })
     }
+
+    const foundWS: Worksheet = await getRepository(Worksheet).findOne({
+      where: { domain: context.state.domain, releaseGood: foundRO },
+      relations: ['updater']
+    })
 
     const targetInventories: OrderInventory[] = await getRepository(OrderInventory).find({
       where: { domain: context.state.domain, deliveryOrder: foundDO },
@@ -77,6 +83,8 @@ export const deliveryOrderByWorksheetResolver = {
         attachments: foundAttachments,
         ownCollection: foundDO.ownCollection,
         to: foundDO.to || '',
+        palletQty: foundDO.palletQty,
+        updaterName: foundWS.updater.name,
         deliveryDate: foundDO.deliveryDate || '',
         releaseGoodNo: foundDO.releaseGood.name,
         truckNo: foundDO.truckNo || '',
@@ -95,7 +103,6 @@ export const deliveryOrderByWorksheetResolver = {
           status: wsd.status,
           productDescription: inventory.product.description,
           inventory: targetInventory.inventory,
-          updaterName: wsd.updater.name,
           remark: targetInventory.remark
         }
       }),
