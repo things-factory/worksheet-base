@@ -8,6 +8,7 @@ export const WorksheetPatch = gql`
     worksheetDetails: [ObjectRef]
     status: String
     truckNo: String
+    palletQty: String
     ownCollection: Boolean
     cuFlag: String
   }
