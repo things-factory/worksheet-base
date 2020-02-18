@@ -142,6 +142,7 @@ export const completeUnloading = {
                 refOrderId: arrivalNotice.id,
                 bizplace: customerBizplace,
                 batchId: worksheetDetail.targetProduct.batchId,
+                orderProductId: worksheetDetail.targetProduct.id,
                 location: foundWorksheet.bufferLocation,
                 status: INVENTORY_STATUS.UNLOADED
               },
