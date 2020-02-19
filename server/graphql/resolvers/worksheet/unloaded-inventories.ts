@@ -27,6 +27,7 @@ export const unloadedInventories = {
         refOrderId: arrivalNotice.id,
         batchId: foundWorksheetDetail.targetProduct.batchId,
         location: foundWorksheetDetail.worksheet.bufferLocation,
+        orderProductId: foundWorksheetDetail.targetProduct.id,
         status: INVENTORY_STATUS.UNLOADED
       }
     })

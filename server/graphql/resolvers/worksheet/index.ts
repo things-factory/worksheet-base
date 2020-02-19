@@ -37,6 +37,7 @@ import { vasWorksheetResolver } from './vas-worksheet'
 import { worksheetResolver } from './worksheet'
 import { worksheetsResolver } from './worksheets'
 import { returnWorksheetResolver } from './return-worksheet'
+import { proceedExtraProductsResolver } from './proceed-extra-products'
 
 export const Query = {
   ...worksheetsResolver,
@@ -80,5 +81,6 @@ export const Mutation = {
   ...completePicking,
   ...executeVas,
   ...undoVas,
-  ...completeVas
+  ...completeVas,
+  ...proceedExtraProductsResolver
 }

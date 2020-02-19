@@ -84,6 +84,7 @@ export const unload = {
         warehouse: foundWorksheetDetail.worksheet.bufferLocation.warehouse,
         location: foundWorksheetDetail.worksheet.bufferLocation,
         zone: foundWorksheetDetail.worksheet.bufferLocation.zone,
+        orderProductId: foundWorksheetDetail.targetProduct.id,
         status: INVENTORY_STATUS.UNLOADED,
         creator: context.state.user,
         updater: context.state.user
