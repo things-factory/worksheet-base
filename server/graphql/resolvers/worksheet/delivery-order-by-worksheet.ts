@@ -81,6 +81,8 @@ export const deliveryOrderByWorksheetResolver = {
       } else {
         foundDriver = foundDO.transportDriver.name
       }
+
+      if (!foundDriver) throw new Error('Driver is not found')
     }
 
     return {
