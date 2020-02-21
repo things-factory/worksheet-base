@@ -172,7 +172,7 @@ export const Query = `
   returnWorksheet(releaseGoodNo: String!): ExecutingWorksheet
   vasWorksheet(orderNo: String!, orderType: String!): ExecutingWorksheet
   deliveryOrderByWorksheet(name: String!): GoodsDeliveryNote
-  pickingWorksheet(releaseGoodNo: String!): ExecutingWorksheet
+  pickingWorksheet(releaseGoodNo: String!, locationSortingRules: [Sorting]): ExecutingWorksheet
 `
 
 export const Types = [

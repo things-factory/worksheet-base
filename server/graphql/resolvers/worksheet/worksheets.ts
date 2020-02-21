@@ -36,7 +36,7 @@ export const worksheetsResolver = {
       if (foundReleaseGoods && foundReleaseGoods.length) {
         convertedParams.where.releaseGood = In(foundReleaseGoods.map((foundRG: ReleaseGood) => foundRG.id))
       } else {
-        convertListParams.where.releaseGood = IsNull()
+        convertedParams.where.releaseGood = IsNull()
       }
     }
 

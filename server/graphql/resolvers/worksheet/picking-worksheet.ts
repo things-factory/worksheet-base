@@ -1,17 +1,15 @@
-import { ORDER_STATUS, ReleaseGood, OrderInventory } from '@things-factory/sales-base'
+import { OrderInventory, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
-import { getRepository } from 'typeorm'
+import { getRepository, createQueryBuilder, SelectQueryBuilder } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const pickingWorksheetResolver = {
-  async pickingWorksheet(_: any, { releaseGoodNo }, context: any) {
+  async pickingWorksheet(_: any, { releaseGoodNo, locationSortingRules }, context: any) {
     const releaseGood: ReleaseGood = await getRepository(ReleaseGood).findOne({
       where: { domain: context.state.domain, name: releaseGoodNo, status: ORDER_STATUS.PICKING },
       relations: ['bizplace']
     })
-
-    if (!releaseGood) throw new Error(`Release good doesn't exists.`)
 
     const worksheet: Worksheet = await getRepository(Worksheet).findOne({
       where: {
@@ -21,15 +19,24 @@ export const pickingWorksheetResolver = {
         type: WORKSHEET_TYPE.PICKING,
         status: WORKSHEET_STATUS.EXECUTING
       },
-      relations: [
-        'bizplace',
-        'worksheetDetails',
-        'worksheetDetails.targetInventory',
-        'worksheetDetails.targetInventory.inventory',
-        'worksheetDetails.targetInventory.inventory.location',
-        'worksheetDetails.targetInventory.inventory.product'
-      ]
+      relations: ['bizplace']
     })
+
+    const qb: SelectQueryBuilder<WorksheetDetail> = createQueryBuilder(WorksheetDetail, 'WSD')
+    qb.leftJoinAndSelect('WSD.targetInventory', 'T_INV')
+      .leftJoinAndSelect('T_INV.inventory', 'INV')
+      .leftJoinAndSelect('INV.location', 'LOC')
+      .leftJoinAndSelect('INV.product', 'PROD')
+
+    if (locationSortingRules?.length > 0) {
+      locationSortingRules.forEach((rule: { name: string; desc: boolean }) => {
+        qb.addOrderBy(`LOC.${rule.name}`, rule.desc ? 'DESC' : 'ASC')
+      })
+    }
+
+    const worksheetDetails: WorksheetDetail[] = await qb
+      .where('"WSD"."worksheet_id" = :worksheetId', { worksheetId: worksheet.id })
+      .getMany()
 
     return {
       worksheetInfo: {
@@ -37,27 +44,23 @@ export const pickingWorksheetResolver = {
         startedAt: worksheet.startedAt,
         refNo: releaseGood.refNo
       },
-      worksheetDetailInfos: worksheet.worksheetDetails
-        .sort((a: WorksheetDetail, b: WorksheetDetail) =>
-          a.targetInventory.inventory.location.name > b.targetInventory.inventory.location.name ? 1 : -1
-        )
-        .map(async (pickingWSD: WorksheetDetail) => {
-          const targetInventory: OrderInventory = pickingWSD.targetInventory
-          const inventory: Inventory = targetInventory.inventory
-          return {
-            name: pickingWSD.name,
-            palletId: inventory.palletId,
-            batchId: inventory.batchId,
-            product: inventory.product,
-            qty: inventory.qty,
-            releaseQty: targetInventory.releaseQty,
-            status: pickingWSD.status,
-            description: pickingWSD.description,
-            targetName: targetInventory.name,
-            packingType: inventory.packingType,
-            location: inventory.location
-          }
-        })
+      worksheetDetailInfos: worksheetDetails.map(async (pickingWSD: WorksheetDetail) => {
+        const targetInventory: OrderInventory = pickingWSD.targetInventory
+        const inventory: Inventory = targetInventory.inventory
+        return {
+          name: pickingWSD.name,
+          palletId: inventory.palletId,
+          batchId: inventory.batchId,
+          product: inventory.product,
+          qty: inventory.qty,
+          releaseQty: targetInventory.releaseQty,
+          status: pickingWSD.status,
+          description: pickingWSD.description,
+          targetName: targetInventory.name,
+          packingType: inventory.packingType,
+          location: inventory.location
+        }
+      })
     }
   }
 }
