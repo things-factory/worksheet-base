@@ -3,7 +3,7 @@ import { Bizplace, ContactPoint, Partner } from '@things-factory/biz-base'
 import { ORDER_STATUS, DeliveryOrder, OrderInventory, ReleaseGood } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
 import { Equal, getRepository, In } from 'typeorm'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE, TEMPLATE_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const deliveryOrderByWorksheetResolver = {
@@ -35,17 +35,19 @@ export const deliveryOrderByWorksheetResolver = {
       where: { id: foundDomainBizId.domainBizplace.id }
     })
 
-    let foundAttachments = []
-    if (!foundDO) {
-      throw new Error(`Delivery order doesn't exists.`)
-    } else {
-      foundAttachments = await getRepository(Attachment).find({
-        where: {
-          domain: context.state.domain,
-          refBy: foundDO.id
-        }
-      })
-    }
+    const foundTemplate: Attachment = await getRepository(Attachment).findOne({
+      where: {
+        domain: context.state.domain,
+        category: TEMPLATE_TYPE.DO_TEMPLATE
+      }
+    })
+
+    const foundLogo: Attachment = await getRepository(Attachment).findOne({
+      where: {
+        domain: context.state.domain,
+        category: TEMPLATE_TYPE.LOGO
+      }
+    })
 
     const foundWS: Worksheet = await getRepository(Worksheet).findOne({
       where: { domain: context.state.domain, releaseGood: foundRO },
@@ -91,7 +93,8 @@ export const deliveryOrderByWorksheetResolver = {
         domainBizplace: foundDomainBiz.name,
         domainBrn: foundDomainBiz.description,
         domainAddress: foundDomainBiz.address,
-        attachments: foundAttachments,
+        reportURL: foundTemplate.fullpath,
+        logoURL: foundLogo.fullpath,
         ownCollection: foundDO.ownCollection,
         to: foundDO.to || '',
         palletQty: foundDO.palletQty,
