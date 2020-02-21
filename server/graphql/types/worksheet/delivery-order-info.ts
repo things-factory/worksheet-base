@@ -7,8 +7,8 @@ export const DeliveryOrderInfo = gql`
     deliveryDate: String
     partnerBizplace: String
     domainBizplace: String
-    reportURL: String
-    logoURL: String
+    reportPath: String
+    logoPath: String
     domainBrn: String
     updaterName: String
     driverName: String
