@@ -1,70 +1,66 @@
 import { OrderInventory, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
-import { EntityManager, getManager, getRepository } from 'typeorm'
+import { getRepository, createQueryBuilder, SelectQueryBuilder } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const pickingWorksheetResolver = {
-  async pickingWorksheet(_: any, { releaseGoodNo, sortings }, context: any) {
-    return await getManager().transaction(async (trxMgr: EntityManager) => {
-      const releaseGood: ReleaseGood = await getRepository(ReleaseGood).findOne({
-        where: { domain: context.state.domain, name: releaseGoodNo, status: ORDER_STATUS.PICKING },
-        relations: ['bizplace']
-      })
-
-      const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-        where: {
-          domain: context.state.domain,
-          releaseGood,
-          bizplace: releaseGood.bizplace,
-          type: WORKSHEET_TYPE.PICKING,
-          status: WORKSHEET_STATUS.EXECUTING
-        },
-        relations: ['bizplace']
-      })
-
-      const order = sortings.reduce((obj: {}, sorting: { name: string; desc: boolean }) => {
-        return {
-          ...obj,
-          [sorting.name]: sorting.desc ? 'DESC' : 'ASC'
-        }
-      }, {})
-
-      const worksheetDetails: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
-        where: { worksheet },
-        relations: [
-          'targetInventory',
-          'targetInventory.inventory',
-          'targetInventory.inventory.location',
-          'targetInventory.inventory.product'
-        ],
-        order
-      })
-
-      return {
-        worksheetInfo: {
-          bizplaceName: releaseGood.bizplace.name,
-          startedAt: worksheet.startedAt,
-          refNo: releaseGood.refNo
-        },
-        worksheetDetailInfos: worksheetDetails.map(async (pickingWSD: WorksheetDetail) => {
-          const targetInventory: OrderInventory = pickingWSD.targetInventory
-          const inventory: Inventory = targetInventory.inventory
-          return {
-            name: pickingWSD.name,
-            palletId: inventory.palletId,
-            batchId: inventory.batchId,
-            product: inventory.product,
-            qty: inventory.qty,
-            releaseQty: targetInventory.releaseQty,
-            status: pickingWSD.status,
-            description: pickingWSD.description,
-            targetName: targetInventory.name,
-            packingType: inventory.packingType,
-            location: inventory.location
-          }
-        })
-      }
+  async pickingWorksheet(_: any, { releaseGoodNo, locationSortingRules }, context: any) {
+    const releaseGood: ReleaseGood = await getRepository(ReleaseGood).findOne({
+      where: { domain: context.state.domain, name: releaseGoodNo, status: ORDER_STATUS.PICKING },
+      relations: ['bizplace']
     })
+
+    const worksheet: Worksheet = await getRepository(Worksheet).findOne({
+      where: {
+        domain: context.state.domain,
+        releaseGood,
+        bizplace: releaseGood.bizplace,
+        type: WORKSHEET_TYPE.PICKING,
+        status: WORKSHEET_STATUS.EXECUTING
+      },
+      relations: ['bizplace']
+    })
+
+    const qb: SelectQueryBuilder<WorksheetDetail> = createQueryBuilder(WorksheetDetail, 'WSD')
+    qb.leftJoinAndSelect('WSD.targetInventory', 'T_INV')
+      .leftJoinAndSelect('T_INV.inventory', 'INV')
+      .leftJoinAndSelect('INV.location', 'LOC')
+      .leftJoinAndSelect('INV.product', 'PROD')
+
+    if (locationSortingRules?.length > 0) {
+      locationSortingRules.forEach((rule: { name: string; desc: boolean }) => {
+        qb.addOrderBy(`LOC.${rule.name}`, rule.desc ? 'DESC' : 'ASC')
+      })
+    }
+
+    const worksheetDetails: WorksheetDetail[] = await qb
+      .where('"WSD"."worksheet_id" = :worksheetId', { worksheetId: worksheet.id })
+      .getMany()
+
+    return {
+      worksheetInfo: {
+        bizplaceName: releaseGood.bizplace.name,
+        startedAt: worksheet.startedAt,
+        refNo: releaseGood.refNo
+      },
+      worksheetDetailInfos: worksheetDetails.map(async (pickingWSD: WorksheetDetail) => {
+        const targetInventory: OrderInventory = pickingWSD.targetInventory
+        const inventory: Inventory = targetInventory.inventory
+        return {
+          name: pickingWSD.name,
+          palletId: inventory.palletId,
+          batchId: inventory.batchId,
+          product: inventory.product,
+          qty: inventory.qty,
+          releaseQty: targetInventory.releaseQty,
+          status: pickingWSD.status,
+          description: pickingWSD.description,
+          targetName: targetInventory.name,
+          packingType: inventory.packingType,
+          location: inventory.location
+        }
+      })
+    }
   }
 }
