@@ -2,7 +2,6 @@ import { ArrivalNoticeWorksheet } from './arrival-notice-worksheet'
 import { DeliveryInfo } from './delivery-info'
 import { DeliveryWorksheet } from './delivery-worksheet'
 import { ExecutingWorksheet } from './executing-worksheet'
-import { LoadedInventoryInfo } from './loaded-inventory-info'
 import { DeliveryOrderInfo } from './delivery-order-info'
 import { ContactPointInfo } from './contact-point-info'
 import { GoodsDeliveryNote } from './goods-delivery-note'
@@ -184,7 +183,6 @@ export const Types = [
   ReleaseGoodWorksheet,
   DeliveryOrderInfo,
   GoodsDeliveryNote,
-  LoadedInventoryInfo,
   ContactPointInfo,
   VasOrderWorksheet,
   WorksheetInfo,
