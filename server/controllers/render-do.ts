@@ -97,7 +97,7 @@ export async function renderDO({ domain: domainName, doNo }) {
     driver_name: foundDriver || '',
     pallet_qty: foundDO.palletQty,
     worker_name: foundWS.updater.name,
-    product_list: foundWSD.map(async (wsd: WorksheetDetail, idx) => {
+    product_list: foundWSD.map((wsd: WorksheetDetail, idx) => {
       const targetInventory: OrderInventory = wsd.targetInventory
       const inventory: Inventory = targetInventory.inventory
       return {
