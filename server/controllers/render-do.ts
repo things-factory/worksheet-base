@@ -82,9 +82,10 @@ export async function renderDO({ domain: domainName, doNo }) {
     }
   }
 
-  const template = await STORAGE.readFile(foundTemplate.path)
+  const template = await STORAGE.readFile(foundTemplate.path, 'utf-8')
+  const logo = 'data:' + foundLogo.mimetype + ';base64,' + (await STORAGE.readFile(foundLogo.path, 'base64'))
   const data = {
-    logo_url: 'http://localhost:3000' + foundLogo.fullpath, // for the test...
+    logo_url: logo,
     customer_biz: partnerBiz.name,
     company_domain: foundDomainBiz.name,
     company_brn: foundDomainBiz.description,
