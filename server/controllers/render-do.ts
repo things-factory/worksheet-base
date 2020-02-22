@@ -84,7 +84,7 @@ export async function renderDO({ domain: domainName, doNo }) {
 
   const template = await STORAGE.readFile(foundTemplate.path)
   const data = {
-    logo_url: foundLogo.fullpath, // this one is OK i think.
+    logo_url: 'http://localhost:3000' + foundLogo.fullpath, // for the test...
     customer_biz: partnerBiz.name,
     company_domain: foundDomainBiz.name,
     company_brn: foundDomainBiz.description,
@@ -93,8 +93,8 @@ export async function renderDO({ domain: domainName, doNo }) {
     ref_no: foundRO.name,
     order_no: foundDO.name,
     delivery_date: foundDO.deliveryDate || '',
-    truck_no: foundDriver,
-    driver_name: foundDO.driverName || '',
+    truck_no: foundDO.truckNo,
+    driver_name: foundDriver || '',
     pallet_qty: foundDO.palletQty,
     worker_name: foundWS.updater.name,
     product_list: foundWSD.map(async (wsd: WorksheetDetail, idx) => {
@@ -107,7 +107,8 @@ export async function renderDO({ domain: domainName, doNo }) {
         product_description: inventory.product.description,
         product_batch: inventory.batchId,
         product_qty: targetInventory.releaseQty,
-        product_weight: targetInventory.releaseWeight
+        product_weight: targetInventory.releaseWeight,
+        remark: targetInventory.remark || ''
       }
     })
   } //.. make data from do
