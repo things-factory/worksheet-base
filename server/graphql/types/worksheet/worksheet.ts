@@ -7,9 +7,12 @@ export const Worksheet = gql`
     bizplace: Bizplace
     bufferLocation: Location
     arrivalNotice: ArrivalNotice
+    orderProducts: [OrderProduct]
     releaseGood: ReleaseGood
+    orderInventories: [OrderInventory]
     shippingOrder: ShippingOrder
     vasOrder: VasOrder
+    orderVass: [OrderVas]
     name: String
     description: String
     type: String
