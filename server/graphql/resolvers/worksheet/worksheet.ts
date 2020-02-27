@@ -47,7 +47,7 @@ export const worksheetResolver = {
       worksheet.orderProducts = await getRepository(OrderProduct).find({
         where: {
           domain: context.state.domain,
-          bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user)),
+          bizplace: worksheet.bizplace,
           arrivalNotice: worksheet.arrivalNotice
         }
       })
@@ -55,7 +55,7 @@ export const worksheetResolver = {
       worksheet.orderVass = await getRepository(OrderVas).find({
         where: {
           domain: context.state.domain,
-          bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user)),
+          bizplace: worksheet.bizplace,
           arrivalNotice: worksheet.arrivalNotice
         }
       })
@@ -65,16 +65,16 @@ export const worksheetResolver = {
       worksheet.orderInventories = await getRepository(OrderInventory).find({
         where: {
           domain: context.state.domain,
-          bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user)),
-          releaseOrder: worksheet.releaseGood
+          bizplace: worksheet.bizplace,
+          releaseGood: worksheet.releaseGood
         }
       })
 
       worksheet.orderVass = await getRepository(OrderVas).find({
         where: {
           domain: context.state.domain,
-          bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user)),
-          arrivalNotice: worksheet.releaseGood
+          bizplace: worksheet.bizplace,
+          releaseGood: worksheet.releaseGood
         }
       })
     }
@@ -83,8 +83,8 @@ export const worksheetResolver = {
       worksheet.orderVass = await getRepository(OrderVas).find({
         where: {
           domain: context.state.domain,
-          bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user)),
-          arrivalNotice: worksheet.vasOrder
+          bizplace: worksheet.bizplace,
+          vasOrder: worksheet.vasOrder
         }
       })
     }
