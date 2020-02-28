@@ -1,16 +1,9 @@
 import { OrderInventory, ORDER_INVENTORY_STATUS, ReleaseGood } from '@things-factory/sales-base'
-import {
-  Inventory,
-  InventoryNoGenerator,
-  INVENTORY_STATUS,
-  INVENTORY_TRANSACTION_TYPE,
-  Location,
-  LOCATION_STATUS
-} from '@things-factory/warehouse-base'
+import { Inventory, INVENTORY_STATUS, INVENTORY_TRANSACTION_TYPE, Location } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { checkPalletDuplication, generateInventoryHistory, switchLocationStatus } from '../../../utils'
+import { generateInventoryHistory, switchLocationStatus } from '../../../utils'
 
 export const returning = {
   async returning(_: any, { worksheetDetailName, palletId, toLocation }, context: any) {
@@ -45,7 +38,8 @@ export const returning = {
 
       const originLocation: Location = inventory.location
       const originPalletId: string = inventory.palletId
-      // 3. get to location object
+
+      // 3. get stored location object
       const foundLocation: Location = await trxMgr.getRepository(Location).findOne({
         where: { domain: context.state.domain, name: toLocation },
         relations: ['warehouse']
@@ -55,8 +49,7 @@ export const returning = {
       const isPalletDiff: boolean = originPalletId !== palletId
       const isLocationDiff: boolean = originLocation.id !== foundLocation.id
 
-      if (foundLocation.status !== LOCATION_STATUS.EMPTY && (isPalletDiff || isLocationDiff))
-        throw new Error(`Location is already occupied.`)
+      if (isPalletDiff) throw new Error(`Pallet ID is not matched`)
 
       // Case 1. Return back with SAME PALLET and SAME LOCATION.
       //      1) sum stored qty and returned qty
@@ -74,55 +67,14 @@ export const returning = {
         //      1). a. if yes throw error (Pallet ID can't be duplicated)
         //      1). b. if no (update qty and status and location)
       } else if (!isPalletDiff && isLocationDiff) {
-        const isDuplicated: boolean = await checkPalletDuplication(
-          context.state.domain,
-          worksheetDetail.bizplace,
-          palletId,
-          trxMgr
-        )
-        if (isDuplicated) throw new Error('Pallet ID is duplicated.')
-
         inventory = await trxMgr.getRepository(Inventory).save({
           ...inventory,
+          location: foundLocation,
           qty: inventory.qty + targetInventory.releaseQty,
           weight: inventory.weight + targetInventory.releaseWeight,
           status: INVENTORY_STATUS.STORED,
           updater: context.state.user
         })
-
-        // Case 3. Return back with DIFF PALLET and SAME LOCATION.
-        //      1) Check pallet duplication
-        //      1) a. if yes throw error (Pallet ID can't be duplicated)
-        //      2) Check existing of stored pallet in the location
-        //      2) a. if yes throw error (Multiple pallet can't be stored in single location)
-        //      3) Create new inventory which has origin inventory as ref_inventory
-      } else {
-        const isDuplicated: boolean = await checkPalletDuplication(
-          context.state.domain,
-          worksheetDetail.bizplace,
-          palletId,
-          trxMgr
-        )
-        if (isDuplicated) throw new Error('Pallet ID is duplicated.')
-
-        const newInventory: Inventory = {
-          ...inventory,
-          domain: context.state.domain,
-          bizplace: worksheetDetail.bizplace,
-          name: InventoryNoGenerator.inventoryName(),
-          palletId,
-          qty: targetInventory.releaseQty,
-          weight: targetInventory.releaseWeight,
-          status: INVENTORY_STATUS.STORED,
-          refInventory: inventory,
-          warehouse: foundLocation.warehouse,
-          location: foundLocation,
-          zone: foundLocation.zone,
-          creator: context.state.user,
-          updater: context.state.user
-        }
-        delete newInventory.id
-        inventory = await trxMgr.getRepository(Inventory).save(newInventory)
       }
 
       await generateInventoryHistory(
