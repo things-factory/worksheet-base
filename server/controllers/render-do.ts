@@ -44,6 +44,10 @@ export async function renderDO({ domain: domainName, doNo }) {
     where: { id: foundDomainBizId.domainBizplace.id }
   })
 
+  const foundDomainCP: ContactPoint = await getRepository(ContactPoint).findOne({
+    where: { domain, bizplace: foundDomainBiz }
+  })
+
   const foundWS: Worksheet = await getRepository(Worksheet).findOne({
     where: { domain, releaseGood: foundRO },
     relations: ['updater']
@@ -105,6 +109,8 @@ export async function renderDO({ domain: domainName, doNo }) {
     company_domain: foundDomainBiz.name,
     company_brn: foundDomainBiz.description,
     company_address: foundDomainBiz.address,
+    company_phone: foundDomainCP.phone,
+    company_email: foundDomainCP.email,
     own_collection: ownTransportFlag ? '[SELF-COLLECTION]' : `[${domain.brandName} TRANSPORT]`,
     destination: foundDO.to || '',
     ref_no: ownRefNo ? `${foundRO.name} / ${foundRO.refNo}` : `${foundRO.name}`,
