@@ -1,5 +1,5 @@
 import { Attachment, STORAGE } from '@things-factory/attachment-base'
-import { Bizplace, Partner } from '@things-factory/biz-base'
+import { Bizplace, Partner, ContactPoint } from '@things-factory/biz-base'
 import { config } from '@things-factory/env'
 import { DeliveryOrder, OrderInventory, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
@@ -21,8 +21,18 @@ export async function renderDO({ domain: domainName, doNo }) {
     relations: ['domain', 'bizplace', 'transportDriver', 'transportVehicle', 'releaseGood', 'creator', 'updater']
   }) // .. find do from deliveryOrderId
 
+  const ownTransportFlag: Boolean = foundDO.ownCollection
+
+  let foundCP: ContactPoint = null
+  if (foundDO?.contactPointRefId) {
+    foundCP = await getRepository(ContactPoint).findOne({
+      where: { domain, id: foundDO.contactPointRefId }
+    })
+  }
+
   const foundRO: ReleaseGood = foundDO.releaseGood
   const partnerBiz: Bizplace = foundDO.bizplace //customer bizplace
+  const ownRefNo = foundRO.refNo
 
   // find domain bizplace name, address, brn
   const foundDomainBizId: Partner = await getRepository(Partner).findOne({
@@ -62,7 +72,7 @@ export async function renderDO({ domain: domainName, doNo }) {
     ]
   })
 
-  var foundTemplate: Attachment = await getRepository(Attachment).findOne({
+  const foundTemplate: Attachment = await getRepository(Attachment).findOne({
     where: { domain, category: TEMPLATE_TYPE.DO_TEMPLATE }
   })
 
@@ -83,15 +93,21 @@ export async function renderDO({ domain: domainName, doNo }) {
   }
 
   const template = await STORAGE.readFile(foundTemplate.path, 'utf-8')
-  const logo = 'data:' + foundLogo.mimetype + ';base64,' + (await STORAGE.readFile(foundLogo.path, 'base64'))
+  let logo = null
+  if (foundLogo?.path) {
+    logo = 'data:' + foundLogo.mimetype + ';base64,' + (await STORAGE.readFile(foundLogo.path, 'base64'))
+  }
+
   const data = {
     logo_url: logo,
     customer_biz: partnerBiz.name,
+    delivery_company: foundCP ? foundCP.name : null,
     company_domain: foundDomainBiz.name,
     company_brn: foundDomainBiz.description,
     company_address: foundDomainBiz.address,
+    own_collection: ownTransportFlag ? '[SELF-COLLECTION]' : `[${domain.brandName} TRANSPORT]`,
     destination: foundDO.to || '',
-    ref_no: foundRO.name,
+    ref_no: ownRefNo ? `${foundRO.name} / ${foundRO.refNo}` : `${foundRO.name}`,
     order_no: foundDO.name,
     delivery_date: foundDO.deliveryDate || '',
     truck_no: foundDO.truckNo,
@@ -103,7 +119,7 @@ export async function renderDO({ domain: domainName, doNo }) {
       const inventory: Inventory = targetInventory.inventory
       return {
         list_no: idx + 1,
-        product_name: inventory.product.name,
+        product_name: `${inventory.product.name} (${inventory.product.description})`,
         product_type: inventory.packingType,
         product_description: inventory.product.description,
         product_batch: inventory.batchId,

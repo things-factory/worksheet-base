@@ -27,6 +27,7 @@ export const deliveryOrderByWorksheetResolver = {
       },
       contactPointInfo: partnerContactPoint.map(async (cp: ContactPoint) => {
         return {
+          id: cp.id,
           address: cp.address || '',
           email: cp.email || '',
           fax: cp.fax || '',
