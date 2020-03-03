@@ -15,7 +15,7 @@ import { WorksheetInfo } from './worksheet-info'
 import { WorksheetList } from './worksheet-list'
 import { WorksheetPatch } from './worksheet-patch'
 
-export const Mutation = `
+export const Mutation = /* GraphQL */ `
   createWorksheet (
     worksheet: NewWorksheet!
   ): Worksheet
@@ -160,7 +160,7 @@ export const Mutation = `
   ): Boolean
 `
 
-export const Query = `
+export const Query = /* GraphQL */ `
   worksheets(filters: [Filter], pagination: Pagination, sortings: [Sorting]): WorksheetList
   worksheet(name: String!): Worksheet
   unloadingWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet

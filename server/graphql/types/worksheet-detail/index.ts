@@ -16,13 +16,20 @@ export const Mutation = /* GraphQL */ `
   deleteWorksheetDetail (
     id: String!
   ): Boolean
+
+  generateReleaseGoodWorksheetDetails (
+    worksheetNo: String!
+    batchId: String!
+    productName: String!
+    packingType: String!
+    orderInventories: [NewOrderInventory]
+  ): Boolean
 `
 
 export const Query = /* GraphQL */ `
   worksheetDetails(filters: [Filter], pagination: Pagination, sortings: [Sorting]): WorksheetDetailList
   worksheetDetail(name: String!): WorksheetDetail
   worksheetDetailsByProductGroup(worksheet: String!, batchId: String!, productName: String!, packingType: String!): WorksheetDetailList
-  generateReleaseGoodWorksheetDetailsResolver(worksheetNo: String!, batchId: String!, productName: String!, packingType: String!, orderInventories: [NewOrderInventory])
 `
 
 export const Types = [WorksheetDetail, NewWorksheetDetail, WorksheetDetailPatch, WorksheetDetailList]

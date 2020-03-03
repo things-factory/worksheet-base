@@ -1,9 +1,8 @@
+import { OrderInventory, OrderNoGenerator, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
 import { EntityManager, getManager } from 'typeorm'
-import { OrderNoGenerator, ORDER_TYPES, OrderInventory, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { Inventory } from '@things-factory/warehouse-base'
-import { WorksheetNoGenerator } from 'server/utils'
-import { WORKSHEET_TYPE, WORKSHEET_STATUS } from 'server/constants'
+import { WorksheetNoGenerator } from '../../../utils'
 
 export const generateReleaseGoodWorksheetDetailsResolver = {
   async generateReleaseGoodWorksheetDetails(
