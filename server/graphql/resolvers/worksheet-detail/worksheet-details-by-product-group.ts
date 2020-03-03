@@ -2,9 +2,9 @@ import { SelectQueryBuilder, getRepository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const worksheetDetailsByProductGroupResolver = {
-  async worksheetDetailsByProductGroup(_: any, { worksheetId, batchId, productName, packingType }, context: any) {
+  async worksheetDetailsByProductGroup(_: any, { worksheetNo, batchId, productName, packingType }, context: any) {
     const worksheet: Worksheet = await getRepository(Worksheet).findOne({
-      where: { id: worksheetId },
+      where: { domain: context.state.domain, name: worksheetNo },
       relations: ['bizplace']
     })
     if (!worksheet) throw new Error(`Couldn't find worksheet`)
@@ -17,8 +17,8 @@ export const worksheetDetailsByProductGroupResolver = {
       .andWhere('"WSD"."domain_id" = :domainId')
       .andWhere('"WSD"."bizplace_id" = :bizplaceId')
       .andWhere('"ORD_INV"."batch_id" = :batchId')
-      .andWhere('"ORD_INV"."productName" = :productName')
-      .andWhere('"ORD_INV"."packingType" = :packingType')
+      .andWhere('"ORD_INV"."product_name" = :productName')
+      .andWhere('"ORD_INV"."packing_type" = :packingType')
       .setParameters({
         domainId: context.state.domain.id,
         bizplaceId,
