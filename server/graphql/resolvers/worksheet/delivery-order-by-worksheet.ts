@@ -12,6 +12,8 @@ export const deliveryOrderByWorksheetResolver = {
       relations: ['domain', 'bizplace', 'transportDriver', 'transportVehicle', 'releaseGood', 'creator', 'updater']
     })
 
+    if (!foundDO) throw new Error('Delivery order not found!')
+
     const partnerBiz: Bizplace = await getRepository(Bizplace).findOne({
       where: { id: foundDO.bizplace.id }
     })
@@ -23,7 +25,8 @@ export const deliveryOrderByWorksheetResolver = {
     return {
       deliveryOrderInfo: {
         ownCollection: foundDO.ownCollection,
-        doStatus: foundDO.status
+        doStatus: foundDO.status,
+        truckNo: foundDO.truckNo
       },
       contactPointInfo: partnerContactPoint.map(async (cp: ContactPoint) => {
         return {
