@@ -4,12 +4,12 @@ export const NewWorksheetDetail = gql`
   input NewWorksheetDetail {
     name: String
     description: String
-    type: String!
+    type: String
     worksheet: ObjectRef
     worker: ObjectRef
     targetProduct: ObjectRef
     targetVas: ObjectRef
-    targetInventory: ObjectRef
+    targetInventory: OrderInventoryPatch
     fromLocation: ObjectRef
     toLocation: ObjectRef
     status: String

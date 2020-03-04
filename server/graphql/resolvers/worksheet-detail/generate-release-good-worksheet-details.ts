@@ -40,7 +40,7 @@ export const generateReleaseGoodWorksheetDetailsResolver = {
         worksheetDetails.map(async (wsd: WorksheetDetail) => {
           // 2. Create order inventory
           let targetInventory: OrderInventory = wsd.targetInventory
-          const inventory: Inventory = trxMgr.getRepository(Inventory).findOne(targetInventory.inventory.id)
+          const inventory: Inventory = await trxMgr.getRepository(Inventory).findOne(targetInventory.inventory.id)
 
           targetInventory = await trxMgr.getRepository(OrderInventory).save({
             ...targetInventory,
