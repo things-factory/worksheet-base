@@ -13,7 +13,10 @@ export const worksheetDetailsByProductGroupResolver = {
 
     const qb: SelectQueryBuilder<WorksheetDetail> = getRepository(WorksheetDetail).createQueryBuilder('WSD')
     const [items, total] = await qb
-      .leftJoin('WSD.targetInventory', 'ORD_INV')
+      .leftJoinAndSelect('WSD.targetInventory', 'ORD_INV')
+      .leftJoinAndSelect('ORD_INV.inventory', 'INV')
+      .leftJoinAndSelect('INV.location', 'LOC')
+      .leftJoinAndSelect('INV.product', 'PROD')
       .andWhere('"WSD"."domain_id" = :domainId')
       .andWhere('"WSD"."bizplace_id" = :bizplaceId')
       .andWhere('"ORD_INV"."batch_id" = :batchId')

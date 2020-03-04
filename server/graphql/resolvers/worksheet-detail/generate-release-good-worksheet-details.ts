@@ -3,6 +3,7 @@ import { EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils'
+import { Inventory } from '@things-factory/warehouse-base'
 
 export const generateReleaseGoodWorksheetDetailsResolver = {
   async generateReleaseGoodWorksheetDetails(
@@ -29,28 +30,31 @@ export const generateReleaseGoodWorksheetDetailsResolver = {
 
       // TODO: Delete order inventories
       if (prevWSDs?.length) {
-        const prevOrderInvIds: string[] = prevWSDs.map((wsd: WorksheetDetail) => wsd.targetInventory.id)
         const wsdIds: string[] = prevWSDs.map((wsd: WorksheetDetail) => wsd.id)
-        await trxMgr.getRepository(OrderInventory).delete(prevOrderInvIds)
+        const prevOrderInvIds: string[] = prevWSDs.map((wsd: WorksheetDetail) => wsd.targetInventory.id)
         await trxMgr.getRepository(WorksheetDetail).delete(wsdIds)
+        await trxMgr.getRepository(OrderInventory).delete(prevOrderInvIds)
       }
 
       // 2. Create order inventories
-      let orderInvs: OrderInventory[] = orderInventories.map((ordInv: OrderInventory) => {
-        return {
-          ...ordInv,
-          domain: context.state.domain,
-          bizplace: worksheet.bizplace,
-          name: OrderNoGenerator.orderInventory(),
-          releaseGood: worksheet.releaseGood,
-          batchId,
-          status: ORDER_INVENTORY_STATUS.READY_TO_PICK,
-          productName,
-          packingType,
-          creator: context.state.user,
-          updater: context.state.user
-        }
-      })
+      let orderInvs: OrderInventory[] = await Promise.all(
+        orderInventories.map(async (ordInv: OrderInventory) => {
+          return {
+            ...ordInv,
+            domain: context.state.domain,
+            bizplace: worksheet.bizplace,
+            name: OrderNoGenerator.orderInventory(),
+            releaseGood: worksheet.releaseGood,
+            inventory: await trxMgr.getRepository(Inventory).findOne(ordInv.inventory.id),
+            batchId,
+            status: ORDER_INVENTORY_STATUS.READY_TO_PICK,
+            productName,
+            packingType,
+            creator: context.state.user,
+            updater: context.state.user
+          }
+        })
+      )
 
       orderInvs = await trxMgr.getRepository(OrderInventory).save(orderInvs)
       // 3. Create picking worksheet details
