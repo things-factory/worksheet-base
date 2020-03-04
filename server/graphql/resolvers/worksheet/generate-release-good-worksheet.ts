@@ -61,11 +61,11 @@ export const generateReleaseGoodWorksheet = {
       // })
       // await txMgr.getRepository(WorksheetDetail).save(pickingWorksheetDetails)
 
-      // 2. 2) Update status of order inventories (PENDING_RECEIVE => READY_TO_PICK)
+      // 2. 2) Update status of order inventories (PENDING_RECEIVE => PENDING_SPLIT)
       foundOIs = foundOIs.map((oi: OrderInventory) => {
         return {
           ...oi,
-          status: ORDER_INVENTORY_STATUS.READY_TO_PICK,
+          status: ORDER_INVENTORY_STATUS.PENDING_SPLIT,
           updater: context.state.user
         }
       })

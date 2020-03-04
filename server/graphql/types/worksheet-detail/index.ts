@@ -29,7 +29,7 @@ export const Mutation = /* GraphQL */ `
 export const Query = /* GraphQL */ `
   worksheetDetails(filters: [Filter], pagination: Pagination, sortings: [Sorting]): WorksheetDetailList
   worksheetDetail(name: String!): WorksheetDetail
-  worksheetDetailsByProductGroup(worksheet: String!, batchId: String!, productName: String!, packingType: String!): WorksheetDetailList
+  worksheetDetailsByProductGroup(worksheetNo: String!, batchId: String!, productName: String!, packingType: String!): WorksheetDetailList
 `
 
 export const Types = [WorksheetDetail, NewWorksheetDetail, WorksheetDetailPatch, WorksheetDetailList]

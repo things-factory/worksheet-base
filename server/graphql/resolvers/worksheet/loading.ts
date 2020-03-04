@@ -114,7 +114,6 @@ export const loading = {
             status: ORDER_INVENTORY_STATUS.LOADING,
             releaseQty: remainQty,
             releaseWeight: remainWeight,
-            seq: lastSeq + 1,
             creator: context.state.user,
             updater: context.state.user
           }

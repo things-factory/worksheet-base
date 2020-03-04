@@ -27,12 +27,13 @@ export const generateReleaseGoodWorksheetDetailsResolver = {
           return wsd.id
       })
 
-      if (prevWSDs?.length)
-        await trxMgr.getRepository(WorksheetDetail).delete(prevWSDs.map((wsd: WorksheetDetail) => wsd.id))
-
-      trxMgr.getRepository(OrderInventory).find({
-        where: { domain: context.state.domain }
-      })
+      // TODO: Delete order inventories
+      if (prevWSDs?.length) {
+        const prevOrderInvIds: string[] = prevWSDs.map((wsd: WorksheetDetail) => wsd.targetInventory.id)
+        const wsdIds: string[] = prevWSDs.map((wsd: WorksheetDetail) => wsd.id)
+        await trxMgr.getRepository(OrderInventory).delete(prevOrderInvIds)
+        await trxMgr.getRepository(WorksheetDetail).delete(wsdIds)
+      }
 
       // 2. Create order inventories
       let orderInvs: OrderInventory[] = orderInventories.map((ordInv: OrderInventory) => {
