@@ -22,7 +22,7 @@ export const Mutation = /* GraphQL */ `
     batchId: String!
     productName: String!
     packingType: String!
-    orderInventories: [NewOrderInventory]
+    worksheetDetails: [NewWorksheetDetail]
   ): Boolean
 `
 

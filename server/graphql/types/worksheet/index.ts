@@ -69,7 +69,6 @@ export const Mutation = /* GraphQL */ `
 
   activatePicking (
     worksheetNo: String!
-    pickingWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet
 
   unload (

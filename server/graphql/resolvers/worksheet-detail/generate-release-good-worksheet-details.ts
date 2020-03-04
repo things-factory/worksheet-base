@@ -8,7 +8,7 @@ import { Inventory } from '@things-factory/warehouse-base'
 export const generateReleaseGoodWorksheetDetailsResolver = {
   async generateReleaseGoodWorksheetDetails(
     _: any,
-    { worksheetNo, batchId, productName, packingType, orderInventories },
+    { worksheetNo, batchId, productName, packingType, worksheetDetails },
     context: any
   ): Promise<void> {
     return await getManager().transaction(async (trxMgr: EntityManager) => {
@@ -36,43 +36,42 @@ export const generateReleaseGoodWorksheetDetailsResolver = {
         await trxMgr.getRepository(OrderInventory).delete(prevOrderInvIds)
       }
 
-      // 2. Create order inventories
-      let orderInvs: OrderInventory[] = await Promise.all(
-        orderInventories.map(async (ordInv: OrderInventory) => {
-          return {
-            ...ordInv,
+      await Promise.all(
+        worksheetDetails.map(async (wsd: WorksheetDetail) => {
+          // 2. Create order inventory
+          let targetInventory: OrderInventory = wsd.targetInventory
+          const inventory: Inventory = trxMgr.getRepository(Inventory).findOne(targetInventory.inventory.id)
+
+          targetInventory = await trxMgr.getRepository(OrderInventory).save({
+            ...targetInventory,
             domain: context.state.domain,
             bizplace: worksheet.bizplace,
             name: OrderNoGenerator.orderInventory(),
             releaseGood: worksheet.releaseGood,
-            inventory: await trxMgr.getRepository(Inventory).findOne(ordInv.inventory.id),
+            inventory,
             batchId,
             status: ORDER_INVENTORY_STATUS.READY_TO_PICK,
             productName,
             packingType,
             creator: context.state.user,
             updater: context.state.user
-          }
+          })
+
+          // 3. Create worksheet details
+          await trxMgr.getRepository(WorksheetDetail).save({
+            ...wsd,
+            domain: context.state.domain,
+            bizplace: worksheet.bizplace,
+            worksheet,
+            name: WorksheetNoGenerator.pickingDetail(),
+            targetInventory,
+            type: WORKSHEET_TYPE.PICKING,
+            status: WORKSHEET_STATUS.DEACTIVATED,
+            creator: context.state.user,
+            updater: context.state.user
+          })
         })
       )
-
-      orderInvs = await trxMgr.getRepository(OrderInventory).save(orderInvs)
-      // 3. Create picking worksheet details
-      const pickingWorksheetDetails: any[] = orderInvs.map((oi: OrderInventory) => {
-        return {
-          domain: context.state.domain,
-          bizplace: worksheet.bizplace,
-          worksheet,
-          name: WorksheetNoGenerator.pickingDetail(),
-          targetInventory: oi,
-          type: WORKSHEET_TYPE.PICKING,
-          status: WORKSHEET_STATUS.DEACTIVATED,
-          creator: context.state.user,
-          updater: context.state.user
-        }
-      }) as WorksheetDetail[]
-
-      await trxMgr.getRepository(WorksheetDetail).save(pickingWorksheetDetails)
     })
   }
 }
