@@ -7,7 +7,7 @@ import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils'
-import { executePikcing } from './picking'
+import { executePicking } from './picking'
 
 export const replacePickingPalletsResolver = {
   async replacePickingPallets(_: any, { worksheetDetailName, inventories, returnLocation }, context: any) {
@@ -93,7 +93,7 @@ export const replacePickingPalletsResolver = {
           })
 
           // 6. execute picking transaction
-          await executePikcing(
+          await executePicking(
             wsd.name,
             inventory.palletId,
             foundInv.location.name,

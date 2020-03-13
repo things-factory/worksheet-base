@@ -10,7 +10,7 @@ import { User } from '@things-factory/auth-base'
 export const picking = {
   async picking(_: any, { worksheetDetailName, palletId, locationName, releaseQty }, context: any) {
     return await getManager().transaction(async trxMgr => {
-      await executePikcing(
+      await executePicking(
         worksheetDetailName,
         palletId,
         locationName,
@@ -23,7 +23,7 @@ export const picking = {
   }
 }
 
-export async function executePikcing(
+export async function executePicking(
   worksheetDetailName: string,
   palletId: string,
   locationName: string,
