@@ -36,6 +36,7 @@ export const pickingWorksheetResolver = {
 
     const worksheetDetails: WorksheetDetail[] = await qb
       .where('"WSD"."worksheet_id" = :worksheetId', { worksheetId: worksheet.id })
+      .andWhere('"WSD"."status" != :status', { status: WORKSHEET_STATUS.REPLACED })
       .getMany()
 
     return {
