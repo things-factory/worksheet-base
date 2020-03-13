@@ -48,7 +48,13 @@ export const replacePickingPalletsResolver = {
         updater: user
       })
 
-      // 3. create new order inventories
+      // 3. update status of prev worksheet detail
+      await trxMgr.getRepository(WorksheetDetail).save({
+        ...prevWSD,
+        status: WORKSHEET_STATUS.REPLACED,
+        updater: user
+      })
+
       await Promise.all(
         inventories.map(async (inventory: Inventory) => {
           const foundInv: Inventory = await trxMgr.getRepository(Inventory).findOne({
@@ -56,6 +62,7 @@ export const replacePickingPalletsResolver = {
             relations: ['location']
           })
           const unitWeight: number = foundInv.weight / foundInv.qty
+          // 4. create new order inventories
           const targetInventory: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
             domain,
             bizplace: customerBizplace,
@@ -72,7 +79,7 @@ export const replacePickingPalletsResolver = {
             updater: user
           })
 
-          // 4. create new worksheet details
+          // 5. create new worksheet details
           const wsd: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).save({
             domain,
             bizplace: customerBizplace,
@@ -85,7 +92,7 @@ export const replacePickingPalletsResolver = {
             updater: user
           })
 
-          // 5. execute picking transaction
+          // 6. execute picking transaction
           await executePikcing(
             wsd.name,
             inventory.palletId,
