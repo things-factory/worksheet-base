@@ -45,27 +45,27 @@ export const generateReleaseGoodWorksheet = {
         updater: context.state.user
       })
 
-      // 2. 2) Create picking worksheet details
-      const pickingWorksheetDetails = foundOIs.map((oi: OrderInventory) => {
-        return {
-          domain: context.state.domain,
-          bizplace: customerBizplace,
-          worksheet: pickingWorksheet,
-          name: WorksheetNoGenerator.pickingDetail(),
-          targetInventory: oi,
-          type: WORKSHEET_TYPE.PICKING,
-          status: WORKSHEET_STATUS.DEACTIVATED,
-          creator: context.state.user,
-          updater: context.state.user
-        }
-      })
-      await txMgr.getRepository(WorksheetDetail).save(pickingWorksheetDetails)
+      // // 2. 2) Create picking worksheet details
+      // const pickingWorksheetDetails = foundOIs.map((oi: OrderInventory) => {
+      //   return {
+      //     domain: context.state.domain,
+      //     bizplace: customerBizplace,
+      //     worksheet: pickingWorksheet,
+      //     name: WorksheetNoGenerator.pickingDetail(),
+      //     targetInventory: oi,
+      //     type: WORKSHEET_TYPE.PICKING,
+      //     status: WORKSHEET_STATUS.DEACTIVATED,
+      //     creator: context.state.user,
+      //     updater: context.state.user
+      //   }
+      // })
+      // await txMgr.getRepository(WorksheetDetail).save(pickingWorksheetDetails)
 
-      // 2. 4) Update status of order inventories (PENDING_RECEIVE => READY_TO_PICK)
+      // 2. 2) Update status of order inventories (PENDING_RECEIVE => PENDING_SPLIT)
       foundOIs = foundOIs.map((oi: OrderInventory) => {
         return {
           ...oi,
-          status: ORDER_INVENTORY_STATUS.READY_TO_PICK,
+          status: ORDER_INVENTORY_STATUS.PENDING_SPLIT,
           updater: context.state.user
         }
       })

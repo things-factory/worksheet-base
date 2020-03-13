@@ -1,10 +1,17 @@
 import { getPermittedBizplaceIds } from '@things-factory/biz-base'
+import { OrderInventory, OrderProduct, OrderVas } from '@things-factory/sales-base'
 import { getRepository, In } from 'typeorm'
 import { Worksheet } from '../../../entities'
 
+interface IWorksheet extends Worksheet {
+  orderProducts: OrderProduct[]
+  orderInventories: OrderInventory[]
+  orderVass: OrderVas[]
+}
+
 export const worksheetResolver = {
   async worksheet(_: any, { name }, context: any) {
-    return await getRepository(Worksheet).findOne({
+    const worksheet: IWorksheet = (await getRepository(Worksheet).findOne({
       where: {
         domain: context.state.domain,
         bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user)),
@@ -34,6 +41,54 @@ export const worksheetResolver = {
         'creator',
         'updater'
       ]
-    })
+    })) as IWorksheet
+
+    if (worksheet?.arrivalNotice?.id) {
+      worksheet.orderProducts = await getRepository(OrderProduct).find({
+        where: {
+          domain: context.state.domain,
+          bizplace: worksheet.bizplace,
+          arrivalNotice: worksheet.arrivalNotice
+        }
+      })
+
+      worksheet.orderVass = await getRepository(OrderVas).find({
+        where: {
+          domain: context.state.domain,
+          bizplace: worksheet.bizplace,
+          arrivalNotice: worksheet.arrivalNotice
+        }
+      })
+    }
+
+    if (worksheet?.releaseGood?.id) {
+      worksheet.orderInventories = await getRepository(OrderInventory).find({
+        where: {
+          domain: context.state.domain,
+          bizplace: worksheet.bizplace,
+          releaseGood: worksheet.releaseGood
+        }
+      })
+
+      worksheet.orderVass = await getRepository(OrderVas).find({
+        where: {
+          domain: context.state.domain,
+          bizplace: worksheet.bizplace,
+          releaseGood: worksheet.releaseGood
+        }
+      })
+    }
+
+    if (worksheet?.vasOrder?.id) {
+      worksheet.orderVass = await getRepository(OrderVas).find({
+        where: {
+          domain: context.state.domain,
+          bizplace: worksheet.bizplace,
+          vasOrder: worksheet.vasOrder
+        }
+      })
+    }
+
+    return worksheet
   }
 }

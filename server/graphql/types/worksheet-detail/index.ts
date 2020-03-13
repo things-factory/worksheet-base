@@ -3,7 +3,7 @@ import { WorksheetDetail } from './worksheet-detail'
 import { WorksheetDetailList } from './worksheet-detail-list'
 import { WorksheetDetailPatch } from './worksheet-detail-patch'
 
-export const Mutation = `
+export const Mutation = /* GraphQL */ `
   createWorksheetDetail (
     worksheetDetail: NewWorksheetDetail!
   ): WorksheetDetail
@@ -16,11 +16,20 @@ export const Mutation = `
   deleteWorksheetDetail (
     id: String!
   ): Boolean
+
+  generateReleaseGoodWorksheetDetails (
+    worksheetNo: String!
+    batchId: String!
+    productName: String!
+    packingType: String!
+    worksheetDetails: [NewWorksheetDetail]
+  ): Boolean
 `
 
-export const Query = `
+export const Query = /* GraphQL */ `
   worksheetDetails(filters: [Filter], pagination: Pagination, sortings: [Sorting]): WorksheetDetailList
   worksheetDetail(name: String!): WorksheetDetail
+  worksheetDetailsByProductGroup(worksheetNo: String!, batchId: String!, productName: String!, packingType: String!): WorksheetDetailList
 `
 
 export const Types = [WorksheetDetail, NewWorksheetDetail, WorksheetDetailPatch, WorksheetDetailList]

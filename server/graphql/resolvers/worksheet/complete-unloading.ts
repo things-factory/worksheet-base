@@ -153,7 +153,6 @@ export const completeUnloading = {
               inventories.map(async (inventory: Inventory) => {
                 const targetInventory: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
                   name: OrderNoGenerator.orderInventory(),
-                  seq: inventory.lastSeq,
                   releaseQty: inventory.qty,
                   status: ORDER_PRODUCT_STATUS.UNLOADED,
                   arrivalNotice,

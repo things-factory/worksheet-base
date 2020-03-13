@@ -5,7 +5,7 @@ import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const activatePicking = {
-  async activatePicking(_: any, { worksheetNo, pickingWorksheetDetails }, context: any) {
+  async activatePicking(_: any, { worksheetNo }, context: any) {
     return await getManager().transaction(async trxMgr => {
       /**
        * 1. Validation for worksheet
@@ -23,40 +23,22 @@ export const activatePicking = {
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
-      const customerBizplace: Bizplace = foundWorksheet.bizplace
-      const foundWSDs: WorksheetDetail[] = foundWorksheet.worksheetDetails
+      let foundWSDs: WorksheetDetail[] = foundWorksheet.worksheetDetails
       let targetInventories: OrderInventory[] = foundWSDs.map((foundWSD: WorksheetDetail) => foundWSD.targetInventory)
 
       /**
-       * 2. Update description and status of picking worksheet details (status: DEACTIVATED => EXECUTING)
+       * 2. Update status of picking worksheet details (status: DEACTIVATED => EXECUTING)
        */
-      await Promise.all(
-        pickingWorksheetDetails.map(async (pickingWorksheetDetail: WorksheetDetail) => {
-          await trxMgr.getRepository(WorksheetDetail).update(
-            {
-              domain: context.state.domain,
-              bizplace: customerBizplace,
-              name: pickingWorksheetDetail.name,
-              status: WORKSHEET_STATUS.DEACTIVATED
-            },
-            {
-              description: pickingWorksheetDetail.description,
-              status: WORKSHEET_STATUS.EXECUTING,
-              updater: context.state.user
-            }
-          )
-        })
-      )
+      foundWSDs = foundWSDs.map((wsd: WorksheetDetail) => {
+        return { ...wsd, status: WORKSHEET_STATUS.EXECUTING, updater: context.state.user }
+      })
+      await trxMgr.getRepository(WorksheetDetail).save(foundWSDs)
 
       /**
        * 3. Update target inventories (status: READY_TO_PICK => PICKING)
        */
-      targetInventories = targetInventories.map((targetInventory: OrderInventory) => {
-        return {
-          ...targetInventory,
-          status: ORDER_INVENTORY_STATUS.PICKING,
-          updater: context.state.user
-        }
+      targetInventories = targetInventories.map((ordInv: OrderInventory) => {
+        return { ...ordInv, status: ORDER_INVENTORY_STATUS.PICKING, updater: context.state.user }
       })
       await trxMgr.getRepository(OrderInventory).save(targetInventories)
 
@@ -79,6 +61,16 @@ export const activatePicking = {
         status: ORDER_STATUS.PICKING,
         updater: context.state.user
       })
+
+      /**
+       * 6. Update PENDING_SPLIT order products (status: PENDING_SPLIT => TERMINATED)
+       */
+      const pendingSplitOrderInvs: OrderInventory[] = await trxMgr.getRepository(OrderInventory).find({
+        where: { domain: context.state.domain, releaseGood, status: ORDER_INVENTORY_STATUS.PENDING_SPLIT }
+      })
+      await trxMgr
+        .getRepository(OrderInventory)
+        .delete(pendingSplitOrderInvs.map((ordInv: OrderInventory) => ordInv.id))
 
       return worksheet
     })

@@ -3,7 +3,7 @@ import { WorksheetMovement } from './worksheet-movement'
 import { WorksheetMovementList } from './worksheet-movement-list'
 import { WorksheetMovementPatch } from './worksheet-movement-patch'
 
-export const Mutation = `
+export const Mutation = /* GraphQL */ `
   createWorksheetMovement (
     worksheetMovement: NewWorksheetMovement!
   ): WorksheetMovement
@@ -22,7 +22,7 @@ export const Mutation = `
   ): WorksheetMovement
 `
 
-export const Query = `
+export const Query = /* GraphQL */ `
   worksheetMovements(filters: [Filter], pagination: Pagination, sortings: [Sorting]): WorksheetMovementList
   worksheetMovement(id: String!): WorksheetMovement
 `
