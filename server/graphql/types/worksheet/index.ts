@@ -157,6 +157,12 @@ export const Mutation = /* GraphQL */ `
     approvedProducts: [ObjectRef]!
     rejectedProducts: [ObjectRef]!
   ): Boolean
+
+  replacePickingPallets (
+    worksheetDetailName: String!
+    inventories: [InventoryPatch]!
+    returnLocation: String
+  ): Boolean
 `
 
 export const Query = /* GraphQL */ `
