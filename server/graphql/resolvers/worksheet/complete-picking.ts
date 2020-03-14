@@ -1,5 +1,5 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { OrderInventory, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
+import { OrderInventory, ORDER_STATUS, ORDER_INVENTORY_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { sendNotification } from '@things-factory/shell'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -36,6 +36,11 @@ export const completePicking = {
       const worksheetDetails: WorksheetDetail[] = foundPickingWorksheet.worksheetDetails
       const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
 
+      // filter out replaced inventory
+      const pickedtargetInv: OrderInventory[] = targetInventories.filter(
+        (targetInv: OrderInventory) => targetInv.status === ORDER_INVENTORY_STATUS.PICKED
+      )
+
       // Update status and endedAt of worksheet
       await trxMgr.getRepository(Worksheet).save({
         ...foundPickingWorksheet,
@@ -57,7 +62,7 @@ export const completePicking = {
       })
 
       // 2) Create loading worksheet details
-      const loadingWorksheetDetails = targetInventories.map((targetInventory: OrderInventory) => {
+      const loadingWorksheetDetails = pickedtargetInv.map((targetInventory: OrderInventory) => {
         return {
           domain: context.state.domain,
           bizplace: customerBizplace,
