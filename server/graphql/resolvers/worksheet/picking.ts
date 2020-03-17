@@ -79,9 +79,7 @@ export async function executePicking(
   inventory = await trxMgr.getRepository(Inventory).save({
     ...inventory,
     qty: inventory.qty - targetInventory.releaseQty,
-    lockedQty: inventory.lockedQty - targetInventory.releaseQty,
     weight: inventory.weight - targetInventory.releaseWeight,
-    lockedWeight: inventory.lockedWeight - targetInventory.releaseWeight,
     updater: user
   })
 
