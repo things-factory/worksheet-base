@@ -67,7 +67,8 @@ export const worksheetResolver = {
           domain: context.state.domain,
           bizplace: worksheet.bizplace,
           releaseGood: worksheet.releaseGood
-        }
+        },
+        relations: ['inventory', 'inventory.location']
       })
 
       worksheet.orderVass = await getRepository(OrderVas).find({

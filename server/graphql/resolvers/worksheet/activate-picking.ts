@@ -68,9 +68,11 @@ export const activatePicking = {
       const pendingSplitOrderInvs: OrderInventory[] = await trxMgr.getRepository(OrderInventory).find({
         where: { domain: context.state.domain, releaseGood, status: ORDER_INVENTORY_STATUS.PENDING_SPLIT }
       })
-      await trxMgr
-        .getRepository(OrderInventory)
-        .delete(pendingSplitOrderInvs.map((ordInv: OrderInventory) => ordInv.id))
+      if (pendingSplitOrderInvs?.length) {
+        await trxMgr
+          .getRepository(OrderInventory)
+          .delete(pendingSplitOrderInvs.map((ordInv: OrderInventory) => ordInv.id))
+      }
 
       return worksheet
     })

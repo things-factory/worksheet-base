@@ -22,7 +22,7 @@ export const generateReleaseGoodWorksheet = {
           bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user)),
           status: ORDER_STATUS.PENDING_RECEIVE
         },
-        relations: ['bizplace', 'orderInventories', 'orderVass']
+        relations: ['bizplace', 'orderInventories', 'orderInventories.inventory', 'orderVass']
       })
 
       if (!foundReleaseGood) throw new Error(`Release good doesn't exsits.`)
@@ -45,27 +45,31 @@ export const generateReleaseGoodWorksheet = {
         updater: context.state.user
       })
 
-      // // 2. 2) Create picking worksheet details
-      // const pickingWorksheetDetails = foundOIs.map((oi: OrderInventory) => {
-      //   return {
-      //     domain: context.state.domain,
-      //     bizplace: customerBizplace,
-      //     worksheet: pickingWorksheet,
-      //     name: WorksheetNoGenerator.pickingDetail(),
-      //     targetInventory: oi,
-      //     type: WORKSHEET_TYPE.PICKING,
-      //     status: WORKSHEET_STATUS.DEACTIVATED,
-      //     creator: context.state.user,
-      //     updater: context.state.user
-      //   }
-      // })
-      // await txMgr.getRepository(WorksheetDetail).save(pickingWorksheetDetails)
+      let oiStatus: string = ORDER_INVENTORY_STATUS.PENDING_SPLIT
+      if (foundOIs.every((oi: OrderInventory) => oi?.inventory?.id)) {
+        // 2. 2) Create picking worksheet details
+        const pickingWorksheetDetails = foundOIs.map((oi: OrderInventory) => {
+          return {
+            domain: context.state.domain,
+            bizplace: customerBizplace,
+            worksheet: pickingWorksheet,
+            name: WorksheetNoGenerator.pickingDetail(),
+            targetInventory: oi,
+            type: WORKSHEET_TYPE.PICKING,
+            status: WORKSHEET_STATUS.DEACTIVATED,
+            creator: context.state.user,
+            updater: context.state.user
+          }
+        })
+        await txMgr.getRepository(WorksheetDetail).save(pickingWorksheetDetails)
+        oiStatus = ORDER_INVENTORY_STATUS.READY_TO_PICK
+      }
 
       // 2. 2) Update status of order inventories (PENDING_RECEIVE => PENDING_SPLIT)
       foundOIs = foundOIs.map((oi: OrderInventory) => {
         return {
           ...oi,
-          status: ORDER_INVENTORY_STATUS.PENDING_SPLIT,
+          status: oiStatus,
           updater: context.state.user
         }
       })
