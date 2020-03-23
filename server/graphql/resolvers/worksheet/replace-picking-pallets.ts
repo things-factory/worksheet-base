@@ -1,6 +1,12 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { OrderInventory, OrderNoGenerator, ORDER_INVENTORY_STATUS, ReleaseGood } from '@things-factory/sales-base'
+import {
+  ORDER_TYPES,
+  OrderInventory,
+  OrderNoGenerator,
+  ORDER_INVENTORY_STATUS,
+  ReleaseGood
+} from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory, Location } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
@@ -26,9 +32,9 @@ export const replacePickingPalletsResolver = {
 
       const worksheet: Worksheet = prevWSD.worksheet
       const releaseGood: ReleaseGood = worksheet.releaseGood
-      const customerBizplace: Bizplace = worksheet.bizplace
+      const customerBizplace: Bizplace = prevWSD.bizplace
 
-      // 1. update location of prev inventory if it's should be returned back to the location
+      // 1. update location of prev inventory if it should be returned back to the location
       if (returnLocation) {
         const location: Location = await trxMgr.getRepository(Location).findOne({
           where: { name: returnLocation }
@@ -72,6 +78,7 @@ export const replacePickingPalletsResolver = {
             releaseWeight: unitWeight * inventory.qty,
             inventory: foundInv,
             batchId,
+            type: ORDER_TYPES.RELEASE_OF_GOODS,
             status: ORDER_INVENTORY_STATUS.PICKING,
             productName,
             packingType,
