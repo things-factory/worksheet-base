@@ -97,6 +97,11 @@ export const Mutation = /* GraphQL */ `
     toLocation: String!
   ): Boolean
 
+  undoPutaway (
+    worksheetDetailName: String!
+    palletId: String!
+  ): Boolean
+
   returning (
     worksheetDetailName: String!
     palletId: String!

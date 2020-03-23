@@ -1,30 +1,33 @@
-import { OrderInventory, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
-import { Inventory, INVENTORY_STATUS, Location, LOCATION_STATUS } from '@things-factory/warehouse-base'
+import { ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
+import {
+  Inventory,
+  INVENTORY_STATUS,
+  INVENTORY_TRANSACTION_TYPE,
+  Location,
+  LOCATION_STATUS
+} from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
+import { generateInventoryHistory } from '../../../utils'
 
 export const undoPutaway = {
-  async undoPutaway(_: any, { worksheetDetail, inventory }, context: any) {
+  async undoPutaway(_: any, { worksheetDetailName, palletId }, context: any) {
     return await getManager().transaction(async trxMgr => {
-      const worksheetDetailName = worksheetDetail.name
-      const palletId = inventory.palletId
-
       // 1. update status of worksheetDetail (DONE => EXECUTING)
       const foundWorksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
         where: { domain: context.state.domain, name: worksheetDetailName, status: WORKSHEET_STATUS.DONE },
-        relations: ['bizplace', 'fromLocation', 'toLocation', 'targetInventory']
+        relations: ['worksheet', 'worksheet.arrivalNotice', 'bizplace', 'fromLocation', 'toLocation', 'targetInventory']
       })
 
       if (!foundWorksheetDetail) throw new Error("Worksheet doesn't exists")
+      const arrivalNotice: ArrivalNotice = foundWorksheetDetail.worksheet.arrivalNotice
       const targetInventory: OrderInventory = foundWorksheetDetail.targetInventory
-      if (targetInventory.status !== ORDER_PRODUCT_STATUS.PUTTING_AWAY) {
-        await trxMgr.getRepository(OrderInventory).save({
-          ...targetInventory,
-          status: ORDER_PRODUCT_STATUS.PUTTING_AWAY,
-          updater: context.state.user
-        })
-      }
+      await trxMgr.getRepository(OrderInventory).save({
+        ...targetInventory,
+        status: ORDER_PRODUCT_STATUS.PUTTING_AWAY,
+        updater: context.state.user
+      })
 
       await trxMgr.getRepository(WorksheetDetail).save({
         ...foundWorksheetDetail,
@@ -50,7 +53,8 @@ export const undoPutaway = {
         })
       }
 
-      await trxMgr.getRepository(Inventory).save({
+      // Update (Revert back) status and location of inventory
+      const inventory: Inventory = await trxMgr.getRepository(Inventory).save({
         ...foundInventory,
         location: await trxMgr.getRepository(Location).findOne({
           where: { domain: context.state.domain, name: foundWorksheetDetail.fromLocation.name }
@@ -58,6 +62,17 @@ export const undoPutaway = {
         status: INVENTORY_STATUS.UNLOADED,
         updater: context.state.user
       })
+
+      // Generate inventory history
+      await generateInventoryHistory(
+        inventory,
+        arrivalNotice,
+        INVENTORY_TRANSACTION_TYPE.UNDO_PUTAWAY,
+        0,
+        0,
+        context.state.user,
+        trxMgr
+      )
     })
   }
 }
