@@ -20,6 +20,8 @@ import { loading } from './loading'
 import { undoLoading } from './undo-loading'
 import { picking } from './picking'
 import { pickingWorksheetResolver } from './picking-worksheet'
+import { pendingCancellationReleaseOrder } from './pending-cancellation-release-order'
+import { confirmCancellationReleaseOrder } from './confirm-cancellation-release-order'
 import { putaway } from './putaway'
 import { putawayWorksheetResolver } from './putaway-worksheet'
 import { transfer } from './transfer'
@@ -84,5 +86,7 @@ export const Mutation = {
   ...undoVas,
   ...completeVas,
   ...proceedExtraProductsResolver,
-  ...replacePickingPalletsResolver
+  ...replacePickingPalletsResolver,
+  ...pendingCancellationReleaseOrder,
+  ...confirmCancellationReleaseOrder
 }

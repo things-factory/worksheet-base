@@ -163,6 +163,14 @@ export const Mutation = /* GraphQL */ `
     inventories: [InventoryPatch]!
     returnLocation: String
   ): Boolean
+
+  pendingCancellationReleaseOrder (
+    name: String!
+  ): Boolean
+
+  confirmCancellationReleaseOrder (
+    name: String!
+  ): Boolean
 `
 
 export const Query = /* GraphQL */ `
