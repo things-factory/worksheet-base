@@ -42,16 +42,18 @@ export const pendingCancellationReleaseOrder = {
         })
         await trxMgr.getRepository(OrderInventory).save(targetOIs)
       } else if (foundRO.status === ORDER_STATUS.PICKING) {
-        const pickingOIs = targetOIs.filter((oi: OrderInventory) => oi.status === ORDER_INVENTORY_STATUS.PICKING)
+        const pickingOIs: OrderInventory[] = targetOIs.filter(
+          (oi: OrderInventory) => oi.status === ORDER_INVENTORY_STATUS.PICKING
+        )
 
-        pickingOIs.map((oi: OrderInventory) => {
+        const pendingCancelOIs = pickingOIs.map((targetOI: OrderInventory) => {
           return {
-            ...oi,
+            ...targetOI,
             status: ORDER_INVENTORY_STATUS.PENDING_CANCEL,
             updater: context.state.user
           }
         })
-        await trxMgr.getRepository(OrderInventory).save(pickingOIs)
+        await trxMgr.getRepository(OrderInventory).save(pendingCancelOIs)
       }
 
       // update status of order vass to PENDING_CANCEL

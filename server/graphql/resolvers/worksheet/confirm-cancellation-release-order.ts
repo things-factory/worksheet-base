@@ -6,7 +6,6 @@ import {
   InventoryHistory
 } from '@things-factory/warehouse-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { sendNotification } from '@things-factory/shell'
 import { getManager, In } from 'typeorm'
 import {
   ORDER_INVENTORY_STATUS,
@@ -39,12 +38,16 @@ export const confirmCancellationReleaseOrder = {
 
       // 1. Check Order Inventory status
       // 1a. separate into two groups, group 1: pending cancel, group 2: picked
-      const cancelOI = targetOIs.filter((oi: OrderInventory) => oi.status === ORDER_INVENTORY_STATUS.PENDING_CANCEL)
-      const pickedOI = targetOIs.filter((oi: OrderInventory) => oi.status === ORDER_INVENTORY_STATUS.PICKED)
+      const cancelOI: OrderInventory[] = targetOIs.filter(
+        (oi: OrderInventory) => oi.status === ORDER_INVENTORY_STATUS.PENDING_CANCEL
+      )
+      const pickedOI: OrderInventory[] = targetOIs.filter(
+        (oi: OrderInventory) => oi.status === ORDER_INVENTORY_STATUS.PICKED
+      )
 
       if (pickedOI && pickedOI.length) {
         // revert the picked inventory qty, weight, status, seq that has execute half way or all
-        pickedOI.map(async (oi: OrderInventory) => {
+        const cancelledOI = pickedOI.map(async (oi: OrderInventory) => {
           let inventory: Inventory = oi.inventory
           let location: Location = inventory.location
 
@@ -58,10 +61,10 @@ export const confirmCancellationReleaseOrder = {
           })
 
           // find seq at PICKING transaction type
-          foundInvHistory.filter(
+          const pickingInvHis = foundInvHistory.filter(
             (invHistory: InventoryHistory) => invHistory.transactionType === ORDER_INVENTORY_STATUS.PICKING
           )
-          const pickingSeq: any = foundInvHistory.map((invHistory: InventoryHistory) => invHistory.seq)
+          const pickingSeq: any = pickingInvHis.map((invHistory: InventoryHistory) => invHistory.seq)
 
           inventory = await trxMgr.getRepository(Inventory).save({
             ...inventory,
@@ -87,24 +90,26 @@ export const confirmCancellationReleaseOrder = {
             updater: context.state.user
           }
         })
-        await trxMgr.getRepository(OrderInventory).save(pickedOI)
+        await trxMgr.getRepository(OrderInventory).save(cancelledOI)
       }
 
       // change status to cancelled for order inventory that has not executed yet
-      cancelOI.map(async (oi: OrderInventory) => {
+      const cancelledOI = cancelOI.map(async (oi: OrderInventory) => {
         return {
           ...oi,
           status: ORDER_INVENTORY_STATUS.CANCELLED,
           updater: context.state.user
         }
       })
-      await trxMgr.getRepository(OrderInventory).save(cancelOI)
+      await trxMgr.getRepository(OrderInventory).save(cancelledOI)
 
       // remove history terminated and picking transaction type
-      const invHistory: InventoryHistory[] = await trxMgr.getRepository(InventoryHistory).find({
+      let invHistory: InventoryHistory[] = await trxMgr.getRepository(InventoryHistory).find({
         where: { domain: context.state.domain, refOrderId: foundRO.id }
       })
-      await trxMgr.getRepository(InventoryHistory).delete(invHistory)
+      if (invHistory && invHistory.length) {
+        await trxMgr.getRepository(InventoryHistory).delete(invHistory)
+      }
 
       // update status of order vass to CANCELLED
       if (foundOVs && foundOVs.length) {
