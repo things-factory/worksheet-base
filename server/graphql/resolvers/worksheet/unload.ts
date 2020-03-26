@@ -35,7 +35,6 @@ export const unload = {
         where: {
           domain: context.state.domain,
           name: worksheetDetailName,
-          status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.UNLOADING
         },
         relations: [

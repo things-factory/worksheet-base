@@ -1,6 +1,6 @@
 import { ArrivalNotice, Bizplace } from '@things-factory/sales-base'
 import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
-import { getRepository } from 'typeorm'
+import { getRepository, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
 
@@ -11,7 +11,7 @@ export const unloadedInventories = {
         domain: context.state.domain,
         name: worksheetDetailName,
         type: WORKSHEET_TYPE.UNLOADING,
-        status: WORKSHEET_STATUS.EXECUTING
+        status: In([WORKSHEET_STATUS.EXECUTING, WORKSHEET_STATUS.PARTIALLY_UNLOADED])
       },
       relations: ['bizplace', 'targetProduct', 'worksheet', 'worksheet.arrivalNotice', 'worksheet.bufferLocation']
     })

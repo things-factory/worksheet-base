@@ -5,6 +5,7 @@ import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager, Repository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
+import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 
 export const completeUnloadingPartiallyResolver = {
   async completeUnloadingPartially(_: any, { arrivalNoticeNo, worksheetDetail }, context: any) {
@@ -13,6 +14,7 @@ export const completeUnloadingPartiallyResolver = {
       const wsRepo: Repository<Worksheet> = trxMgr.getRepository(Worksheet)
       const wsdRepo: Repository<WorksheetDetail> = trxMgr.getRepository(WorksheetDetail)
       const ordProdRepo: Repository<OrderProduct> = trxMgr.getRepository(OrderProduct)
+      const invRepo: Repository<Inventory> = trxMgr.getRepository(Inventory)
       /**
        * @description
        * Do validation for arrival notice
@@ -25,7 +27,7 @@ export const completeUnloadingPartiallyResolver = {
         where: { domain, name: arrivalNoticeNo, status: ORDER_STATUS.PROCESSING },
         relations: ['bizplace', 'orderProducts']
       })
-      if (arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
+      if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
 
       const bizplace: Bizplace = arrivalNotice.bizplace
       /**
@@ -68,6 +70,21 @@ export const completeUnloadingPartiallyResolver = {
       await ordProdRepo.save({
         ...orderProduct,
         status: ORDER_PRODUCT_STATUS.PARTIALLY_UNLOADED
+      })
+
+      /**
+       * @description
+       * Update status of inventories to PARTIALLY_UNLOADED
+       */
+      let inventories: Inventory[] = await invRepo.find({
+        where: { domain, refOrderId: arrivalNotice.id, orderProduct }
+      })
+      inventories = inventories.map((inv: Inventory) => {
+        return {
+          ...inv,
+          status: INVENTORY_STATUS.PARTIALLY_UNLOADED,
+          updater: user
+        }
       })
     })
   }
