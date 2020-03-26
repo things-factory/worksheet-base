@@ -135,7 +135,7 @@ export const confirmCancellationReleaseOrder = {
       let foundWSD: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
         where: {
           domain: context.state.domain,
-          targetInventory: In(targetOIs)
+          targetInventory: In(targetOIs.map((oi: OrderInventory) => oi.id))
         }
       })
 
