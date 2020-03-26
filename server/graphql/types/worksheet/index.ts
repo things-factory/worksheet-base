@@ -81,6 +81,11 @@ export const Mutation = /* GraphQL */ `
     palletId: String!
   ): Boolean
 
+  completeUnloadingPartially (
+    arrivalNoticeNo: String!
+    worksheetDetail: WorksheetDetailPatch!
+  ): Boolean
+
   completeUnloading (
     arrivalNoticeNo: String!
     worksheetDetails: [WorksheetDetailPatch]
