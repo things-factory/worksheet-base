@@ -101,6 +101,10 @@ export const confirmCancellationReleaseOrder = {
       await trxMgr.getRepository(OrderInventory).save(cancelOI)
 
       // remove history terminated and picking transaction type
+      const invHistory: InventoryHistory[] = await trxMgr.getRepository(InventoryHistory).find({
+        where: { domain: context.state.domain, refOrderId: foundRO.id }
+      })
+      await trxMgr.getRepository(InventoryHistory).delete(invHistory)
 
       // update status of order vass to CANCELLED
       if (foundOVs && foundOVs.length) {
@@ -153,38 +157,6 @@ export const confirmCancellationReleaseOrder = {
         status: ORDER_STATUS.CANCELLED,
         updater: context.state.user
       })
-
-      // notification logics
-      // get Customer by bizplace
-      const users: any[] = await trxMgr
-        .getRepository('bizplaces_users')
-        .createQueryBuilder('bu')
-        .select('bu.users_id', 'id')
-        .where(qb => {
-          const subQuery = qb
-            .subQuery()
-            .select('bizplace.id')
-            .from(Bizplace, 'bizplace')
-            .where('bizplace.name = :bizplaceName', { bizplaceName: customerBizplace.name })
-            .getQuery()
-          return 'bu.bizplace_id = ' + subQuery
-        })
-        .getRawMany()
-
-      // send notification to Customer Users
-      if (users?.length) {
-        const msg = {
-          title: `${foundRO.name} has been cancelled`,
-          message: `Your cancellation has been received and confirmed.`,
-          url: context.header.referer
-        }
-        users.forEach(user => {
-          sendNotification({
-            receiver: user.id,
-            message: JSON.stringify(msg)
-          })
-        })
-      }
 
       return
     })

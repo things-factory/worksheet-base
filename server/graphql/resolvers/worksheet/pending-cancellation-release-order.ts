@@ -36,7 +36,7 @@ export const pendingCancellationReleaseOrder = {
         targetOIs = targetOIs.map((orderInv: OrderInventory) => {
           return {
             ...orderInv,
-            status: ORDER_VAS_STATUS.PENDING_CANCEL,
+            status: ORDER_INVENTORY_STATUS.PENDING_CANCEL,
             updater: context.state.user
           }
         })
