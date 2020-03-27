@@ -6,7 +6,7 @@ import {
   Location,
   LOCATION_STATUS
 } from '@things-factory/warehouse-base'
-import { getManager } from 'typeorm'
+import { getManager, In } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { generateInventoryHistory } from '../../../utils'
@@ -15,7 +15,11 @@ export const undoUnloading = {
   async undoUnloading(_: any, { worksheetDetailName, palletId }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const foundWorksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
-        where: { domain: context.state.domain, name: worksheetDetailName, status: WORKSHEET_STATUS.EXECUTING },
+        where: {
+          domain: context.state.domain,
+          name: worksheetDetailName,
+          status: In([WORKSHEET_STATUS.EXECUTING, WORKSHEET_STATUS.PARTIALLY_UNLOADED])
+        },
         relations: ['bizplace', 'targetProduct', 'worksheet', 'worksheet.arrivalNotice']
       })
 

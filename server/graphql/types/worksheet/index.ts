@@ -34,6 +34,11 @@ export const Mutation = /* GraphQL */ `
     bufferLocation: ObjectRef!
   ): ArrivalNoticeWorksheet
 
+  generatePutawayWorksheet (
+    arrivalNoticeNo: String!
+    inventories: [InventoryPatch]!
+  ): Boolean
+
   generateReleaseGoodWorksheet (
     releaseGoodNo: String!
   ): ReleaseGoodWorksheet
@@ -192,7 +197,7 @@ export const Query = /* GraphQL */ `
   pickingWorksheet(releaseGoodNo: String!, locationSortingRules: [Sorting]): ExecutingWorksheet
 `
 
-export const Types = [
+export const Types = /* GraphQL */ [
   Worksheet,
   NewWorksheet,
   WorksheetPatch,

@@ -1,20 +1,13 @@
-import { Bizplace } from '@things-factory/biz-base'
 import { Role } from '@things-factory/auth-base'
+import { Bizplace } from '@things-factory/biz-base'
+import { ArrivalNotice, OrderProduct, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { sendNotification } from '@things-factory/shell'
-import {
-  ArrivalNotice,
-  OrderInventory,
-  OrderNoGenerator,
-  OrderProduct,
-  ORDER_PRODUCT_STATUS,
-  ORDER_STATUS
-} from '@things-factory/sales-base'
 import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { EntityManager, Equal, getManager, getRepository, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { WorksheetNoGenerator } from '../../../utils'
 import { activatePutaway } from './activate-putaway'
+import { generatePutawayWorksheet } from './generate-putaway-worksheet'
 
 export const completeUnloading = {
   async completeUnloading(_: any, { arrivalNoticeNo, worksheetDetails }, context: any) {
@@ -119,63 +112,20 @@ export const completeUnloading = {
           })
         }
 
-        /**
-         * 7. Create putaway worksheet
-         */
-        const putawayWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).save({
-          domain: context.state.domain,
-          arrivalNotice: arrivalNotice,
-          bizplace: customerBizplace,
-          name: WorksheetNoGenerator.putaway(),
-          type: WORKSHEET_TYPE.PUTAWAY,
-          status: WORKSHEET_STATUS.DEACTIVATED,
-          bufferLocation: foundWorksheet.bufferLocation,
-          creator: context.state.user,
-          updater: context.state.user
+        const inventories: Inventory[] = await trxMgr.getRepository(Inventory).find({
+          where: {
+            domain: context.state.domain,
+            refOrderId: arrivalNotice.id,
+            bizplace: customerBizplace,
+            status: INVENTORY_STATUS.UNLOADED
+          }
         })
-
-        await Promise.all(
-          foundWorksheetDetails.map(async (worksheetDetail: WorksheetDetail) => {
-            const inventories: Inventory[] = await trxMgr.getRepository(Inventory).find({
-              where: {
-                domain: context.state.domain,
-                refOrderId: arrivalNotice.id,
-                bizplace: customerBizplace,
-                batchId: worksheetDetail.targetProduct.batchId,
-                orderProductId: worksheetDetail.targetProduct.id,
-                location: foundWorksheet.bufferLocation,
-                status: INVENTORY_STATUS.UNLOADED
-              },
-              relations: ['product', 'warehouse', 'location']
-            })
-
-            await Promise.all(
-              inventories.map(async (inventory: Inventory) => {
-                const targetInventory: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
-                  name: OrderNoGenerator.orderInventory(),
-                  releaseQty: inventory.qty,
-                  status: ORDER_PRODUCT_STATUS.UNLOADED,
-                  arrivalNotice,
-                  inventory,
-                  creator: context.state.user,
-                  updater: context.state.user
-                })
-
-                await trxMgr.getRepository(WorksheetDetail).save({
-                  domain: context.state.domain,
-                  bizplace: customerBizplace,
-                  name: WorksheetNoGenerator.putawayDetail(),
-                  type: WORKSHEET_TYPE.PUTAWAY,
-                  worksheet: putawayWorksheet,
-                  targetInventory,
-                  fromLocation: foundWorksheet.bufferLocation,
-                  status: WORKSHEET_STATUS.DEACTIVATED,
-                  creator: context.state.user,
-                  updater: context.state.user
-                })
-              })
-            )
-          })
+        const putawayWorksheet: Worksheet = await generatePutawayWorksheet(
+          context.state.domain,
+          arrivalNotice,
+          inventories,
+          context.state.user,
+          trxMgr
         )
 
         // notification logics
@@ -211,10 +161,7 @@ export const completeUnloading = {
           })
         }
 
-        return await trxMgr.getRepository(Worksheet).findOne({
-          where: { id: foundWorksheet.id },
-          relations: ['arrivalNotice', 'worksheetDetails']
-        })
+        return putawayWorksheet
       }
     )
 

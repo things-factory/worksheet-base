@@ -86,6 +86,8 @@ export const completeUnloadingPartiallyResolver = {
           updater: user
         }
       })
+
+      await invRepo.save(inventories)
     })
   }
 }

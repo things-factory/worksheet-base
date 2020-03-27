@@ -60,6 +60,7 @@ export const unloadingWorksheetResolver = {
           packQty: targetProduct.packQty,
           actualPackQty: targetProduct.actualPackQty,
           remark: targetProduct.remark,
+          issue: productWSD.issue,
           status: productWSD.status
         }
       })
