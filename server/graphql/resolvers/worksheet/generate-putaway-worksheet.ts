@@ -92,7 +92,6 @@ export async function generatePutawayWorksheet(
 
   await Promise.all(
     inventories.map(async (inventory: Inventory) => {
-      inventory = await invRepo.findOne({ where: { ...inventory } })
       await invRepo.save({
         ...inventory,
         status: INVENTORY_STATUS.PUTTING_AWAY,

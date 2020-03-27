@@ -1,5 +1,5 @@
 import { ArrivalNotice } from '@things-factory/sales-base'
-import { INVENTORY_STATUS } from '@things-factory/warehouse-base'
+import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -16,6 +16,7 @@ export const generatePartialPutawayWorksheetResolver = {
         relations: ['bizplace']
       })
 
+      inventories = await trxMgr.getRepository(Inventory).findByIds(inventories.map((inv: Inventory) => inv.id))
       await generatePutawayWorksheet(context.state.domain, arrivalNotice, inventories, context.state.user, trxMgr)
       const unloadingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: { arrivalNotice, type: WORKSHEET_TYPE.UNLOADING },

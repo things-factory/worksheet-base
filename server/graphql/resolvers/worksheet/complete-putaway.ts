@@ -1,7 +1,7 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { Inventory, Location, LOCATION_STATUS } from '@things-factory/warehouse-base'
-import { Equal, getManager, Not } from 'typeorm'
+import { Equal, getManager, Not, In } from 'typeorm'
 import { sendNotification } from '@things-factory/shell'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -14,7 +14,14 @@ export const completePutaway = {
        *    - data existing
        */
       const arrivalNotice: ArrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({
-        where: { domain: context.state.domain, name: arrivalNoticeNo, status: ORDER_STATUS.PUTTING_AWAY },
+        // Because of partial unloading current status of arrivalNotice can be PUTTING_AWAY or PROCESSING
+        // PUTTING_AWAY means unloading is completely finished.
+        // PROCESSING means some products are still being unloaded.
+        where: {
+          domain: context.state.domain,
+          name: arrivalNoticeNo,
+          status: In([ORDER_STATUS.PUTTING_AWAY, ORDER_STATUS.PROCESSING])
+        },
         relations: ['bizplace']
       })
 
