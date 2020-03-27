@@ -77,7 +77,7 @@ export const completeUnloadingPartiallyResolver = {
        * Update status of inventories to PARTIALLY_UNLOADED
        */
       let inventories: Inventory[] = await invRepo.find({
-        where: { domain, refOrderId: arrivalNotice.id, orderProduct }
+        where: { domain, refOrderId: arrivalNotice.id, orderProduct, status: INVENTORY_STATUS.UNLOADED }
       })
       inventories = inventories.map((inv: Inventory) => {
         return {

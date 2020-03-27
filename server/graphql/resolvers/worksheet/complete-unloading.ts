@@ -1,6 +1,12 @@
 import { Role } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, OrderProduct, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
+import {
+  ArrivalNotice,
+  generateGoodsReceivalNote,
+  OrderProduct,
+  ORDER_PRODUCT_STATUS,
+  ORDER_STATUS
+} from '@things-factory/sales-base'
 import { sendNotification } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { EntityManager, Equal, getManager, getRepository, In, Not } from 'typeorm'
@@ -162,6 +168,15 @@ export const completeUnloading = {
           })
         }
 
+        /**
+         * 6. Generate the Goods Received Note straight away
+         */
+        await generateGoodsReceivalNote(
+          { refNo: arrivalNotice.name, customer: foundWorksheet.bizplace.id },
+          context.state.domain,
+          context.state.user,
+          trxMgr
+        )
         return putawayWorksheet
       }
     )

@@ -39,6 +39,11 @@ export const Mutation = /* GraphQL */ `
     inventories: [InventoryPatch]!
   ): Boolean
 
+  generatePartialPutawayWorksheet (
+    arrivalNoticeNo: String!
+    inventories: [InventoryPatch]!
+  ): Boolean
+
   generateReleaseGoodWorksheet (
     releaseGoodNo: String!
   ): ReleaseGoodWorksheet
