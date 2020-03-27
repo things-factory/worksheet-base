@@ -1,6 +1,6 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderProduct, ORDER_STATUS } from '@things-factory/sales-base'
-import { getRepository } from 'typeorm'
+import { getRepository, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -19,7 +19,7 @@ export const unloadingWorksheetResolver = {
         domain: context.state.domain,
         arrivalNotice,
         bizplace: customerBizplace,
-        type: WORKSHEET_TYPE.UNLOADING,
+        type: In([WORKSHEET_TYPE.UNLOADING, WORKSHEET_TYPE.PUTAWAY]),
         status: WORKSHEET_STATUS.EXECUTING
       },
       relations: [

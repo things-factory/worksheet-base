@@ -1,13 +1,20 @@
 import { ArrivalNotice, OrderInventory, ORDER_STATUS } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
-import { getRepository } from 'typeorm'
+import { getRepository, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const putawayWorksheetResolver = {
   async putawayWorksheet(_: any, { arrivalNoticeNo }, context: any) {
     const arrivalNotice: ArrivalNotice = await getRepository(ArrivalNotice).findOne({
-      where: { domain: context.state.domain, name: arrivalNoticeNo, status: ORDER_STATUS.PUTTING_AWAY },
+      // Because of partial unloading current status of arrivalNotice can be PUTTING_AWAY or PROCESSING
+      // PUTTING_AWAY means unloading is completely finished.
+      // PROCESSING means some products are still being unloaded.
+      where: {
+        domain: context.state.domain,
+        name: arrivalNoticeNo,
+        status: In([ORDER_STATUS.PUTTING_AWAY, ORDER_STATUS.PROCESSING])
+      },
       relations: ['bizplace']
     })
 
