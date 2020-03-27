@@ -8,24 +8,44 @@ import {
   ORDER_TYPES
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, Location } from '@things-factory/warehouse-base'
+import { Inventory, INVENTORY_STATUS, Location } from '@things-factory/warehouse-base'
 import { EntityManager, getManager, getRepository, Repository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils'
 
 export const generatePutawayWorksheetResolver = {
-  async generatePutawayWorksheet(_: any, { arrivaNoticeNo, inventories }, context: any): Promise<void> {
+  async generatePutawayWorksheet(_: any, { arrivalNoticeNo, inventories }, context: any): Promise<void> {
     return await getManager().transaction(async trxMgr => {
       const arrivalNotice: ArrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({
         where: {
           domain: context.state.domain,
-          name: arrivaNoticeNo
+          name: arrivalNoticeNo
         },
         relations: ['bizplace']
       })
 
       await generatePutawayWorksheet(context.state.domain, arrivalNotice, inventories, context.state.user, trxMgr)
+      const unloadingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+        where: { arrivalNotice, type: WORKSHEET_TYPE.UNLOADING },
+        relations: [
+          'worksheetDetails',
+          'worksheetDetails.targetInventory',
+          'worksheetDetails.targetInventory.inventory'
+        ]
+      })
+      const worksheetDetails: WorksheetDetail[] = unloadingWorksheet.worksheetDetails
+      await Promise.all(
+        worksheetDetails.map(async (wsd: WorksheetDetail) => {
+          if (wsd?.targetInventory?.inventory?.status !== INVENTORY_STATUS.PARTIALLY_UNLOADED) {
+            await trxMgr.getRepository(WorksheetDetail).save({
+              ...wsd,
+              status: WORKSHEET_STATUS.EXECUTING,
+              updater: context.state.user
+            })
+          }
+        })
+      )
     })
   }
 }
@@ -42,6 +62,7 @@ export async function generatePutawayWorksheet(
   const ordInvRepo: Repository<OrderInventory> = trxMgr?.getRepository(OrderInventory) || getRepository(OrderInventory)
   const worksheetDetailRepo: Repository<WorksheetDetail> =
     trxMgr?.getRepository(WorksheetDetail) || getRepository(WorksheetDetail)
+  const invRepo: Repository<Inventory> = trxMgr?.getRepository(Inventory) || getRepository(Inventory)
 
   if (!arrivalNotice?.id) throw new Error(`Can't find gan id`)
   if (!arrivalNotice?.bizplace?.id) {
@@ -53,7 +74,7 @@ export async function generatePutawayWorksheet(
   const bizplace: Bizplace = arrivalNotice.bizplace
   const unloadingWorksheet: Worksheet = await worksheetRepo.findOne({
     where: { arrivalNotice, type: WORKSHEET_TYPE.UNLOADING },
-    relations: ['bufferLocatoin']
+    relations: ['bufferLocation']
   })
   const bufferLocation: Location = unloadingWorksheet.bufferLocation
 
@@ -64,17 +85,24 @@ export async function generatePutawayWorksheet(
     name: WorksheetNoGenerator.putaway(),
     type: WORKSHEET_TYPE.PUTAWAY,
     status: WORKSHEET_STATUS.DEACTIVATED,
-    bufferLocatoin: unloadingWorksheet.bufferLocation,
+    bufferLocation: unloadingWorksheet.bufferLocation,
     creator: user,
     updater: user
   })
 
   await Promise.all(
     inventories.map(async (inventory: Inventory) => {
+      inventory = await invRepo.findOne({ where: { ...inventory } })
+      await invRepo.save({
+        ...inventory,
+        status: INVENTORY_STATUS.PUTTING_AWAY,
+        updater: user
+      })
+
       const targetInventory: OrderInventory = await ordInvRepo.save({
         domain,
         bizplace,
-        name: OrderNoGenerator.OrderInventory(),
+        name: OrderNoGenerator.orderInventory(),
         releaseQty: inventory.qty,
         status: ORDER_PRODUCT_STATUS.UNLOADED,
         type: ORDER_TYPES.ARRIVAL_NOTICE,
@@ -89,6 +117,7 @@ export async function generatePutawayWorksheet(
         bizplace,
         name: WorksheetNoGenerator.putawayDetail(),
         worksheet: putawayWorksheet,
+        type: WORKSHEET_TYPE.PUTAWAY,
         targetInventory,
         fromLocation: bufferLocation,
         status: WORKSHEET_STATUS.DEACTIVATED,

@@ -120,6 +120,7 @@ export const completeUnloading = {
             status: INVENTORY_STATUS.UNLOADED
           }
         })
+
         const putawayWorksheet: Worksheet = await generatePutawayWorksheet(
           context.state.domain,
           arrivalNotice,
