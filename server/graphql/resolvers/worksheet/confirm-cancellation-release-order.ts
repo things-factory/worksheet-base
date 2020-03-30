@@ -94,7 +94,7 @@ export const confirmCancellationReleaseOrder = {
       }
 
       // change status to cancelled for order inventory that has not executed yet
-      const cancelledOI = cancelOI.map(async (oi: OrderInventory) => {
+      const cancelledOI = cancelOI.map((oi: OrderInventory) => {
         return {
           ...oi,
           status: ORDER_INVENTORY_STATUS.CANCELLED,
