@@ -1,8 +1,8 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
-import { Inventory, Location, LOCATION_STATUS } from '@things-factory/warehouse-base'
-import { Equal, getManager, Not, In } from 'typeorm'
 import { sendNotification } from '@things-factory/shell'
+import { Inventory, Location, LOCATION_STATUS } from '@things-factory/warehouse-base'
+import { Equal, getManager, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -27,6 +27,19 @@ export const completePutaway = {
 
       if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
       const customerBizplace: Bizplace = arrivalNotice.bizplace
+
+      // Check whether unloading is done or not.
+      const unloadingWorksheetCnt: number = await trxMgr.getRepository(Worksheet).count({
+        where: {
+          domain: context.state.domain,
+          bizplace: customerBizplace,
+          arrivalNotice,
+          type: WORKSHEET_TYPE.UNLOADING,
+          status: WORKSHEET_STATUS.EXECUTING
+        }
+      })
+
+      if (unloadingWorksheetCnt) throw new Error(`Unloading is not completed yet`)
 
       const foundPutawayWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: {

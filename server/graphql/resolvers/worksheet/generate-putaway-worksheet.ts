@@ -78,17 +78,33 @@ export async function generatePutawayWorksheet(
   })
   const bufferLocation: Location = unloadingWorksheet.bufferLocation
 
-  const putawayWorksheet: Worksheet = await worksheetRepo.save({
-    domain,
-    arrivalNotice,
-    bizplace,
-    name: WorksheetNoGenerator.putaway(),
-    type: WORKSHEET_TYPE.PUTAWAY,
-    status: WORKSHEET_STATUS.DEACTIVATED,
-    bufferLocation: unloadingWorksheet.bufferLocation,
-    creator: user,
-    updater: user
+  // Check whether putaway worksheet is exists or not
+  // If it's exists append new worksheet details into the putaway worksheet
+  // If it's not exists create new putaway worksheet
+  let putawayWorksheet: Worksheet = await worksheetRepo.findOne({
+    where: {
+      domain,
+      arrivalNotice,
+      bizplace,
+      type: WORKSHEET_TYPE.PUTAWAY
+    }
   })
+
+  let WSD_STATUS: string = WORKSHEET_STATUS.EXECUTING
+  if (!putawayWorksheet) {
+    WSD_STATUS = WORKSHEET_STATUS.DEACTIVATED
+    putawayWorksheet = await worksheetRepo.save({
+      domain,
+      arrivalNotice,
+      bizplace,
+      name: WorksheetNoGenerator.putaway(),
+      type: WORKSHEET_TYPE.PUTAWAY,
+      status: WORKSHEET_STATUS.DEACTIVATED,
+      bufferLocation: unloadingWorksheet.bufferLocation,
+      creator: user,
+      updater: user
+    })
+  }
 
   await Promise.all(
     inventories.map(async (inventory: Inventory) => {
@@ -119,7 +135,7 @@ export async function generatePutawayWorksheet(
         type: WORKSHEET_TYPE.PUTAWAY,
         targetInventory,
         fromLocation: bufferLocation,
-        status: WORKSHEET_STATUS.DEACTIVATED,
+        status: WSD_STATUS,
         creator: user,
         updater: user
       })

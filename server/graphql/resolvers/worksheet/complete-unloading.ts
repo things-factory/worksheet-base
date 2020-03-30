@@ -48,7 +48,7 @@ export const completeUnloading = {
             type: WORKSHEET_TYPE.UNLOADING,
             arrivalNotice
           },
-          relations: ['bufferLocation', 'worksheetDetails', 'worksheetDetails.targetProduct']
+          relations: ['bizplace', 'bufferLocation', 'worksheetDetails', 'worksheetDetails.targetProduct']
         })
 
         if (!foundWorksheet) throw new Error(`Worksheet doesn't exists.`)
