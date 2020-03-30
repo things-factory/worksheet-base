@@ -41,6 +41,7 @@ export const completeUnloadingPartiallyResolver = {
         where: {
           domain,
           bizplace,
+          arrivalNotice,
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.UNLOADING
         },

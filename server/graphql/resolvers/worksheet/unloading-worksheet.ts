@@ -19,7 +19,7 @@ export const unloadingWorksheetResolver = {
         domain: context.state.domain,
         arrivalNotice,
         bizplace: customerBizplace,
-        type: In([WORKSHEET_TYPE.UNLOADING, WORKSHEET_TYPE.PUTAWAY]),
+        type: WORKSHEET_TYPE.UNLOADING,
         status: WORKSHEET_STATUS.EXECUTING
       },
       relations: [
