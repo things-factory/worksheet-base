@@ -3,7 +3,7 @@ import { Bizplace, Partner, ContactPoint } from '@things-factory/biz-base'
 import { config } from '@things-factory/env'
 import { DeliveryOrder, OrderInventory, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory } from '@things-factory/warehouse-base'
+import { Inventory, Pallet } from '@things-factory/warehouse-base'
 import FormData from 'form-data'
 import fetch from 'node-fetch'
 import { Equal, getRepository, In } from 'typeorm'
@@ -51,6 +51,11 @@ export async function renderDO({ domain: domainName, doNo }) {
   const foundWS: Worksheet = await getRepository(Worksheet).findOne({
     where: { domain, releaseGood: foundRO },
     relations: ['updater']
+  })
+
+  //find reusable pallet
+  const foundRP: Pallet[] = await getRepository(Pallet).find({
+    where: { domain, refOrderNo: foundRO.name }
   })
 
   //find list of loaded inventory
@@ -102,6 +107,50 @@ export async function renderDO({ domain: domainName, doNo }) {
     logo = 'data:' + foundLogo.mimetype + ';base64,' + (await STORAGE.readFile(foundLogo.path, 'base64'))
   }
 
+  const productList: any = foundWSD
+    .map((wsd: WorksheetDetail) => {
+      const targetInventory: OrderInventory = wsd.targetInventory
+      const inventory: Inventory = targetInventory.inventory
+      return {
+        product_name: `${inventory.product.name} (${inventory.product.description})`,
+        product_type: inventory.packingType,
+        product_batch: inventory.batchId,
+        product_qty: targetInventory.releaseQty,
+        product_weight: targetInventory.releaseWeight,
+        remark: targetInventory.remark
+      }
+    })
+    .reduce((newItem, item) => {
+      var foundItem = newItem.find(
+        newItem => newItem.product_name === item.product_name && newItem.product_batch === item.product_batch
+      )
+      if (!foundItem) {
+        foundItem = {
+          product_name: item.product_name,
+          product_type: item.product_type,
+          product_batch: item.product_batch,
+          product_qty: item.product_qty,
+          product_weight: item.product_weight,
+          remark: 1
+        }
+
+        newItem.push(foundItem)
+        return newItem
+      } else {
+        return newItem.map(ni => {
+          if (ni.product_name === item.product_name && ni.product_batch === item.product_batch) {
+            return {
+              ...ni,
+              remark: ni.remark + 1,
+              product_qty: ni.product_qty + item.product_qty
+            }
+          } else {
+            return ni
+          }
+        })
+      }
+    }, [])
+
   const data = {
     logo_url: logo,
     customer_biz: partnerBiz.name,
@@ -120,18 +169,12 @@ export async function renderDO({ domain: domainName, doNo }) {
     driver_name: foundDriver || '',
     pallet_qty: foundDO.palletQty,
     worker_name: foundWS.updater.name,
-    product_list: foundWSD.map((wsd: WorksheetDetail, idx) => {
-      const targetInventory: OrderInventory = wsd.targetInventory
-      const inventory: Inventory = targetInventory.inventory
+    pallet_list: foundRP.map(rp => rp.name).join(', '),
+    product_list: productList.map((prod: any, idx) => {
       return {
+        ...prod,
         list_no: idx + 1,
-        product_name: `${inventory.product.name} (${inventory.product.description})`,
-        product_type: inventory.packingType,
-        product_description: inventory.product.description,
-        product_batch: inventory.batchId,
-        product_qty: targetInventory.releaseQty,
-        product_weight: targetInventory.releaseWeight,
-        remark: targetInventory.remark || ''
+        remark: prod.remark > 1 ? `${prod.remark} PALLETS` : `${prod.remark} PALLET`
       }
     })
   } //.. make data from do

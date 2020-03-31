@@ -7,6 +7,7 @@ import {
   ORDER_STATUS,
   ORDER_VAS_STATUS,
   OrderInventory,
+  DeliveryOrder,
   OrderVas,
   ReleaseGood
 } from '@things-factory/sales-base'
@@ -101,6 +102,20 @@ export const pendingCancellationReleaseOrder = {
         }
       })
       await trxMgr.getRepository(WorksheetDetail).save(foundWSD)
+
+      // find DO and change status to pending cancel
+      let foundDO: DeliveryOrder[] = await trxMgr.getRepository(DeliveryOrder).find({
+        where: { domain: context.state.domain, releaseGood: foundRO }
+      })
+
+      foundDO = foundDO.map((deliveryOrder: DeliveryOrder) => {
+        return {
+          ...deliveryOrder,
+          status: ORDER_STATUS.PENDING_CANCEL,
+          updater: context.state.user
+        }
+      })
+      await trxMgr.getRepository(DeliveryOrder).save(foundDO)
 
       await trxMgr.getRepository(ReleaseGood).save({
         ...foundRO,
