@@ -199,11 +199,13 @@ export const completeUnloading = {
         relations: ['worksheetDetails']
       })
 
-      await activatePutaway.activatePutaway(
-        _,
-        { worksheetNo: foundPutawayWorksheet.name, putawayWorksheetDetails: foundPutawayWorksheet.worksheetDetails },
-        context
-      )
+      if (foundPutawayWorksheet) {
+        await activatePutaway.activatePutaway(
+          _,
+          { worksheetNo: foundPutawayWorksheet.name, putawayWorksheetDetails: foundPutawayWorksheet.worksheetDetails },
+          context
+        )
+      }
     }
   }
 }
