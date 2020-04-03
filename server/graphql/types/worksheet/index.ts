@@ -18,21 +18,21 @@ import { WorksheetPatch } from './worksheet-patch'
 export const Mutation = /* GraphQL */ `
   createWorksheet (
     worksheet: NewWorksheet!
-  ): Worksheet
+  ): Worksheet @priviledge(category: "worksheet", priviledge: "mutation")
 
   updateWorksheet (
     id: String!
     patch: WorksheetPatch!
-  ): Worksheet
+  ): Worksheet @priviledge(category: "worksheet", priviledge: "mutation")
 
   deleteWorksheet (
     id: String!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet", priviledge: "mutation")
 
   generateArrivalNoticeWorksheet (
     arrivalNoticeNo: String!
     bufferLocation: ObjectRef!
-  ): ArrivalNoticeWorksheet
+  ): ArrivalNoticeWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   generatePutawayWorksheet (
     arrivalNoticeNo: String!
@@ -46,50 +46,50 @@ export const Mutation = /* GraphQL */ `
 
   generateReleaseGoodWorksheet (
     releaseGoodNo: String!
-  ): ReleaseGoodWorksheet
+  ): ReleaseGoodWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   generateVasOrderWorksheet (
     vasNo: String!
-  ): VasOrderWorksheet
+  ): VasOrderWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   activateUnloading (
     worksheetNo: String!
     unloadingWorksheetDetails: [WorksheetDetailPatch]
-  ): Worksheet
+  ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   activatePutaway (
     worksheetNo: String!
     putawayWorksheetDetails: [WorksheetDetailPatch]
-  ): Worksheet
+  ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   activateLoading (
     worksheetNo: String!
     loadingWorksheetDetails: [WorksheetDetailPatch]
-  ): Worksheet
+  ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   activateReturn (
     worksheetNo: String!
     returnWorksheetDetails: [WorksheetDetailPatch]
-  ): Worksheet
+  ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   activateVas (
     worksheetNo: String!
     vasWorksheetDetails: [WorksheetDetailPatch]
-  ): Worksheet
+  ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   activatePicking (
     worksheetNo: String!
-  ): Worksheet
+  ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   unload (
     worksheetDetailName: String!
     inventory: InventoryPatch!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   undoUnloading (
     worksheetDetailName: String!
     palletId: String!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   completeUnloadingPartially (
     arrivalNoticeNo: String!
@@ -99,85 +99,90 @@ export const Mutation = /* GraphQL */ `
   completeUnloading (
     arrivalNoticeNo: String!
     worksheetDetails: [WorksheetDetailPatch]
-  ): Worksheet
+  ): Worksheet @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   completeLoading (
     releaseGoodNo: String!
     worksheetDetails: [WorksheetDetailPatch]
-  ): Worksheet
+  ): Worksheet @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   putaway (
     worksheetDetailName: String!
     palletId: String!
     toLocation: String!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  undoPutaway (
+    worksheetDetailName: String!
+    palletId: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   returning (
     worksheetDetailName: String!
     palletId: String!
     toLocation: String!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   loading (
     loadedWorksheetDetails: [LoadedWorksheetDetail]!
     releaseGoodNo: String!
     orderInfo: WorksheetPatch
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   undoLoading (
     deliveryOrder: ObjectRef!
     palletIds: [String]!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   transfer (
     palletId: String!
     toPalletId: String!
     qty: Int!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   completePutaway (
     arrivalNoticeNo: String!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   completeReturn (
     releaseGoodNo: String!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   picking (
     worksheetDetailName: String!
     palletId: String!
     locationName: String!
     releaseQty: Int!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   completePicking (
     releaseGoodNo: String!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   executeVas (
     worksheetDetail: WorksheetDetailPatch!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   undoVas (
     worksheetDetail: WorksheetDetailPatch!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   completeVas (
     orderNo: String!
     orderType: String!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   proceedExtraProducts (
     ganNo: String!
     approvedProducts: [ObjectRef]!
     rejectedProducts: [ObjectRef]!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   replacePickingPallets (
     worksheetDetailName: String!
     inventories: [InventoryPatch]!
     returnLocation: String
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   pendingCancellationReleaseOrder (
     name: String!
@@ -189,17 +194,52 @@ export const Mutation = /* GraphQL */ `
 `
 
 export const Query = /* GraphQL */ `
-  worksheets(filters: [Filter], pagination: Pagination, sortings: [Sorting]): WorksheetList
-  worksheet(name: String!): Worksheet
-  unloadingWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
-  unloadedInventories(worksheetDetailName: String!): [Inventory]
-  loadedInventories(releaseGoodNo: String!): [OrderInventory]
-  loadingWorksheet(releaseGoodNo: String!): ExecutingWorksheet
-  putawayWorksheet(arrivalNoticeNo: String!): ExecutingWorksheet
-  returnWorksheet(releaseGoodNo: String!): ExecutingWorksheet
-  vasWorksheet(orderNo: String!, orderType: String!): ExecutingWorksheet
-  deliveryOrderByWorksheet(name: String!): GoodsDeliveryNote
-  pickingWorksheet(releaseGoodNo: String!, locationSortingRules: [Sorting]): ExecutingWorksheet
+  worksheets (
+    filters: [Filter],
+    pagination: Pagination,
+    sortings: [Sorting]
+  ): WorksheetList @priviledge(category: "worksheet", priviledge: "query")
+
+  worksheet (
+    name: String!
+  ): Worksheet @priviledge(category: "worksheet", priviledge: "query")
+
+  unloadingWorksheet (
+    arrivalNoticeNo: String!
+  ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
+
+  unloadedInventories (
+    worksheetDetailName: String!
+  ): [Inventory] @priviledge(category: "worksheet", priviledge: "query")
+
+  loadedInventories (
+    releaseGoodNo: String!
+  ): [OrderInventory] @priviledge(category: "worksheet", priviledge: "query")
+
+  loadingWorksheet (
+    releaseGoodNo: String!
+  ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
+
+  putawayWorksheet (
+    arrivalNoticeNo: String!
+  ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
+
+  returnWorksheet (
+    releaseGoodNo: String!
+  ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
+
+  vasWorksheet (
+    orderNo: String!, orderType: String!
+  ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
+
+  deliveryOrderByWorksheet (
+    name: String!
+  ): GoodsDeliveryNote @priviledge(category: "worksheet", priviledge: "query")
+
+  pickingWorksheet (
+    releaseGoodNo: String!, locationSortingRules: [Sorting]
+  ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
+
 `
 
 export const Types = /* GraphQL */ [
