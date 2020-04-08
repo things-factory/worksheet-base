@@ -37,6 +37,7 @@ import { transfer } from './transfer'
 import { undoLoading } from './undo-loading'
 import { undoUnloading } from './undo-unloading'
 import { undoVas } from './undo-vas'
+import { undoPutaway } from './undo-putaway'
 import { unload } from './unload'
 import { unloadedInventories } from './unloaded-inventories'
 import { unloadingWorksheetResolver } from './unloading-worksheet'
@@ -56,7 +57,7 @@ export const Query = {
   ...vasWorksheetResolver,
   ...loadingWorksheetResolver,
   ...unloadedInventories,
-  ...loadedInventories
+  ...loadedInventories,
 }
 
 export const Mutation = {
@@ -77,6 +78,7 @@ export const Mutation = {
   ...unload,
   ...returning,
   ...undoUnloading,
+  ...undoPutaway,
   ...completeUnloading,
   ...completeUnloadingPartiallyResolver,
   ...completeLoading,
@@ -94,5 +96,5 @@ export const Mutation = {
   ...proceedExtraProductsResolver,
   ...replacePickingPalletsResolver,
   ...pendingCancellationReleaseOrder,
-  ...confirmCancellationReleaseOrder
+  ...confirmCancellationReleaseOrder,
 }
