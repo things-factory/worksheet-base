@@ -15,6 +15,11 @@ export const WorksheetDetailInfo = gql`
     releaseQty: Int
     releaseWeight: Float
     operationGuide: String
+    set: Int
+    targetType: String
+    targetBatchId: String
+    targetProduct: Product
+    otherTarget: String
     vas: Vas
     targetName: String
     description: String

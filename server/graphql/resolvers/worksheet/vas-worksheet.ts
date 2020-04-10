@@ -1,160 +1,97 @@
 import { Bizplace } from '@things-factory/biz-base'
+import { ArrivalNotice, OrderVas, ORDER_STATUS, ORDER_TYPES, ReleaseGood, VasOrder } from '@things-factory/sales-base'
+import { Domain } from '@things-factory/shell'
 import { Location } from '@things-factory/warehouse-base'
-import { ArrivalNotice, OrderVas, ReleaseGood, ORDER_STATUS, ORDER_TYPES, VasOrder } from '@things-factory/sales-base'
-import { getRepository, Equal, Not } from 'typeorm'
+import { Equal, getRepository, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const vasWorksheetResolver = {
   async vasWorksheet(_: any, { orderNo, orderType }, context: any) {
     // 1. If it's worksheet which is related with arrival notice
-    if (orderType === ORDER_TYPES.ARRIVAL_NOTICE) {
-      const arrivalNotice: ArrivalNotice = await getRepository(ArrivalNotice).findOne({
-        where: { domain: context.state.domain, name: orderNo, status: Not(Equal(ORDER_STATUS.DONE)) },
-        relations: ['bizplace']
-      })
+    let commonRelations: string[] = [
+      'worksheetDetails',
+      'worksheetDetails.targetVas',
+      'worksheetDetails.targetVas.vas',
+      'worksheetDetails.targetVas.inventory',
+      'worksheetDetails.targetVas.targetProduct',
+      'worksheetDetails.targetVas.inventory.location',
+      'creator',
+      'updater',
+    ]
 
-      if (!arrivalNotice) throw new Error(`Arrival notice dosen't exist.`)
-      const customerBizplace: Bizplace = arrivalNotice.bizplace
-
-      const worksheet: Worksheet = await getRepository(Worksheet).findOne({
-        where: {
-          arrivalNotice,
-          domain: context.state.domain,
-          type: WORKSHEET_TYPE.VAS,
-          status: WORKSHEET_STATUS.EXECUTING
-        },
-        relations: [
-          'arrivalNotice',
-          'worksheetDetails',
-          'worksheetDetails.targetVas',
-          'worksheetDetails.targetVas.vas',
-          'creator',
-          'updater'
-        ]
-      })
-
-      return {
-        worksheetInfo: {
-          bizplaceName: customerBizplace.name,
-          containerNo: arrivalNotice.containerNo,
-          startedAt: worksheet.startedAt
-        },
-        worksheetDetailInfos: worksheet.worksheetDetails.map((vasWSD: WorksheetDetail) => {
-          const targetVas: OrderVas = vasWSD.targetVas
-          return {
-            name: vasWSD.name,
-            batchId: targetVas.batchId,
-            targetName: targetVas.name,
-            vas: targetVas.vas,
-            operationGuide: targetVas.operationGuide,
-            description: vasWSD.description,
-            remark: targetVas.remark,
-            status: vasWSD.status,
-            issue: vasWSD.issue
-          }
-        })
-      }
-    } else if (orderType === ORDER_TYPES.RELEASE_OF_GOODS) {
-      const releaseGood: ReleaseGood = await getRepository(ReleaseGood).findOne({
-        where: { domain: context.state.domain, name: orderNo, status: Not(Equal(ORDER_STATUS.DONE)) },
-        relations: ['bizplace']
-      })
-
-      if (!releaseGood) throw new Error(`Release order dosen't exist.`)
-      const customerBizplace: Bizplace = releaseGood.bizplace
-
-      const worksheet: Worksheet = await getRepository(Worksheet).findOne({
-        where: {
-          releaseGood,
-          domain: context.state.domain,
-          type: WORKSHEET_TYPE.VAS,
-          status: WORKSHEET_STATUS.EXECUTING
-        },
-        relations: [
-          'releaseGood',
-          'worksheetDetails',
-          'worksheetDetails.targetVas',
-          'worksheetDetails.targetVas.vas',
-          'worksheetDetails.targetVas.inventory',
-          'worksheetDetails.targetVas.inventory.location',
-          'creator',
-          'updater'
-        ]
-      })
-
-      return {
-        worksheetInfo: {
-          bizplaceName: customerBizplace.name,
-          startedAt: worksheet.startedAt
-        },
-        worksheetDetailInfos: worksheet.worksheetDetails.map((vasWSD: WorksheetDetail) => {
-          const targetVas: OrderVas = vasWSD.targetVas
-          const locationInvName: Location = vasWSD.targetVas.inventory.location.name
-          return {
-            name: vasWSD.name,
-            batchId: targetVas.batchId,
-            targetName: targetVas.name,
-            vas: targetVas.vas,
-            locationInv: locationInvName,
-            operationGuide: targetVas.operationGuide,
-            description: vasWSD.description,
-            remark: targetVas.remark,
-            status: vasWSD.status,
-            issue: vasWSD.issue
-          }
-        })
-      }
-    } else if (orderType === ORDER_TYPES.VAS_ORDER) {
-      const vasOrder: VasOrder = await getRepository(VasOrder).findOne({
-        where: { domain: context.state.domain, name: orderNo, status: Not(Equal(ORDER_STATUS.DONE)) },
-        relations: ['bizplace']
-      })
-
-      if (!vasOrder) throw new Error(`Vas order dosen't exist.`)
-      const customerBizplace: Bizplace = vasOrder.bizplace
-
-      const worksheet: Worksheet = await getRepository(Worksheet).findOne({
-        where: {
-          vasOrder,
-          domain: context.state.domain,
-          type: WORKSHEET_TYPE.VAS,
-          status: WORKSHEET_STATUS.EXECUTING
-        },
-        relations: [
-          'vasOrder',
-          'worksheetDetails',
-          'worksheetDetails.targetVas',
-          'worksheetDetails.targetVas.vas',
-          'worksheetDetails.targetVas.inventory',
-          'worksheetDetails.targetVas.inventory.location',
-          'creator',
-          'updater'
-        ]
-      })
-
-      return {
-        worksheetInfo: {
-          bizplaceName: customerBizplace.name,
-          startedAt: worksheet.startedAt
-        },
-        worksheetDetailInfos: worksheet.worksheetDetails.map((vasWSD: WorksheetDetail) => {
-          const targetVas: OrderVas = vasWSD.targetVas
-          const locationInvName: Location = vasWSD.targetVas.inventory.location.name
-          return {
-            name: vasWSD.name,
-            batchId: targetVas.batchId,
-            targetName: targetVas.name,
-            vas: targetVas.vas,
-            locationInv: locationInvName,
-            operationGuide: targetVas.operationGuide,
-            description: vasWSD.description,
-            remark: targetVas.remark,
-            status: vasWSD.status,
-            issue: vasWSD.issue
-          }
-        })
-      }
+    let refOrder: ArrivalNotice | ReleaseGood | VasOrder = null
+    let worksheetCondition: {
+      ['arrivalNotice']?: ArrivalNotice
+      ['releaseGood']?: ReleaseGood
+      ['vasOrder']?: VasOrder
+      domain: Domain
+      type: String
+      status: String
+    } = {
+      domain: context.state.domain,
+      type: WORKSHEET_TYPE.VAS,
+      status: WORKSHEET_STATUS.EXECUTING,
     }
-  }
+
+    if (orderType === ORDER_TYPES.ARRIVAL_NOTICE) {
+      refOrder = await getRepository(ArrivalNotice).findOne({
+        where: { domain: context.state.domain, name: orderNo, status: Not(Equal(ORDER_STATUS.DONE)) },
+        relations: ['bizplace'],
+      })
+
+      if (!refOrder) throw new Error(`Arrival notice doesn't exsits`)
+      worksheetCondition.arrivalNotice = refOrder
+    } else if (orderType === ORDER_TYPES.RELEASE_OF_GOODS) {
+      refOrder = await getRepository(ReleaseGood).findOne({
+        where: { domain: context.state.domain, name: orderNo, status: Not(Equal(ORDER_STATUS.DONE)) },
+        relations: ['bizplace'],
+      })
+
+      if (!refOrder) throw new Error(`Release goods doesn't exsits`)
+      worksheetCondition.releaseGood = refOrder
+    } else if (orderType === ORDER_TYPES.VAS_ORDER) {
+      refOrder = await getRepository(VasOrder).findOne({
+        where: { domain: context.state.domain, name: orderNo, status: Not(Equal(ORDER_STATUS.DONE)) },
+        relations: ['bizplace'],
+      })
+
+      if (!refOrder) throw new Error(`VAS order doesn't exsists`)
+      worksheetCondition.vasOrder = refOrder
+    }
+
+    const worksheet: Worksheet = await getRepository(Worksheet).findOne({
+      where: worksheetCondition,
+      relations: commonRelations,
+    })
+
+    return {
+      worksheetInfo: {
+        bizplaceName: refOrder.bizplace.name,
+        containerNo: refOrder?.containerNo,
+        startedAt: worksheet.startedAt,
+      },
+      worksheetDetailInfos: worksheet.worksheetDetails.map((wsd: WorksheetDetail) => {
+        const targetVas: OrderVas = wsd.targetVas
+        return {
+          name: wsd.name,
+          batchId: targetVas.batchId,
+          targetName: targetVas.name,
+          vas: targetVas.vas,
+          set: targetVas?.set,
+          locationInv: targetVas?.inventory?.location?.name,
+          targetType: targetVas?.targetType,
+          targetBatchId: targetVas?.targetBatchId,
+          targetProduct: targetVas?.targetProduct,
+          otherTarget: targetVas?.otherTarget,
+          qty: targetVas?.qty,
+          operationGuide: targetVas.operationGuide,
+          description: wsd.description,
+          remark: targetVas.remark,
+          status: wsd.status,
+          issue: wsd.issue,
+        }
+      }),
+    }
+  },
 }
