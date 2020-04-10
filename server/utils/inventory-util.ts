@@ -7,7 +7,7 @@ import {
   InventoryNoGenerator,
   INVENTORY_STATUS,
   Location,
-  LOCATION_STATUS
+  LOCATION_STATUS,
 } from '@things-factory/warehouse-base'
 import { EntityManager, Equal, getRepository, Not, Repository } from 'typeorm'
 
@@ -39,7 +39,7 @@ export async function generateInventoryHistory(
   ) {
     inventory = await invRepo.findOne({
       where: { id: inventory.id },
-      relations: ['domain', 'bizplace', 'product', 'warehouse', 'location']
+      relations: ['domain', 'bizplace', 'product', 'warehouse', 'location'],
     })
   }
 
@@ -51,7 +51,7 @@ export async function generateInventoryHistory(
     const lastInvHistory: InventoryHistory = await invHistoryRepo.findOne({
       domain: inventory.domain,
       palletId: inventory.palletId,
-      seq: seq - 1
+      seq: seq - 1,
     })
     openingQty = lastInvHistory.openingQty + lastInvHistory.qty
     openingWeight = lastInvHistory.openingWeight + lastInvHistory.weight
@@ -64,6 +64,7 @@ export async function generateInventoryHistory(
     transactionType,
     refOrderId: refOrder.id,
     orderNo: refOrder.name,
+    orderRefNo: refOrder.refNo || null,
     productId: inventory.product.id,
     warehouseId: inventory.warehouse.id,
     locationId: inventory.location.id,
@@ -72,7 +73,7 @@ export async function generateInventoryHistory(
     weight,
     openingWeight,
     creator: user,
-    updater: user
+    updater: user,
   }
   delete inventoryHistory.id
   inventoryHistory = await invHistoryRepo.save(inventoryHistory)
@@ -81,7 +82,7 @@ export async function generateInventoryHistory(
     await invRepo.save({
       ...inventory,
       lastSeq: inventoryHistory.seq,
-      updater: user
+      updater: user,
     })
   }
 
@@ -106,20 +107,20 @@ export async function switchLocationStatus(
   const allocatedItemsCnt: number = await invRepo.count({
     domain,
     status: INVENTORY_STATUS.STORED,
-    location
+    location,
   })
 
   if (!allocatedItemsCnt && location.status !== LOCATION_STATUS.EMPTY) {
     location = await locationRepo.save({
       ...location,
       status: LOCATION_STATUS.EMPTY,
-      updater
+      updater,
     })
   } else if (allocatedItemsCnt && location.status === LOCATION_STATUS.EMPTY) {
     location = await locationRepo.save({
       ...location,
       status: LOCATION_STATUS.OCCUPIED,
-      updater
+      updater,
     })
   }
 
@@ -137,7 +138,7 @@ export async function checkPalletDuplication(
     domain,
     bizplace,
     status: Not(Equal(INVENTORY_STATUS.TERMINATED)),
-    palletId
+    palletId,
   })
 
   return Boolean(duplicatedPalletCnt)

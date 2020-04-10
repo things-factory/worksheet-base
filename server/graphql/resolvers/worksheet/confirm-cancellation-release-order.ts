@@ -3,7 +3,7 @@ import {
   Location,
   LOCATION_STATUS,
   INVENTORY_STATUS,
-  InventoryHistory,
+  INVENTORY_TRANSACTION_TYPE,
 } from '@things-factory/warehouse-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { getManager, In } from 'typeorm'
@@ -16,6 +16,7 @@ import {
   OrderVas,
   ReleaseGood,
 } from '@things-factory/sales-base'
+import { generateInventoryHistory } from '../../../utils'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const confirmCancellationReleaseOrder = {
@@ -35,7 +36,6 @@ export const confirmCancellationReleaseOrder = {
       if (!foundRO) throw new Error(`Release good order doesn't exists.`)
       let targetOIs: OrderInventory[] = foundRO.orderInventories
       let foundOVs: OrderVas[] = foundRO.orderVass
-      let customerBizplace: Bizplace = foundRO.bizplace
 
       // 1. Check Order Inventory status
       // 1a. separate into two groups, group 1: pending cancel, group 2: picked
@@ -53,21 +53,6 @@ export const confirmCancellationReleaseOrder = {
               let foundInv: Inventory = oi.inventory
               let foundLoc: Location = foundInv.location
 
-              const foundInvHistory: InventoryHistory[] = await trxMgr.getRepository(InventoryHistory).find({
-                where: {
-                  domain: context.state.domain,
-                  bizplace: customerBizplace,
-                  palletId: foundInv.palletId,
-                  batchId: foundInv.batchId,
-                  refOrderId: foundRO.id,
-                },
-              })
-
-              // find seq at PICKING transaction type
-              let pickingSeq: any = foundInvHistory
-                .filter((invHistory: InventoryHistory) => invHistory.transactionType === ORDER_INVENTORY_STATUS.PICKING)
-                .map((invHistory: InventoryHistory) => invHistory.seq)
-
               let newOrderInv: OrderInventory = {
                 ...oi,
                 status: ORDER_INVENTORY_STATUS.CANCELLED,
@@ -80,11 +65,20 @@ export const confirmCancellationReleaseOrder = {
                   ...inv,
                   qty: foundInv.qty + oi.releaseQty,
                   weight: foundInv.weight + oi.releaseWeight,
-                  lastSeq: pickingSeq[0] - 1,
                   status: INVENTORY_STATUS.STORED,
                   updater: context.state.user,
                 }
                 await trxMgr.getRepository(Inventory).save(inv)
+
+                await generateInventoryHistory(
+                  inv,
+                  foundRO,
+                  INVENTORY_TRANSACTION_TYPE.CANCEL_ORDER,
+                  oi.releaseQty,
+                  oi.releaseWeight,
+                  context.state.user,
+                  trxMgr
+                )
               }
 
               // Update status of location
@@ -104,7 +98,19 @@ export const confirmCancellationReleaseOrder = {
 
       // change status to cancelled for order inventory that has not executed yet
       if (cancelOI && cancelOI.length) {
-        const cancelledOI = cancelOI.map((oi: OrderInventory) => {
+        const cancelledOI = cancelOI.map(async (oi: OrderInventory) => {
+          let cancelledInv: Inventory = oi.inventory
+
+          await generateInventoryHistory(
+            cancelledInv,
+            foundRO,
+            INVENTORY_TRANSACTION_TYPE.CANCEL_ORDER,
+            0,
+            0,
+            context.state.user,
+            trxMgr
+          )
+
           return {
             ...oi,
             status: ORDER_INVENTORY_STATUS.CANCELLED,
@@ -112,14 +118,6 @@ export const confirmCancellationReleaseOrder = {
           }
         })
         await trxMgr.getRepository(OrderInventory).save(cancelledOI)
-      }
-
-      // remove history terminated and picking transaction type
-      let invHistory: InventoryHistory[] = await trxMgr.getRepository(InventoryHistory).find({
-        where: { domain: context.state.domain, refOrderId: foundRO.id },
-      })
-      if (invHistory && invHistory.length) {
-        await trxMgr.getRepository(InventoryHistory).delete(invHistory)
       }
 
       // update status of order vass to CANCELLED
