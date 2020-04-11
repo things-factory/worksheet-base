@@ -5,8 +5,9 @@ import {
   ORDER_INVENTORY_STATUS,
   ORDER_STATUS,
   ORDER_VAS_STATUS,
-  ReleaseGood
+  ReleaseGood,
 } from '@things-factory/sales-base'
+import { Inventory } from '@things-factory/warehouse-base'
 import { getManager, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -14,15 +15,15 @@ import { WorksheetNoGenerator } from '../../../utils'
 
 export const generateReleaseGoodWorksheet = {
   async generateReleaseGoodWorksheet(_: any, { releaseGoodNo }, context: any) {
-    return await getManager().transaction(async txMgr => {
+    return await getManager().transaction(async (txMgr) => {
       const foundReleaseGood: ReleaseGood = await txMgr.getRepository(ReleaseGood).findOne({
         where: {
           domain: context.state.domain,
           name: releaseGoodNo,
           bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user)),
-          status: ORDER_STATUS.PENDING_RECEIVE
+          status: ORDER_STATUS.PENDING_RECEIVE,
         },
-        relations: ['bizplace', 'orderInventories', 'orderInventories.inventory', 'orderVass']
+        relations: ['bizplace', 'orderInventories', 'orderInventories.inventory', 'orderVass'],
       })
 
       if (!foundReleaseGood) throw new Error(`Release good doesn't exsits.`)
@@ -42,7 +43,7 @@ export const generateReleaseGoodWorksheet = {
         type: WORKSHEET_TYPE.PICKING,
         status: WORKSHEET_STATUS.DEACTIVATED,
         creator: context.state.user,
-        updater: context.state.user
+        updater: context.state.user,
       })
 
       let oiStatus: string = ORDER_INVENTORY_STATUS.PENDING_SPLIT
@@ -58,11 +59,21 @@ export const generateReleaseGoodWorksheet = {
             type: WORKSHEET_TYPE.PICKING,
             status: WORKSHEET_STATUS.DEACTIVATED,
             creator: context.state.user,
-            updater: context.state.user
+            updater: context.state.user,
           }
         })
         await txMgr.getRepository(WorksheetDetail).save(pickingWorksheetDetails)
         oiStatus = ORDER_INVENTORY_STATUS.READY_TO_PICK
+
+        foundOIs.map(async (oi: OrderInventory) => {
+          oi.inventory = {
+            ...oi.inventory,
+            lockedQty: oi.releaseQty,
+            lockedWeight: oi.releaseWeight,
+            updater: context.state.user,
+          }
+          await txMgr.getRepository(Inventory).save(oi.inventory)
+        })
       }
 
       // 2. 2) Update status of order inventories (PENDING_RECEIVE => PENDING_SPLIT)
@@ -70,7 +81,7 @@ export const generateReleaseGoodWorksheet = {
         return {
           ...oi,
           status: oiStatus,
-          updater: context.state.user
+          updater: context.state.user,
         }
       })
       await txMgr.getRepository(OrderInventory).save(foundOIs)
@@ -89,7 +100,7 @@ export const generateReleaseGoodWorksheet = {
           type: WORKSHEET_TYPE.VAS,
           status: WORKSHEET_STATUS.DEACTIVATED,
           creator: context.state.user,
-          updater: context.state.user
+          updater: context.state.user,
         })
 
         // 3. 2) Create vas worksheet details
@@ -103,7 +114,7 @@ export const generateReleaseGoodWorksheet = {
             type: WORKSHEET_TYPE.VAS,
             status: WORKSHEET_STATUS.DEACTIVATED,
             creator: context.state.user,
-            updater: context.state.user
+            updater: context.state.user,
           }
         })
         await txMgr.getRepository(WorksheetDetail).save(vasWorksheetDetails)
@@ -113,7 +124,7 @@ export const generateReleaseGoodWorksheet = {
           return {
             ...ov,
             status: ORDER_VAS_STATUS.READY_TO_PROCESS,
-            updater: context.state.user
+            updater: context.state.user,
           }
         })
         await txMgr.getRepository(OrderVas).save(foundOVs)
@@ -125,7 +136,7 @@ export const generateReleaseGoodWorksheet = {
       await txMgr.getRepository(ReleaseGood).save({
         ...foundReleaseGood,
         status: ORDER_STATUS.READY_TO_PICK,
-        updater: context.state.user
+        updater: context.state.user,
       })
 
       /**
@@ -133,8 +144,8 @@ export const generateReleaseGoodWorksheet = {
        */
       return {
         pickingWorksheet,
-        vasWorksheet
+        vasWorksheet,
       }
     })
-  }
+  },
 }
