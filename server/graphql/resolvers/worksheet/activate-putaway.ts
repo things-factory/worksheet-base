@@ -1,11 +1,5 @@
 import { Bizplace } from '@things-factory/biz-base'
-import {
-  generateGoodsReceivalNote,
-  ArrivalNotice,
-  OrderInventory,
-  ORDER_PRODUCT_STATUS,
-  ORDER_STATUS
-} from '@things-factory/sales-base'
+import { ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -76,20 +70,20 @@ export const activatePutaway = {
       })
 
       /**
+       * @description
+       * if current status is READY_TO_PUTAWAY
        * 5. Update Arrival Notice (status: READY_TO_PUTAWAY => PUTTING_AWAY)
+       * because of partial unloading, there's a case that unloading is not completely finished yet.
+       * so it's needed to update when status of arrival notice equals READY_TO_PUTAWAY which means unloading is completely finished.
        */
       const arrivalNotice: ArrivalNotice = foundWorksheet.arrivalNotice
-      await trxMgr.getRepository(ArrivalNotice).save({
-        ...arrivalNotice,
-        status: ORDER_STATUS.PUTTING_AWAY,
-        updater: context.state.user
-      })
-
-      /**
-       * 6. Generate the Goods Received Note straight away
-       */
-      const grn = { refNo: arrivalNotice.name, customer: foundWorksheet.bizplace.id }
-      await generateGoodsReceivalNote(grn, context.state.domain, context.state.user)
+      if (arrivalNotice.status === ORDER_STATUS.READY_TO_PUTAWAY) {
+        await trxMgr.getRepository(ArrivalNotice).save({
+          ...arrivalNotice,
+          status: ORDER_STATUS.PUTTING_AWAY,
+          updater: context.state.user
+        })
+      }
 
       return worksheet
     })

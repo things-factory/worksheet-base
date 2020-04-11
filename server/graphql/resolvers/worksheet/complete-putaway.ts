@@ -1,8 +1,8 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
-import { Inventory, Location, LOCATION_STATUS } from '@things-factory/warehouse-base'
-import { Equal, getManager, Not } from 'typeorm'
 import { sendNotification } from '@things-factory/shell'
+import { Inventory, Location, LOCATION_STATUS } from '@things-factory/warehouse-base'
+import { Equal, getManager, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -14,12 +14,32 @@ export const completePutaway = {
        *    - data existing
        */
       const arrivalNotice: ArrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({
-        where: { domain: context.state.domain, name: arrivalNoticeNo, status: ORDER_STATUS.PUTTING_AWAY },
+        // Because of partial unloading current status of arrivalNotice can be PUTTING_AWAY or PROCESSING
+        // PUTTING_AWAY means unloading is completely finished.
+        // PROCESSING means some products are still being unloaded.
+        where: {
+          domain: context.state.domain,
+          name: arrivalNoticeNo,
+          status: In([ORDER_STATUS.PUTTING_AWAY, ORDER_STATUS.PROCESSING])
+        },
         relations: ['bizplace']
       })
 
       if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
       const customerBizplace: Bizplace = arrivalNotice.bizplace
+
+      // Check whether unloading is done or not.
+      const unloadingWorksheetCnt: number = await trxMgr.getRepository(Worksheet).count({
+        where: {
+          domain: context.state.domain,
+          bizplace: customerBizplace,
+          arrivalNotice,
+          type: WORKSHEET_TYPE.UNLOADING,
+          status: WORKSHEET_STATUS.EXECUTING
+        }
+      })
+
+      if (unloadingWorksheetCnt) throw new Error(`Unloading is not completed yet`)
 
       const foundPutawayWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: {

@@ -15,7 +15,7 @@ export const worksheetResolver = {
       where: {
         domain: context.state.domain,
         bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user)),
-        name
+        name,
       },
       relations: [
         'domain',
@@ -33,14 +33,15 @@ export const worksheetResolver = {
         'worksheetDetails.targetVas.vas',
         'worksheetDetails.targetVas.inventory',
         'worksheetDetails.targetVas.inventory.location',
+        'worksheetDetails.targetVas.targetProduct',
         'worksheetDetails.targetInventory',
         'worksheetDetails.targetInventory.inventory',
         'worksheetDetails.targetInventory.inventory.product',
         'worksheetDetails.targetInventory.inventory.warehouse',
         'worksheetDetails.targetInventory.inventory.location',
         'creator',
-        'updater'
-      ]
+        'updater',
+      ],
     })) as IWorksheet
 
     if (worksheet?.arrivalNotice?.id) {
@@ -48,16 +49,16 @@ export const worksheetResolver = {
         where: {
           domain: context.state.domain,
           bizplace: worksheet.bizplace,
-          arrivalNotice: worksheet.arrivalNotice
-        }
+          arrivalNotice: worksheet.arrivalNotice,
+        },
       })
 
       worksheet.orderVass = await getRepository(OrderVas).find({
         where: {
           domain: context.state.domain,
           bizplace: worksheet.bizplace,
-          arrivalNotice: worksheet.arrivalNotice
-        }
+          arrivalNotice: worksheet.arrivalNotice,
+        },
       })
     }
 
@@ -66,17 +67,17 @@ export const worksheetResolver = {
         where: {
           domain: context.state.domain,
           bizplace: worksheet.bizplace,
-          releaseGood: worksheet.releaseGood
+          releaseGood: worksheet.releaseGood,
         },
-        relations: ['inventory', 'inventory.location']
+        relations: ['inventory', 'inventory.location'],
       })
 
       worksheet.orderVass = await getRepository(OrderVas).find({
         where: {
           domain: context.state.domain,
           bizplace: worksheet.bizplace,
-          releaseGood: worksheet.releaseGood
-        }
+          releaseGood: worksheet.releaseGood,
+        },
       })
     }
 
@@ -85,11 +86,11 @@ export const worksheetResolver = {
         where: {
           domain: context.state.domain,
           bizplace: worksheet.bizplace,
-          vasOrder: worksheet.vasOrder
-        }
+          vasOrder: worksheet.vasOrder,
+        },
       })
     }
 
     return worksheet
-  }
+  },
 }
