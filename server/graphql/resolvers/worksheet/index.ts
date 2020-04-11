@@ -84,7 +84,6 @@ export const Mutation = {
   ...completeLoading,
   ...completeReturn,
   ...putaway,
-  ...undoPutaway,
   ...loading,
   ...undoLoading,
   ...transfer,

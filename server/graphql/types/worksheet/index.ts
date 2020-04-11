@@ -117,11 +117,6 @@ export const Mutation = /* GraphQL */ `
     palletId: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
-  undoPutaway (
-    worksheetDetailName: String!
-    palletId: String!
-  ): Boolean
-
   returning (
     worksheetDetailName: String!
     palletId: String!
@@ -263,5 +258,5 @@ export const Types = /* GraphQL */ [
   DeliveryWorksheet,
   WorksheetDetailInfo,
   ExecutingWorksheet,
-  LoadedWorksheetDetail
+  LoadedWorksheetDetail,
 ]
