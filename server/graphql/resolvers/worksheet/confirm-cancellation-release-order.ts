@@ -98,32 +98,37 @@ export const confirmCancellationReleaseOrder = {
 
       // change status to cancelled for order inventory that has not executed yet
       if (cancelOI && cancelOI.length) {
-        const cancelledOI = cancelOI.map(async (oi: OrderInventory) => {
-          let cancelledInv: Inventory = oi.inventory
+        await trxMgr.getRepository(OrderInventory).save(
+          await Promise.all(
+            cancelOI.map(async (oi: OrderInventory) => {
+              let cancelledInv: Inventory = oi.inventory
 
-          await trxMgr.getRepository(Inventory).save({
-            ...cancelledInv,
-            lockedQty: 0,
-            lockedWeight: 0,
-          })
+              await trxMgr.getRepository(Inventory).save({
+                ...cancelledInv,
+                lockedQty: 0,
+                lockedWeight: 0,
+              })
 
-          await generateInventoryHistory(
-            cancelledInv,
-            foundRO,
-            INVENTORY_TRANSACTION_TYPE.CANCEL_ORDER,
-            0,
-            0,
-            context.state.user,
-            trxMgr
+              await generateInventoryHistory(
+                cancelledInv,
+                foundRO,
+                INVENTORY_TRANSACTION_TYPE.CANCEL_ORDER,
+                0,
+                0,
+                context.state.user,
+                trxMgr
+              )
+
+              let cancelledOrderInv: OrderInventory = {
+                ...oi,
+                status: ORDER_INVENTORY_STATUS.CANCELLED,
+                updater: context.state.user,
+              }
+
+              return cancelledOrderInv
+            })
           )
-
-          return {
-            ...oi,
-            status: ORDER_INVENTORY_STATUS.CANCELLED,
-            updater: context.state.user,
-          }
-        })
-        await trxMgr.getRepository(OrderInventory).save(cancelledOI)
+        )
       }
 
       // update status of order vass to CANCELLED
