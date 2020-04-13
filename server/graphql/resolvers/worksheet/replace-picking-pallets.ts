@@ -8,7 +8,7 @@ import {
   ReleaseGood,
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, Location } from '@things-factory/warehouse-base'
+import { Inventory, Location, LOCATION_STATUS } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -36,13 +36,21 @@ export const replacePickingPalletsResolver = {
 
       // 1. update location of prev inventory if it should be returned back to the location
       if (returnLocation) {
-        const location: Location = await trxMgr.getRepository(Location).findOne({
-          where: { name: returnLocation },
+        const foundLoc: Location = await trxMgr.getRepository(Location).findOne({
+          where: { domain: context.state.domain, name: returnLocation },
+          relations: ['warehouse'],
         })
 
         await trxMgr.getRepository(Inventory).save({
           ...prevInv,
-          location,
+          location: foundLoc.id,
+          warehouse: foundLoc.warehouse.id,
+          updater: user,
+        })
+
+        await trxMgr.getRepository(Location).save({
+          ...foundLoc,
+          status: LOCATION_STATUS.OCCUPIED,
           updater: user,
         })
       }
@@ -52,7 +60,7 @@ export const replacePickingPalletsResolver = {
         ...prevInv,
         lockedQty: 0,
         lockedWeight: 0,
-        updater: context.state.user,
+        updater: user,
       })
 
       // 2. update status of previous order Inventory
