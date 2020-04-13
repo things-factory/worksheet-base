@@ -80,14 +80,6 @@ export const replacePickingPalletsResolver = {
           })
           const unitWeight: number = foundInv.weight / foundInv.qty
 
-          // assign lockedQty and lockedWeight to the inventory
-          await trxMgr.getRepository(Inventory).save({
-            ...foundInv,
-            lockedQty: inventory.qty,
-            lockedWeight: unitWeight * inventory.qty,
-            updater: context.state.user,
-          })
-
           // 4. create new order inventories
           const targetInventory: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
             domain,
