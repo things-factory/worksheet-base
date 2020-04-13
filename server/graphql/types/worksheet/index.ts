@@ -176,7 +176,7 @@ export const Mutation = /* GraphQL */ `
     ganNo: String!
     approvedProducts: [ObjectRef]!
     rejectedProducts: [ObjectRef]!
-  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+  ): Boolean @priviledge(category: "worksheet", priviledge: "mutation")
 
   replacePickingPallets (
     worksheetDetailName: String!
