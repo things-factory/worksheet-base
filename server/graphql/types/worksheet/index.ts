@@ -240,6 +240,10 @@ export const Query = /* GraphQL */ `
     releaseGoodNo: String!, locationSortingRules: [Sorting]
   ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
 
+  vasCandidates (
+    worksheetDetailId: String!
+  ): [Inventory] @priviledge(category: "worksheet", priviledge: "query")
+
 `
 
 export const Types = /* GraphQL */ [

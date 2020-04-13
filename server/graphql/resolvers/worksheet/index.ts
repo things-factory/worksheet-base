@@ -35,13 +35,14 @@ import { returnWorksheetResolver } from './return-worksheet'
 import { returning } from './returning'
 import { transfer } from './transfer'
 import { undoLoading } from './undo-loading'
+import { undoPutaway } from './undo-putaway'
 import { undoUnloading } from './undo-unloading'
 import { undoVas } from './undo-vas'
-import { undoPutaway } from './undo-putaway'
 import { unload } from './unload'
 import { unloadedInventories } from './unloaded-inventories'
 import { unloadingWorksheetResolver } from './unloading-worksheet'
 import { updateWorksheet } from './update-worksheet'
+import { vasCandidatesResolver } from './vas-candidates'
 import { vasWorksheetResolver } from './vas-worksheet'
 import { worksheetResolver } from './worksheet'
 import { worksheetsResolver } from './worksheets'
@@ -58,6 +59,7 @@ export const Query = {
   ...loadingWorksheetResolver,
   ...unloadedInventories,
   ...loadedInventories,
+  ...vasCandidatesResolver
 }
 
 export const Mutation = {
@@ -96,5 +98,5 @@ export const Mutation = {
   ...proceedExtraProductsResolver,
   ...replacePickingPalletsResolver,
   ...pendingCancellationReleaseOrder,
-  ...confirmCancellationReleaseOrder,
+  ...confirmCancellationReleaseOrder
 }
