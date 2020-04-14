@@ -16,12 +16,12 @@ export const assignVasInventoriesResolver = {
           'bizplace',
           'worksheet',
           'targetVas',
-          'targetVas.targetProduct',
           'targetVas.arrivalNotice',
           'targetVas.releaseGood',
           'targetVas.shippingOrder',
           'targetVas.vasOrder',
-          'targetVas.vas'
+          'targetVas.vas',
+          'targetVas.targetProduct'
         ]
       })
 
@@ -33,7 +33,6 @@ export const assignVasInventoriesResolver = {
       delete worksheetDetail.id
 
       for (let inv of inventories) {
-        const { invId, qty } = inv
         let targetVas: OrderVas = { ...orderVas }
         delete targetVas.id
 
@@ -43,8 +42,8 @@ export const assignVasInventoriesResolver = {
           domain,
           bizplace,
           name: OrderNoGenerator.orderVas(),
-          qty,
-          inventory: await trxMgr.getRepository(Inventory).findOne(invId),
+          qty: inv.qty,
+          inventory: await trxMgr.getRepository(Inventory).findOne(inv.id),
           creator: context.state.user,
           updater: context.state.user
         })
