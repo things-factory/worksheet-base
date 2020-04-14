@@ -7,12 +7,12 @@ import {
   GoodsReceivalNote,
   OrderProduct,
   ORDER_PRODUCT_STATUS,
-  ORDER_STATUS
+  ORDER_STATUS,
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import FormData from 'form-data'
 import fetch from 'node-fetch'
-import { getRepository } from 'typeorm'
+import { getRepository, Not, IsNull } from 'typeorm'
 import { TEMPLATE_TYPE } from '../constants'
 import { Worksheet } from '../entities'
 
@@ -21,13 +21,13 @@ const REPORT_API_URL = config.get('reportApiUrl', 'http://localhost:8888/rest/re
 export async function renderGRN({ domain: domainName, grnNo }) {
   // 1. find domain
   const domain: Domain = await getRepository(Domain).findOne({
-    where: { subdomain: domainName }
+    where: { subdomain: domainName },
   })
 
   // 2. find grn
   const foundGRN: GoodsReceivalNote = await getRepository(GoodsReceivalNote).findOne({
     where: { domain, name: grnNo },
-    relations: ['domain', 'bizplace', 'arrivalNotice']
+    relations: ['domain', 'bizplace', 'arrivalNotice'],
   })
 
   // 3. find GAN
@@ -40,23 +40,23 @@ export async function renderGRN({ domain: domainName, grnNo }) {
   // 5. find domain bizplace id
   const foundDomainBizId: Partner = await getRepository(Partner).findOne({
     where: { partnerBizplace: partnerBiz.id },
-    relations: ['domainBizplace']
+    relations: ['domainBizplace'],
   })
 
   // 6. found domain bizplace object
   const foundDomainBiz: Bizplace = await getRepository(Bizplace).findOne({
-    where: { id: foundDomainBizId.domainBizplace.id }
+    where: { id: foundDomainBizId.domainBizplace.id },
   })
 
   // 7. find domain contact point
   const foundCP: ContactPoint = await getRepository(ContactPoint).findOne({
-    where: { domain, bizplace: foundDomainBiz }
+    where: { domain, bizplace: foundDomainBiz },
   })
 
   // 8. find unloading worksheet
   const foundWS: Worksheet = await getRepository(Worksheet).findOne({
     where: { domain, arrivalNotice: foundGAN, type: ORDER_PRODUCT_STATUS.UNLOADING, status: ORDER_STATUS.DONE },
-    relations: ['worksheetDetails']
+    relations: ['worksheetDetails'],
   })
 
   const unloadDateTime: Date = new Date(foundWS.endedAt)
@@ -71,21 +71,21 @@ export async function renderGRN({ domain: domainName, grnNo }) {
   const unloadDate = year + '-' + month + '-' + day
 
   const targetProducts: OrderProduct[] = await getRepository(OrderProduct).find({
-    where: { domain, arrivalNotice: foundGAN },
-    relations: ['product']
+    where: { domain, arrivalNotice: foundGAN, actualPalletQty: Not(IsNull()), actualPackQty: Not(IsNull()) },
+    relations: ['product'],
   })
 
   // 9. find grn template based on category
   const foundTemplate: Attachment = await getRepository(Attachment).findOne({
-    where: { domain, category: TEMPLATE_TYPE.GRN_TEMPLATE }
+    where: { domain, category: TEMPLATE_TYPE.GRN_TEMPLATE },
   })
 
   // 10. find grn logo
   const foundLogo: Attachment = await getRepository(Attachment).findOne({
     where: {
       domain,
-      category: TEMPLATE_TYPE.LOGO
-    }
+      category: TEMPLATE_TYPE.LOGO,
+    },
   })
 
   // 11. find signature
@@ -93,8 +93,8 @@ export async function renderGRN({ domain: domainName, grnNo }) {
     where: {
       domain,
       refBy: foundGRN.id,
-      category: TEMPLATE_TYPE.SIGNATURE
-    }
+      category: TEMPLATE_TYPE.SIGNATURE,
+    },
   })
 
   const template = await STORAGE.readFile(foundTemplate.path, 'utf-8')
@@ -124,7 +124,7 @@ export async function renderGRN({ domain: domainName, grnNo }) {
     ref_no: ownRefNo ? `${foundGAN.name} / ${foundGAN.refNo}` : `${foundGAN.name}`,
     received_date: foundWS.endedAt,
     truck_no: foundGAN.truckNo || '',
-    container_no: foundGAN.container_no || '',
+    container_no: foundGAN.containerNo || '',
     product_list: targetProducts.map((op: OrderProduct, idx) => {
       const product: Product = op.product
       return {
@@ -136,9 +136,9 @@ export async function renderGRN({ domain: domainName, grnNo }) {
         product_qty: op.actualPackQty,
         product_weight: op.totalWeight,
         pallet_qty: op.actualPalletQty > 1 ? `${op.actualPalletQty} PALLETS` : `${op.actualPalletQty} PALLET`,
-        remark: op.remark
+        remark: op.remark,
       }
-    })
+    }),
   }
 
   const formData = new FormData()
@@ -147,7 +147,7 @@ export async function renderGRN({ domain: domainName, grnNo }) {
 
   const response = await fetch(REPORT_API_URL, {
     method: 'POST',
-    body: formData
+    body: formData,
   })
 
   return await response.text()
