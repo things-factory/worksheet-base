@@ -88,7 +88,13 @@ export const vasCandidatesResolver = {
           },
           relations: ['inventory']
         })
-        inventoryCondition.id = In(orderInventories.map((ordInv: OrderInventory) => ordInv.inventory.id))
+
+        const inventoryIds: string[] = orderInventories.map((ordInv: OrderInventory) => ordInv.inventory.id)
+        if (inventoryIds?.length) {
+          inventoryCondition.id = In(inventoryIds)
+        } else {
+          inventoryCondition.id = In([null])
+        }
       }
 
       return await trxMgr.getRepository(Inventory).find({
