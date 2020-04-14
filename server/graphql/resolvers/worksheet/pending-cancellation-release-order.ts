@@ -25,21 +25,23 @@ export const pendingCancellationReleaseOrder = {
       let targetOIs: OrderInventory[] = foundRO.orderInventories
       let foundOVs: OrderVas[] = foundRO.orderVass
       let customerBizplace: Bizplace = foundRO.bizplace
+      let pickedOIs: OrderInventory[]
+      let pickingOIs: OrderInventory[]
 
       // 1. Check RO status
       if (foundRO.status === ORDER_STATUS.DONE || foundRO.status === ORDER_STATUS.LOADING) {
         // 1a. Case 1: RO is done or loading, pending cancel order, worksheet, worksheet detail, order inventory
         // update status of order inventory to PENDING_CANCEL
-        targetOIs = targetOIs.map((orderInv: OrderInventory) => {
+        pickedOIs = targetOIs.map((orderInv: OrderInventory) => {
           return {
             ...orderInv,
             status: ORDER_INVENTORY_STATUS.PENDING_REVERSE,
             updater: context.state.user,
           }
         })
-        await trxMgr.getRepository(OrderInventory).save(targetOIs)
+        await trxMgr.getRepository(OrderInventory).save(pickedOIs)
       } else if (foundRO.status === ORDER_STATUS.PICKING || foundRO.status === ORDER_STATUS.READY_TO_PICK) {
-        const pickingOIs: OrderInventory[] = targetOIs
+        pickingOIs = targetOIs
           .filter(
             (oi: OrderInventory) =>
               oi.status === ORDER_INVENTORY_STATUS.PICKING ||
@@ -55,7 +57,7 @@ export const pendingCancellationReleaseOrder = {
           })
         await trxMgr.getRepository(OrderInventory).save(pickingOIs)
 
-        const pickedOIs: OrderInventory[] = targetOIs
+        pickedOIs = targetOIs
           .filter((pickedOI: OrderInventory) => pickedOI.status === ORDER_INVENTORY_STATUS.PICKED)
           .map((targetOI: OrderInventory) => {
             return {
@@ -79,6 +81,61 @@ export const pendingCancellationReleaseOrder = {
         await trxMgr.getRepository(OrderVas).save(foundOVs)
       }
 
+      if (pickedOIs && pickedOIs.length) {
+        let pickedWSD: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
+          where: {
+            domain: context.state.domain,
+            targetInventory: In(pickedOIs.map((oi) => oi.id)),
+            status: ORDER_INVENTORY_STATUS.DONE,
+          },
+        })
+
+        pickedWSD = pickedWSD.map((wsd: WorksheetDetail) => {
+          return {
+            ...wsd,
+            status: ORDER_INVENTORY_STATUS.PENDING_CANCEL,
+            updater: context.state.user,
+          }
+        })
+        await trxMgr.getRepository(WorksheetDetail).save(pickedWSD)
+
+        let replacedWSD: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
+          where: {
+            domain: context.state.domain,
+            targetInventory: In(pickedOIs.map((oi) => oi.id)),
+            status: ORDER_INVENTORY_STATUS.REPLACED,
+          },
+          relations: ['targetInventory'],
+        })
+
+        if (replacedWSD && replacedWSD.length) {
+          let replacedOI: OrderInventory[] = replacedWSD.map((wsd: WorksheetDetail) => wsd.targetInventory)
+          replacedOI = replacedOI.map((oi: OrderInventory) => {
+            return {
+              ...oi,
+              status: ORDER_INVENTORY_STATUS.REPLACED,
+              updater: context.state.user,
+            }
+          })
+          await trxMgr.getRepository(OrderInventory).save(replacedOI)
+        }
+      }
+
+      if (pickingOIs && pickingOIs.length) {
+        let pickingWSD: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
+          where: { domain: context.state.domain, targetInventory: In(pickingOIs.map((oi) => oi.id)) },
+        })
+
+        pickingWSD = pickingWSD.map((wsd: WorksheetDetail) => {
+          return {
+            ...wsd,
+            status: ORDER_INVENTORY_STATUS.PENDING_CANCEL,
+            updater: context.state.user,
+          }
+        })
+        await trxMgr.getRepository(WorksheetDetail).save(pickingWSD)
+      }
+
       // find worksheet and update status to PENDING_CANCEL
       let foundWS: Worksheet[] = await trxMgr.getRepository(Worksheet).find({
         where: {
@@ -95,23 +152,6 @@ export const pendingCancellationReleaseOrder = {
         }
       })
       await trxMgr.getRepository(Worksheet).save(foundWS)
-
-      // find worksheet detail and update status to PENDING_CANCEL
-      let foundWSD: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
-        where: {
-          domain: context.state.domain,
-          targetInventory: In(targetOIs.map((oi: OrderInventory) => oi.id)),
-        },
-      })
-
-      foundWSD = foundWSD.map((wsd: WorksheetDetail) => {
-        return {
-          ...wsd,
-          status: ORDER_INVENTORY_STATUS.PENDING_CANCEL,
-          updater: context.state.user,
-        }
-      })
-      await trxMgr.getRepository(WorksheetDetail).save(foundWSD)
 
       // find DO and change status to pending cancel
       let foundDO: DeliveryOrder[] = await trxMgr.getRepository(DeliveryOrder).find({

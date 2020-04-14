@@ -39,14 +39,17 @@ export const confirmCancellationReleaseOrder = {
 
       // 1. Check Order Inventory status
       // 1a. separate into two groups, group 1: pending cancel, group 2: picked
-      const cancelOI: OrderInventory[] = targetOIs.filter(
+      let cancelOI: OrderInventory[] = targetOIs.filter(
         (oi: OrderInventory) => oi.status === ORDER_INVENTORY_STATUS.PENDING_CANCEL
       )
       let pickedOI: OrderInventory[] = targetOIs.filter(
         (oi: OrderInventory) => oi.status === ORDER_INVENTORY_STATUS.PENDING_REVERSE
       )
+      let replacedOI: OrderInventory[] = targetOIs.filter(
+        (oi: OrderInventory) => oi.status === ORDER_INVENTORY_STATUS.REPLACED
+      )
 
-      if (pickedOI && pickedOI.length) {
+      if (pickedOI && pickedOI?.length) {
         await trxMgr.getRepository(OrderInventory).save(
           await Promise.all(
             pickedOI.map(async (oi: OrderInventory) => {
@@ -97,7 +100,7 @@ export const confirmCancellationReleaseOrder = {
       }
 
       // change status to cancelled for order inventory that has not executed yet
-      if (cancelOI && cancelOI.length) {
+      if (cancelOI && cancelOI?.length) {
         await trxMgr.getRepository(OrderInventory).save(
           await Promise.all(
             cancelOI.map(async (oi: OrderInventory) => {
@@ -131,8 +134,18 @@ export const confirmCancellationReleaseOrder = {
         )
       }
 
-      // update status of order vass to CANCELLED
-      if (foundOVs && foundOVs.length) {
+      if (replacedOI && replacedOI?.length) {
+        replacedOI = replacedOI.map((oi: OrderInventory) => {
+          return {
+            ...oi,
+            status: ORDER_INVENTORY_STATUS.CANCELLED,
+            updater: context.state.user,
+          }
+        })
+      }
+
+      if (foundOVs && foundOVs?.length) {
+        // update status of order vass to CANCELLED
         foundOVs = foundOVs.map((orderVas: OrderVas) => {
           return {
             ...orderVas,
@@ -160,7 +173,7 @@ export const confirmCancellationReleaseOrder = {
       })
       await trxMgr.getRepository(Worksheet).save(foundWS)
 
-      // find worksheet detail and update status to PENDING_CANCEL
+      // find worksheet detail and update status to CANCELLED
       let foundWSD: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
         where: {
           domain: context.state.domain,
@@ -168,7 +181,7 @@ export const confirmCancellationReleaseOrder = {
         },
       })
 
-      if (foundWSD && foundWSD.length) {
+      if (foundWSD && foundWSD?.length) {
         foundWSD = foundWSD.map((wsd: WorksheetDetail) => {
           return {
             ...wsd,
@@ -185,7 +198,7 @@ export const confirmCancellationReleaseOrder = {
         relations: ['transportVehicle'],
       })
 
-      if (foundDO && foundDO.length) {
+      if (foundDO && foundDO?.length) {
         foundDO = foundDO.map((deliveryOrder: DeliveryOrder) => {
           return {
             ...deliveryOrder,
