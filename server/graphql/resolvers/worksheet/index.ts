@@ -4,6 +4,7 @@ import { activatePutaway } from './activate-putaway'
 import { activateReturnResolver } from './activate-return'
 import { activateUnloading } from './activate-unloading'
 import { activateVas } from './activate-vas'
+import { assignVasInventoriesResolver } from './assign-vas-inventories'
 import { completeLoading } from './complete-loading'
 import { completePicking } from './complete-picking'
 import { completePutaway } from './complete-putaway'
@@ -98,5 +99,6 @@ export const Mutation = {
   ...proceedExtraProductsResolver,
   ...replacePickingPalletsResolver,
   ...pendingCancellationReleaseOrder,
-  ...confirmCancellationReleaseOrder
+  ...confirmCancellationReleaseOrder,
+  ...assignVasInventoriesResolver
 }

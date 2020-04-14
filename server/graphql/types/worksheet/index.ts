@@ -1,9 +1,9 @@
 import { ArrivalNoticeWorksheet } from './arrival-notice-worksheet'
+import { ContactPointInfo } from './contact-point-info'
 import { DeliveryInfo } from './delivery-info'
+import { DeliveryOrderInfo } from './delivery-order-info'
 import { DeliveryWorksheet } from './delivery-worksheet'
 import { ExecutingWorksheet } from './executing-worksheet'
-import { DeliveryOrderInfo } from './delivery-order-info'
-import { ContactPointInfo } from './contact-point-info'
 import { GoodsDeliveryNote } from './goods-delivery-note'
 import { LoadedWorksheetDetail } from './loaded-worksheet-detail'
 import { NewWorksheet } from './new-worksheet'
@@ -190,6 +190,11 @@ export const Mutation = /* GraphQL */ `
 
   confirmCancellationReleaseOrder (
     name: String!
+  ): Boolean
+
+  assignVasInventories (
+    worksheetDetailId: String!
+    inventories: [InventoryPatch]!
   ): Boolean
 `
 
