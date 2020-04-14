@@ -58,6 +58,25 @@ export const completeUnloading = {
         )
 
         /**
+         * Validation for partial unloaded pallets
+         * If there are partially unloaded pallets throw Error
+         */
+        const partiallyUnloadedCnt: number = await trxMgr.getRepository(Inventory).count({
+          where: {
+            domain: context.state.domain,
+            refOrderId: arrivalNotice.id,
+            bizplace: customerBizplace,
+            status: INVENTORY_STATUS.PARTIALLY_UNLOADED
+          }
+        })
+
+        if (partiallyUnloadedCnt) {
+          throw new Error(
+            'There is partially unloaded pallet, generate release order worksheet before complete unloading.'
+          )
+        }
+
+        /**
          * 3. Update worksheet detail status (EXECUTING => DONE) & issue note
          */
         foundWorksheetDetails = foundWorksheetDetails.map((foundWSD: WorksheetDetail) => {
