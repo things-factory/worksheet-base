@@ -2,12 +2,9 @@
   "printWidth": 120,
   "semi": false,
   "singleQuote": true,
-  "overrides": [
-    {
-      "files": ["*.json", ".md", ".markdown"],
-      "options": {
-        "tabWidth": 2
-      }
-    }
-  ]
+  "arrowParens": "avoid",
+  "tabWidth": 2,
+  "useTabs": false,
+  "trailingComma": "none",
+  "overrides": [{ "files": ["*.json", ".md", ".markdown"], "options": { "tabWidth": 2 } }]
 }

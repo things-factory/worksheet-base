@@ -191,6 +191,11 @@ export const Mutation = /* GraphQL */ `
   confirmCancellationReleaseOrder (
     name: String!
   ): Boolean
+
+  assignVasInventories (
+    worksheetDetailIds: [String]!
+    inventories: [InventoryPatch]!
+  ): Boolean
 `
 
 export const Query = /* GraphQL */ `
@@ -239,6 +244,10 @@ export const Query = /* GraphQL */ `
   pickingWorksheet (
     releaseGoodNo: String!, locationSortingRules: [Sorting]
   ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
+
+  vasCandidates (
+    worksheetDetailId: String!
+  ): [Inventory] @priviledge(category: "worksheet", priviledge: "query")
 
 `
 
