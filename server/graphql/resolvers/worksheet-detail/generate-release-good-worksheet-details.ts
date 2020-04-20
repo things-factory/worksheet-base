@@ -15,7 +15,7 @@ export const generateReleaseGoodWorksheetDetailsResolver = {
       // 1. Remove prev worksheet details if it's exists
       const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: { name: worksheetNo, domain: context.state.domain },
-        relations: ['bizplace', 'releaseGood', 'worksheetDetails', 'worksheetDetails.targetInventory'],
+        relations: ['bizplace', 'releaseGood', 'worksheetDetails', 'worksheetDetails.targetInventory']
       })
 
       const prevWSDs: WorksheetDetail[] = worksheet.worksheetDetails.filter((wsd: WorksheetDetail) => {
@@ -54,14 +54,21 @@ export const generateReleaseGoodWorksheetDetailsResolver = {
             productName,
             packingType,
             creator: context.state.user,
-            updater: context.state.user,
+            updater: context.state.user
           })
+
+          const currentLockedQty: any = inventory.lockedQty
+          const currentLockedWeight: any = inventory.lockedWeight
 
           await trxMgr.getRepository(Inventory).save({
             ...targetInventory.inventory,
-            lockedQty: targetInventory.releaseQty,
-            lockedWeight: targetInventory.releaseWeight,
-            updater: context.state.user,
+            lockedQty: Boolean(currentLockedQty)
+              ? targetInventory.releaseQty + currentLockedQty
+              : targetInventory.releaseQty,
+            lockedWeight: Boolean(currentLockedWeight)
+              ? targetInventory.releaseWeight + currentLockedWeight
+              : targetInventory.releaseWeight,
+            updater: context.state.user
           })
 
           // 3. Create worksheet details
@@ -75,10 +82,10 @@ export const generateReleaseGoodWorksheetDetailsResolver = {
             type: WORKSHEET_TYPE.PICKING,
             status: WORKSHEET_STATUS.DEACTIVATED,
             creator: context.state.user,
-            updater: context.state.user,
+            updater: context.state.user
           })
         })
       )
     })
-  },
+  }
 }
