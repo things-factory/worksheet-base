@@ -67,8 +67,8 @@ export const completeUnloadingPartiallyResolver = {
         updater: user
       })
 
-      const orderProduct: OrderProduct = foundWSD.targetProduct
-      await ordProdRepo.save({
+      let orderProduct: OrderProduct = foundWSD.targetProduct
+      orderProduct = await ordProdRepo.save({
         ...orderProduct,
         status: ORDER_PRODUCT_STATUS.PARTIALLY_UNLOADED
       })
@@ -78,7 +78,12 @@ export const completeUnloadingPartiallyResolver = {
        * Update status of inventories to PARTIALLY_UNLOADED
        */
       let inventories: Inventory[] = await invRepo.find({
-        where: { domain, refOrderId: arrivalNotice.id, orderProduct, status: INVENTORY_STATUS.UNLOADED }
+        where: {
+          domain,
+          refOrderId: arrivalNotice.id,
+          orderProductId: orderProduct.id,
+          status: INVENTORY_STATUS.UNLOADED
+        }
       })
       inventories = inventories.map((inv: Inventory) => {
         return {
