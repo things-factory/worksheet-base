@@ -1,80 +1,165 @@
 import { Bizplace, getPermittedBizplaceIds } from '@things-factory/biz-base'
 import { ArrivalNotice, ReleaseGood } from '@things-factory/sales-base'
-import { convertListParams, ListParam } from '@things-factory/shell'
-import { getRepository, In, IsNull } from 'typeorm'
+import { convertListParams, ListParam, buildQuery } from '@things-factory/shell'
+import { getRepository, In, IsNull, SelectQueryBuilder } from 'typeorm'
 import { Worksheet } from '../../../entities'
 
 export const worksheetsResolver = {
   async worksheets(_: any, params: ListParam, context: any) {
-    const convertedParams = convertListParams(params)
+    try {
+      ////For inbound worksheet filter
+      const arrivalNoticeParam: any = params.filters.find((param: any) => param.name === 'arrivalNoticeNo')
+      const arrivalNoticeRefNoParam = params.filters.find(param => param.name === 'arrivalNoticeRefNo')
 
-    const arrivalNoticeParam: any = params.filters.find((param: any) => param.name === 'arrivalNoticeNo')
-    const arrivalNoticeRefNoParam = params.filters.find(param => param.name === 'arrivalNoticeRefNo')
-    if (arrivalNoticeParam || arrivalNoticeRefNoParam) {
-      let arrFilters = []
-      if (arrivalNoticeParam) arrFilters.push({ ...arrivalNoticeParam, name: 'name' })
-      if (arrivalNoticeRefNoParam) arrFilters.push({ ...arrivalNoticeRefNoParam, name: 'refNo' })
-      const foundArrivalNotices: ArrivalNotice[] = await getRepository(ArrivalNotice).find({
-        ...convertListParams({ filters: arrFilters })
-      })
-      if (foundArrivalNotices && foundArrivalNotices.length) {
-        convertedParams.where.arrivalNotice = In(foundArrivalNotices.map((foundAN: ArrivalNotice) => foundAN.id))
-      } else {
-        convertListParams.where.arrivalNotice = IsNull()
-      }
-    }
-
-    const releaseGoodParam = params.filters.find(param => param.name === 'releaseGoodNo')
-    const releaseGoodRefNoParam = params.filters.find(param => param.name === 'releaseGoodRefNo')
-    if (releaseGoodParam || releaseGoodRefNoParam) {
-      let arrFilters = []
-      if (releaseGoodParam) arrFilters.push({ ...releaseGoodParam, name: 'name' })
-      if (releaseGoodRefNoParam) arrFilters.push({ ...releaseGoodRefNoParam, name: 'refNo' })
-      const foundReleaseGoods: ReleaseGood[] = await getRepository(ReleaseGood).find({
-        ...convertListParams({ filters: arrFilters })
-      })
-      if (foundReleaseGoods && foundReleaseGoods.length) {
-        convertedParams.where.releaseGood = In(foundReleaseGoods.map((foundRG: ReleaseGood) => foundRG.id))
-      } else {
-        convertedParams.where.releaseGood = IsNull()
-      }
-    }
-
-    const bizplaceParam = params.filters.find(param => param.name === 'bizplaceName')
-    if (bizplaceParam) {
-      const foundBizplaces: Bizplace[] = await getRepository(Bizplace).find({
-        where: {
-          ...convertListParams({ filters: [{ ...bizplaceParam, name: 'name' }] }).where,
-          bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user))
+      if (arrivalNoticeParam || arrivalNoticeRefNoParam) {
+        let arrFilters = []
+        if (arrivalNoticeParam) {
+          params.filters.splice(
+            params.filters.findIndex(item => item.name == 'arrivalNoticeNo'),
+            1
+          )
+          arrFilters.push({ ...arrivalNoticeParam, name: 'name' })
         }
-      })
-      if (foundBizplaces && foundBizplaces.length) {
-        convertedParams.where.bizplace = In(foundBizplaces.map((foundBizplace: Bizplace) => foundBizplace.id))
-      } else {
-        convertedParams.where.bizplace = IsNull()
+        if (arrivalNoticeRefNoParam) {
+          params.filters.splice(
+            params.filters.findIndex(item => item.name == 'arrivalNoticeRefNo'),
+            1
+          )
+          arrFilters.push({ ...arrivalNoticeRefNoParam, name: 'refNo' })
+        }
+        const foundArrivalNotices: ArrivalNotice[] = await getRepository(ArrivalNotice).find({
+          ...convertListParams({ filters: arrFilters })
+        })
+
+        if (foundArrivalNotices && foundArrivalNotices.length) {
+          params.filters.push({
+            name: 'arrivalNoticeId',
+            operator: 'in',
+            value: foundArrivalNotices.map((foundAN: ArrivalNotice) => foundAN.id),
+            relation: false
+          })
+        } else {
+          params.filters.push({
+            name: 'arrivalNoticeId',
+            operator: 'is_null',
+            relation: false
+          })
+        }
       }
-    } else {
-      convertedParams.where.bizplace = In(await getPermittedBizplaceIds(context.state.domain, context.state.user))
+
+      ////For outbound worksheet filter
+      const releaseGoodParam = params.filters.find(param => param.name === 'releaseGoodNo')
+      const releaseGoodRefNoParam = params.filters.find(param => param.name === 'releaseGoodRefNo')
+      if (releaseGoodParam || releaseGoodRefNoParam) {
+        let arrFilters = []
+        if (releaseGoodParam) {
+          params.filters.splice(
+            params.filters.findIndex(item => item.name == 'releaseGoodNo'),
+            1
+          )
+          arrFilters.push({ ...releaseGoodParam, name: 'name' })
+        }
+        if (releaseGoodRefNoParam) {
+          params.filters.splice(
+            params.filters.findIndex(item => item.name == 'releaseGoodRefNo'),
+            1
+          )
+          arrFilters.push({ ...releaseGoodRefNoParam, name: 'refNo' })
+        }
+        const foundReleaseGoods: ReleaseGood[] = await getRepository(ReleaseGood).find({
+          ...convertListParams({ filters: arrFilters })
+        })
+
+        if (foundReleaseGoods && foundReleaseGoods.length) {
+          params.filters.push({
+            name: 'releaseGoodId',
+            operator: 'in',
+            value: foundReleaseGoods.map((foundRG: ReleaseGood) => foundRG.id),
+            relation: false
+          })
+        } else {
+          params.filters.push({
+            name: 'releaseGoodId',
+            operator: 'is_null',
+            relation: false
+          })
+        }
+      }
+
+      ////Set default bizplace filter
+      const bizplaceFilter = params.filters.find(param => param.name === 'bizplaceId')
+      if (!bizplaceFilter) {
+        params.filters.push({
+          name: 'bizplaceId',
+          operator: 'in',
+          value: await getPermittedBizplaceIds(context.state.domain, context.state.user),
+          relation: false
+        })
+      }
+
+      ////Build and run Query
+      const qb: SelectQueryBuilder<Worksheet> = getRepository(Worksheet).createQueryBuilder('ws')
+      buildQuery(qb, params, context)
+      qb.addSelect(subQuery => {
+        return subQuery
+          .select('COALESCE("ccd".rank, 99999)', 'rank')
+          .from('common_code_details', 'ccd')
+          .innerJoin('ccd.commonCode', 'cc')
+          .where('"ccd"."name" = "ws"."status"')
+          .andWhere('"ccd"."domain_id" = "ws"."domain_id"')
+          .andWhere('"cc"."name" = \'WORKSHEET_STATUS\'')
+      }, 'rank')
+      qb.leftJoinAndSelect('ws.domain', 'domain')
+      qb.leftJoinAndSelect('ws.bizplace', 'bizplace')
+      qb.leftJoinAndSelect('ws.arrivalNotice', 'arrivalNotice')
+      qb.leftJoinAndSelect('ws.releaseGood', 'releaseGood')
+      qb.leftJoinAndSelect('ws.vasOrder', 'vasOrder')
+      qb.leftJoinAndSelect('ws.creator', 'creator')
+      qb.leftJoinAndSelect('ws.updater', 'updater')
+
+      ////Add sorting conditions
+      const arrChildSortData = ['bizplace', 'arrivalNotice', 'releaseGood']
+      let sort = (params.sortings || []).reduce(
+        (acc, sort) => {
+          if (sort.name != 'arrivalRefNo' && sort.name != 'releaseRefNo') {
+            return {
+              ...acc,
+              [arrChildSortData.indexOf(sort.name) >= 0 ? sort.name + '.name' : 'ws.' + sort.name]: sort.desc
+                ? 'DESC'
+                : 'ASC'
+            }
+          } else {
+            return { ...acc }
+          }
+        },
+        !params.sortings.some(e => e.name === 'status') ? { rank: 'ASC' } : {}
+      )
+
+      if (params.sortings.some(e => e.name === 'arrivalRefNo')) {
+        sort = {
+          ...sort,
+          'arrivalNotice.refNo': params.sortings[params.sortings.findIndex(item => item.name == 'arrivalRefNo')].desc
+            ? 'DESC'
+            : 'ASC'
+        }
+      }
+
+      if (params.sortings.some(e => e.name === 'releaseRefNo')) {
+        sort = {
+          ...sort,
+          'releaseGood.refNo': params.sortings[params.sortings.findIndex(item => item.name == 'releaseRefNo')].desc
+            ? 'DESC'
+            : 'ASC'
+        }
+      }
+
+      qb.orderBy(sort)
+
+      const [items, total] = await qb.getManyAndCount()
+
+      return { items, total }
+    } catch (error) {
+      throw error
     }
-
-    const [items, total] = await getRepository(Worksheet).findAndCount({
-      ...convertedParams,
-      relations: [
-        'domain',
-        'bizplace',
-        'arrivalNotice',
-        'releaseGood',
-        'vasOrder',
-        'worksheetDetails',
-        'worksheetDetails.targetProduct',
-        'worksheetDetails.targetProduct.product',
-        'worksheetDetails.targetVas',
-        'worksheetDetails.targetVas.vas',
-        'creator',
-        'updater'
-      ]
-    })
-
-    return { items, total }
   }
 }
