@@ -9,7 +9,7 @@ import { User } from '@things-factory/auth-base'
 
 export const picking = {
   async picking(_: any, { worksheetDetailName, palletId, locationName, releaseQty }, context: any) {
-    return await getManager().transaction(async (trxMgr) => {
+    return await getManager().transaction(async trxMgr => {
       await executePicking(
         worksheetDetailName,
         palletId,
@@ -20,7 +20,7 @@ export const picking = {
         trxMgr
       )
     })
-  },
+  }
 }
 
 export async function executePicking(
@@ -38,7 +38,7 @@ export async function executePicking(
       domain,
       name: worksheetDetailName,
       status: WORKSHEET_STATUS.EXECUTING,
-      type: WORKSHEET_TYPE.PICKING,
+      type: WORKSHEET_TYPE.PICKING
     },
     relations: [
       'worksheet',
@@ -48,8 +48,8 @@ export async function executePicking(
       'targetInventory.inventory.bizplace',
       'targetInventory.inventory.product',
       'targetInventory.inventory.warehouse',
-      'targetInventory.inventory.location',
-    ],
+      'targetInventory.inventory.location'
+    ]
   })
   if (!worksheetDetail) throw new Error(`Worksheet Details doesn't exists`)
 
@@ -57,7 +57,7 @@ export async function executePicking(
   const fromLocation: Location = worksheetDetail.targetInventory.inventory.location
   const toLocation: Location = await trxMgr.getRepository(Location).findOne({
     where: { domain, name: locationName },
-    relations: ['warehouse'],
+    relations: ['warehouse']
   })
   if (!toLocation) throw new Error(`Location doesn't exists`)
 
@@ -72,7 +72,7 @@ export async function executePicking(
   await trxMgr.getRepository(OrderInventory).save({
     ...targetInventory,
     status: ORDER_INVENTORY_STATUS.PICKED,
-    updater: user,
+    updater: user
   })
 
   // Change inventory data to release locked qty
@@ -82,7 +82,7 @@ export async function executePicking(
     weight: inventory.weight - targetInventory.releaseWeight,
     lockedQty: 0,
     lockedWeight: 0,
-    updater: user,
+    updater: user
   })
 
   await generateInventoryHistory(
@@ -97,19 +97,12 @@ export async function executePicking(
 
   // If toLocation is not same with fromLocation => Relocate inventory
   if (fromLocation.id !== toLocation.id) {
-    const existingInvCnt: number = await trxMgr.getRepository(Inventory).count({
-      status: INVENTORY_STATUS.STORED,
-      location: toLocation,
-    })
-
-    if (existingInvCnt) throw new Error(`There's items already.`)
-
     inventory = await trxMgr.getRepository(Inventory).save({
       ...inventory,
       location: toLocation,
       warehouse: toLocation.warehouse,
       zone: toLocation.zone,
-      updater: user,
+      updater: user
     })
 
     await generateInventoryHistory(
@@ -127,7 +120,7 @@ export async function executePicking(
   await trxMgr.getRepository(WorksheetDetail).save({
     ...worksheetDetail,
     status: WORKSHEET_STATUS.DONE,
-    updater: user,
+    updater: user
   })
 
   // No more item for the pallet => TERMINATE inventory
@@ -135,7 +128,7 @@ export async function executePicking(
     inventory = await trxMgr.getRepository(Inventory).save({
       ...inventory,
       status: INVENTORY_STATUS.TERMINATED,
-      updater: user,
+      updater: user
     })
 
     await generateInventoryHistory(

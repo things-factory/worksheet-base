@@ -5,7 +5,7 @@ import {
   OrderInventory,
   OrderNoGenerator,
   ORDER_INVENTORY_STATUS,
-  ReleaseGood,
+  ReleaseGood
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory, Location, LOCATION_STATUS } from '@things-factory/warehouse-base'
@@ -17,12 +17,12 @@ import { executePicking } from './picking'
 
 export const replacePickingPalletsResolver = {
   async replacePickingPallets(_: any, { worksheetDetailName, inventories, returnLocation }, context: any) {
-    return await getManager().transaction(async (trxMgr) => {
+    return await getManager().transaction(async trxMgr => {
       const domain: Domain = context.state.domain
       const user: User = context.state.user
       const prevWSD: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
         where: { domain, name: worksheetDetailName },
-        relations: ['bizplace', 'worksheet', 'worksheet.releaseGood', 'targetInventory', 'targetInventory.inventory'],
+        relations: ['bizplace', 'worksheet', 'worksheet.releaseGood', 'targetInventory', 'targetInventory.inventory']
       })
       const prevOrderInv: OrderInventory = prevWSD.targetInventory
       const prevInv: Inventory = prevOrderInv.inventory
@@ -34,47 +34,26 @@ export const replacePickingPalletsResolver = {
       const releaseGood: ReleaseGood = worksheet.releaseGood
       const customerBizplace: Bizplace = prevWSD.bizplace
 
-      // 1. update location of prev inventory if it should be returned back to the location
-      if (returnLocation) {
-        const foundLoc: Location = await trxMgr.getRepository(Location).findOne({
-          where: { domain: context.state.domain, name: returnLocation },
-          relations: ['warehouse'],
-        })
-
-        await trxMgr.getRepository(Inventory).save({
-          ...prevInv,
-          location: foundLoc.id,
-          warehouse: foundLoc.warehouse.id,
-          updater: user,
-        })
-
-        await trxMgr.getRepository(Location).save({
-          ...foundLoc,
-          status: LOCATION_STATUS.OCCUPIED,
-          updater: user,
-        })
-      }
-
       // remove locked qty and locked weight
       await trxMgr.getRepository(Inventory).save({
         ...prevInv,
         lockedQty: 0,
         lockedWeight: 0,
-        updater: user,
+        updater: user
       })
 
       // 2. update status of previous order Inventory
       await trxMgr.getRepository(OrderInventory).save({
         ...prevOrderInv,
         status: ORDER_INVENTORY_STATUS.TERMINATED,
-        updater: user,
+        updater: user
       })
 
       // 3. update status of prev worksheet detail
       await trxMgr.getRepository(WorksheetDetail).save({
         ...prevWSD,
         status: WORKSHEET_STATUS.REPLACED,
-        updater: user,
+        updater: user
       })
 
       await Promise.all(
@@ -82,9 +61,9 @@ export const replacePickingPalletsResolver = {
           const foundInv: Inventory = await trxMgr.getRepository(Inventory).findOne({
             where: {
               domain,
-              palletId: inventory.palletId,
+              palletId: inventory.palletId
             },
-            relations: ['location'],
+            relations: ['location']
           })
           const unitWeight: number = foundInv.weight / foundInv.qty
 
@@ -103,7 +82,7 @@ export const replacePickingPalletsResolver = {
             productName,
             packingType,
             creator: user,
-            updater: user,
+            updater: user
           })
 
           // 5. create new worksheet details
@@ -116,21 +95,13 @@ export const replacePickingPalletsResolver = {
             type: WORKSHEET_TYPE.PICKING,
             status: WORKSHEET_STATUS.EXECUTING,
             creator: user,
-            updater: user,
+            updater: user
           })
 
           // 6. execute picking transaction
-          await executePicking(
-            wsd.name,
-            inventory.palletId,
-            foundInv.location.name,
-            inventory.qty,
-            domain,
-            user,
-            trxMgr
-          )
+          await executePicking(wsd.name, inventory.palletId, returnLocation, inventory.qty, domain, user, trxMgr)
         })
       )
     })
-  },
+  }
 }
