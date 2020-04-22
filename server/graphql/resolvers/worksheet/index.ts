@@ -22,6 +22,7 @@ import { generatePartialPutawayWorksheetResolver } from './generate-partial-puta
 import { generatePutawayWorksheetResolver } from './generate-putaway-worksheet'
 import { generateReleaseGoodWorksheet } from './generate-release-good-worksheet'
 import { generateVasOrderWorksheet } from './generate-vas-order-worksheet'
+import { inventoriesByPalletResolver } from './inventories-by-pallet'
 import { loadedInventories } from './loaded-inventories'
 import { loading } from './loading'
 import { loadingWorksheetResolver } from './loading-worksheet'
@@ -60,7 +61,8 @@ export const Query = {
   ...loadingWorksheetResolver,
   ...unloadedInventories,
   ...loadedInventories,
-  ...vasCandidatesResolver
+  ...vasCandidatesResolver,
+  ...inventoriesByPalletResolver
 }
 
 export const Mutation = {
