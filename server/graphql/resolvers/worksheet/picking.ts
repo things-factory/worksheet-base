@@ -53,14 +53,6 @@ export async function executePicking(
   })
   if (!worksheetDetail) throw new Error(`Worksheet Details doesn't exists`)
 
-  // get location by name
-  const fromLocation: Location = worksheetDetail.targetInventory.inventory.location
-  const toLocation: Location = await trxMgr.getRepository(Location).findOne({
-    where: { domain, name: locationName },
-    relations: ['warehouse']
-  })
-  if (!toLocation) throw new Error(`Location doesn't exists`)
-
   let targetInventory: OrderInventory = worksheetDetail.targetInventory
   let inventory: Inventory = targetInventory.inventory
 
@@ -95,33 +87,49 @@ export async function executePicking(
     trxMgr
   )
 
-  // If toLocation is not same with fromLocation => Relocate inventory
-  if (fromLocation.id !== toLocation.id) {
-    inventory = await trxMgr.getRepository(Inventory).save({
-      ...inventory,
-      location: toLocation,
-      warehouse: toLocation.warehouse,
-      zone: toLocation.zone,
-      updater: user
-    })
-
-    await generateInventoryHistory(
-      inventory,
-      worksheetDetail.worksheet.releaseGood,
-      INVENTORY_TRANSACTION_TYPE.RELOCATE,
-      0,
-      0,
-      user,
-      trxMgr
-    )
-  }
-
   // update status of worksheet details (EXECUTING = > DONE)
   await trxMgr.getRepository(WorksheetDetail).save({
     ...worksheetDetail,
     status: WORKSHEET_STATUS.DONE,
     updater: user
   })
+
+  const fromLocation: Location = worksheetDetail.targetInventory.inventory.location
+
+  if (locationName) {
+    // get location by name
+    const toLocation: Location = await trxMgr.getRepository(Location).findOne({
+      where: { domain, name: locationName },
+      relations: ['warehouse']
+    })
+    if (!toLocation) throw new Error(`Location doesn't exists`)
+
+    // If toLocation is not same with fromLocation => Relocate inventory
+    if (fromLocation.id !== toLocation.id) {
+      inventory = await trxMgr.getRepository(Inventory).save({
+        ...inventory,
+        location: toLocation,
+        warehouse: toLocation.warehouse,
+        zone: toLocation.zone,
+        updater: user
+      })
+
+      await generateInventoryHistory(
+        inventory,
+        worksheetDetail.worksheet.releaseGood,
+        INVENTORY_TRANSACTION_TYPE.RELOCATE,
+        0,
+        0,
+        user,
+        trxMgr
+      )
+
+      // Check fromLocation cause pallet is relocated.
+      await switchLocationStatus(domain, toLocation, user, trxMgr)
+    }
+  } else {
+    await switchLocationStatus(domain, fromLocation, user, trxMgr)
+  }
 
   // No more item for the pallet => TERMINATE inventory
   if (leftQty === 0) {
@@ -140,12 +148,5 @@ export async function executePicking(
       user,
       trxMgr
     )
-  }
-
-  // Check toLocation
-  await switchLocationStatus(domain, toLocation, user, trxMgr)
-  if (fromLocation.id !== toLocation.id) {
-    // Check fromLocation cause pallet is relocated.
-    await switchLocationStatus(domain, fromLocation, user, trxMgr)
   }
 }
