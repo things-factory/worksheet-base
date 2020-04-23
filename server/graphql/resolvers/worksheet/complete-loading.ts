@@ -8,7 +8,7 @@ import {
   ReleaseGood
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { EntityManager, Equal, getManager, getRepository, Not, Repository } from 'typeorm'
+import { EntityManager, getManager, getRepository, Repository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils'
@@ -88,22 +88,11 @@ export const completeLoading = {
         // If there no more order which is related with current release order
         // Update status to DONE
 
-        const relatedWSCnt: number = await trxMgr.getRepository(Worksheet).count({
-          where: {
-            domain: context.state.domain,
-            bizplace: customerBizplace,
-            status: Not(Equal(WORKSHEET_STATUS.DONE)),
-            releaseGood
-          }
+        await trxMgr.getRepository(ReleaseGood).save({
+          ...releaseGood,
+          status: ORDER_STATUS.DONE,
+          updater: context.state.user
         })
-
-        if (relatedWSCnt === 0) {
-          await trxMgr.getRepository(ReleaseGood).save({
-            ...releaseGood,
-            status: ORDER_STATUS.DONE,
-            updater: context.state.user
-          })
-        }
       }
 
       // Update status and endedAt of worksheet
