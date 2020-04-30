@@ -1,6 +1,7 @@
 import { activateLoadingResolver } from './activate-loading'
 import { activatePicking } from './activate-picking'
 import { activatePutaway } from './activate-putaway'
+import { activateCycleCount } from './activate-cycle-count'
 import { activateReturnResolver } from './activate-return'
 import { activateUnloading } from './activate-unloading'
 import { activateVas } from './activate-vas'
@@ -12,6 +13,7 @@ import { completeReturn } from './complete-return'
 import { completeUnloading } from './complete-unloading'
 import { completeUnloadingPartiallyResolver } from './complete-unloading-partially'
 import { completeVas } from './complete-vas'
+import { completeInspection } from './complete-inspection'
 import { confirmCancellationReleaseOrder } from './confirm-cancellation-release-order'
 import { createWorksheet } from './create-worksheet'
 import { deleteWorksheet } from './delete-worksheet'
@@ -19,16 +21,19 @@ import { deliveryOrderByWorksheetResolver } from './delivery-order-by-worksheet'
 import { executeVas } from './execute-vas'
 import { generateArrivalNoticeWorksheet } from './generate-arrival-notice-worksheet'
 import { generatePartialPutawayWorksheetResolver } from './generate-partial-putaway-worksheet'
+import { generateCycleCountWorksheet } from './generate-cycle-count-worksheet'
 import { generatePutawayWorksheetResolver } from './generate-putaway-worksheet'
 import { generateReleaseGoodWorksheet } from './generate-release-good-worksheet'
 import { generateVasOrderWorksheet } from './generate-vas-order-worksheet'
 import { inventoriesByPalletResolver } from './inventories-by-pallet'
+import { inspecting } from './inspecting'
 import { loadedInventories } from './loaded-inventories'
 import { loading } from './loading'
 import { loadingWorksheetResolver } from './loading-worksheet'
 import { pendingCancellationReleaseOrder } from './pending-cancellation-release-order'
 import { picking } from './picking'
 import { pickingWorksheetResolver } from './picking-worksheet'
+import { cycleCountWorksheetResolver } from './cycle-count-worksheet'
 import { proceedExtraProductsResolver } from './proceed-extra-products'
 import { putaway } from './putaway'
 import { putawayWorksheetResolver } from './putaway-worksheet'
@@ -57,6 +62,7 @@ export const Query = {
   ...putawayWorksheetResolver,
   ...returnWorksheetResolver,
   ...pickingWorksheetResolver,
+  ...cycleCountWorksheetResolver,
   ...vasWorksheetResolver,
   ...loadingWorksheetResolver,
   ...unloadedInventories,
@@ -68,6 +74,7 @@ export const Query = {
 export const Mutation = {
   ...updateWorksheet,
   ...createWorksheet,
+  ...generateCycleCountWorksheet,
   ...deleteWorksheet,
   ...generateArrivalNoticeWorksheet,
   ...generatePutawayWorksheetResolver,
@@ -80,6 +87,8 @@ export const Mutation = {
   ...activateReturnResolver,
   ...activateVas,
   ...activatePicking,
+  ...activateCycleCount,
+  ...completeInspection,
   ...unload,
   ...returning,
   ...undoUnloading,
@@ -92,6 +101,7 @@ export const Mutation = {
   ...loading,
   ...undoLoading,
   ...transfer,
+  ...inspecting,
   ...completePutaway,
   ...picking,
   ...completePicking,

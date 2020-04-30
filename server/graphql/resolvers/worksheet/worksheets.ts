@@ -1,5 +1,5 @@
 import { Bizplace, getPermittedBizplaceIds } from '@things-factory/biz-base'
-import { ArrivalNotice, ReleaseGood } from '@things-factory/sales-base'
+import { ArrivalNotice, ReleaseGood, InventoryCheck } from '@things-factory/sales-base'
 import { convertListParams, ListParam, buildQuery } from '@things-factory/shell'
 import { getRepository, In, IsNull, SelectQueryBuilder } from 'typeorm'
 import { Worksheet } from '../../../entities'
@@ -86,6 +86,45 @@ export const worksheetsResolver = {
         }
       }
 
+      ////For inventory check worksheet filter
+      const inventoryCheckParam = params.filters.find(param => param.name === 'inventoryCheckNo')
+      const executionDateParam = params.filters.find(param => param.name === 'executionDate')
+      if (inventoryCheckParam || executionDateParam) {
+        let arrFilters = []
+        if (inventoryCheckParam) {
+          params.filters.splice(
+            params.filters.findIndex(item => item.name == 'inventoryCheckNo'),
+            1
+          )
+          arrFilters.push({ ...inventoryCheckParam, name: 'name' })
+        }
+        if (executionDateParam) {
+          params.filters.splice(
+            params.filters.findIndex(item => item.name == 'executionDate'),
+            1
+          )
+          arrFilters.push({ ...releaseGoodRefNoParam, name: 'refNo' })
+        }
+        const foundInventoryCheck: InventoryCheck[] = await getRepository(InventoryCheck).find({
+          ...convertListParams({ filters: arrFilters })
+        })
+
+        if (foundInventoryCheck && foundInventoryCheck.length) {
+          params.filters.push({
+            name: 'inventoryCheckId',
+            operator: 'in',
+            value: foundInventoryCheck.map((foundIC: InventoryCheck) => foundIC.id),
+            relation: false
+          })
+        } else {
+          params.filters.push({
+            name: 'inventoryCheckId',
+            operator: 'is_null',
+            relation: false
+          })
+        }
+      }
+
       ////Set default bizplace filter
       const bizplaceFilter = params.filters.find(param => param.name === 'bizplaceId')
       if (!bizplaceFilter) {
@@ -113,12 +152,13 @@ export const worksheetsResolver = {
       qb.leftJoinAndSelect('ws.bizplace', 'bizplace')
       qb.leftJoinAndSelect('ws.arrivalNotice', 'arrivalNotice')
       qb.leftJoinAndSelect('ws.releaseGood', 'releaseGood')
+      qb.leftJoinAndSelect('ws.inventoryCheck', 'inventoryCheck')
       qb.leftJoinAndSelect('ws.vasOrder', 'vasOrder')
       qb.leftJoinAndSelect('ws.creator', 'creator')
       qb.leftJoinAndSelect('ws.updater', 'updater')
 
       ////Add sorting conditions
-      const arrChildSortData = ['bizplace', 'arrivalNotice', 'releaseGood']
+      const arrChildSortData = ['bizplace', 'arrivalNotice', 'releaseGood', 'inventoryCheck']
       let sort = (params.sortings || []).reduce(
         (acc, sort) => {
           if (sort.name != 'arrivalRefNo' && sort.name != 'releaseRefNo') {

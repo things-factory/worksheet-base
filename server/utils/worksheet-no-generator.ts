@@ -17,6 +17,14 @@ export class WorksheetNoGenerator {
     return `RETURN-${uuid()}`
   }
 
+  static cycleCount() {
+    return `CC-${uuid()}`
+  }
+
+  static stockTake() {
+    return `ST-${uuid()}`
+  }
+
   static picking() {
     return `PICK-${uuid()}`
   }
@@ -31,6 +39,14 @@ export class WorksheetNoGenerator {
 
   static putawayDetail() {
     return `PUTAWAY-DETAIL-${uuid()}`
+  }
+
+  static cycleCountDetail() {
+    return `CC-DETAIL-${uuid()}`
+  }
+
+  static stockTakeDetail() {
+    return `ST-DETAIL-${uuid()}`
   }
 
   static loadingDetail() {

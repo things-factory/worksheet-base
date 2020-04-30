@@ -14,6 +14,7 @@ import { WorksheetDetailInfo } from './worksheet-detail-info'
 import { WorksheetInfo } from './worksheet-info'
 import { WorksheetList } from './worksheet-list'
 import { WorksheetPatch } from './worksheet-patch'
+import { InventoryCheckWorksheet } from './inventory-check-worksheet'
 
 export const Mutation = /* GraphQL */ `
   createWorksheet (
@@ -48,6 +49,11 @@ export const Mutation = /* GraphQL */ `
     releaseGoodNo: String!
   ): ReleaseGoodWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
+  generateCycleCountWorksheet (
+    selectedInventory: [InventoryPatch]
+    executionDate: String!
+  ): InventoryCheckWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
+
   generateVasOrderWorksheet (
     vasNo: String!
   ): VasOrderWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
@@ -56,6 +62,12 @@ export const Mutation = /* GraphQL */ `
     worksheetNo: String!
     unloadingWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
+
+  activateCycleCount (
+    worksheetNo: String!
+    cycleCountWorksheetDetails: [WorksheetDetailPatch]
+  ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
+
 
   activatePutaway (
     worksheetNo: String!
@@ -155,8 +167,20 @@ export const Mutation = /* GraphQL */ `
     releaseQty: Int!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
+  inspecting (
+    worksheetDetailName: String!
+    palletId: String!
+    locationName: String!
+    inspectedQty: Int!
+    inspectedWeight: Float!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
   completePicking (
     releaseGoodNo: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  completeInspection (
+    inventoryCheckNo: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   executeVas (
@@ -245,6 +269,10 @@ export const Query = /* GraphQL */ `
     releaseGoodNo: String!, locationSortingRules: [Sorting]
   ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
 
+  cycleCountWorksheet (
+    inventoryCheckNo: String!, locationSortingRules: [Sorting]
+  ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
+
   vasCandidates (
     worksheetDetailId: String!
   ): [Inventory] @priviledge(category: "worksheet", priviledge: "query")
@@ -264,6 +292,7 @@ export const Types = /* GraphQL */ [
   WorksheetList,
   ArrivalNoticeWorksheet,
   ReleaseGoodWorksheet,
+  InventoryCheckWorksheet,
   DeliveryOrderInfo,
   GoodsDeliveryNote,
   ContactPointInfo,
