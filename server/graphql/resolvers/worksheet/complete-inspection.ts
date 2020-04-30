@@ -43,26 +43,30 @@ export const completeInspection = {
       )
 
       if (tallyOI?.length > 0) {
-        const terminatedOI = tallyOI.map(async (oi: OrderInventory) => {
-          return {
-            ...oi,
-            status: ORDER_INVENTORY_STATUS.TERMINATED,
-            updater: context.state.user
-          }
-        })
-        await trxMgr.getRepository(OrderInventory).save(terminatedOI)
+        await Promise.all(
+          tallyOI.map(async (oi: OrderInventory) => {
+            const terminatedOI = {
+              ...oi,
+              status: ORDER_INVENTORY_STATUS.TERMINATED,
+              updater: context.state.user
+            }
+            await trxMgr.getRepository(OrderInventory).save(terminatedOI)
+          })
+        )
       }
 
       if (notTallyInv && notTallyInv.length == 0) {
         // terminate all order inventory if all inspection accuracy is 100%
-        const allTerminatedOI = targetInventories.map(async (oi: OrderInventory) => {
-          return {
-            ...oi,
-            status: ORDER_INVENTORY_STATUS.TERMINATED,
-            updater: context.state.user
-          }
-        })
-        await trxMgr.getRepository(OrderInventory).save(allTerminatedOI)
+        await Promise.all(
+          targetInventories.map(async (oi: OrderInventory) => {
+            const allTerminatedOI = {
+              ...oi,
+              status: ORDER_INVENTORY_STATUS.TERMINATED,
+              updater: context.state.user
+            }
+            await trxMgr.getRepository(OrderInventory).save(allTerminatedOI)
+          })
+        )
       }
 
       // Update status and endedAt of worksheet
