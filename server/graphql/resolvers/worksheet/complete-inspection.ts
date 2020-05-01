@@ -1,5 +1,6 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderInventory, ORDER_STATUS, ORDER_INVENTORY_STATUS, InventoryCheck } from '@things-factory/sales-base'
+import { Inventory } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -45,17 +46,26 @@ export const completeInspection = {
       if (tallyOI?.length > 0) {
         await Promise.all(
           tallyOI.map(async (oi: OrderInventory) => {
+            const tallyInv: Inventory = oi.inventory
+
             const terminatedOI = {
               ...oi,
               status: ORDER_INVENTORY_STATUS.TERMINATED,
               updater: context.state.user
             }
             await trxMgr.getRepository(OrderInventory).save(terminatedOI)
+
+            await trxMgr.getRepository(Inventory).save({
+              ...tallyInv,
+              lockedQty: 0,
+              lockedWeight: 0,
+              updater: context.state.user
+            })
           })
         )
       }
 
-      if (notTallyInv && notTallyInv.length == 0) {
+      if (notTallyInv?.length == 0) {
         // terminate all order inventory if all inspection accuracy is 100%
         await Promise.all(
           targetInventories.map(async (oi: OrderInventory) => {
@@ -77,15 +87,15 @@ export const completeInspection = {
         updater: context.state.user
       })
 
-      if (notTallyInv && notTallyInv.length > 0) {
-        // 3. update status of release good
+      if (notTallyInv?.length > 0) {
+        // 3. update status of inventory check
         await trxMgr.getRepository(InventoryCheck).save({
           ...inventoryCheck,
           status: ORDER_STATUS.PENDING_REVIEW,
           updater: context.state.user
         })
       } else {
-        // 3. update status of release good
+        // 3. update status of inventory check
         await trxMgr.getRepository(InventoryCheck).save({
           ...inventoryCheck,
           status: ORDER_STATUS.DONE,

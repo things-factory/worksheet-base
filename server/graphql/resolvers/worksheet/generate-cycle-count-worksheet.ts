@@ -67,7 +67,7 @@ export const generateCycleCountWorksheet = {
         return {
           ...inv,
           lockedQty: inv.qty,
-          lockedWeight: inv.lockedWeight,
+          lockedWeight: inv.weight,
           updater: context.state.user
         }
       })
