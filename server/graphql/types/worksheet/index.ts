@@ -98,6 +98,11 @@ export const Mutation = /* GraphQL */ `
     inventory: InventoryPatch!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
+  cycleCountAdjustment (
+    cycleCountNo: String!
+    cycleCountWorksheetDetails: [WorksheetDetailPatch]
+  ): Boolean
+
   undoUnloading (
     worksheetDetailName: String!
     palletId: String!

@@ -53,6 +53,7 @@ import { vasCandidatesResolver } from './vas-candidates'
 import { vasWorksheetResolver } from './vas-worksheet'
 import { worksheetResolver } from './worksheet'
 import { worksheetsResolver } from './worksheets'
+import { cycleCountAdjustment } from './cycle-count-adjustment'
 
 export const Query = {
   ...worksheetsResolver,
@@ -74,6 +75,7 @@ export const Query = {
 export const Mutation = {
   ...updateWorksheet,
   ...createWorksheet,
+  ...cycleCountAdjustment,
   ...generateCycleCountWorksheet,
   ...deleteWorksheet,
   ...generateArrivalNoticeWorksheet,

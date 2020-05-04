@@ -44,22 +44,6 @@ export const cycleCountWorksheetResolver = {
         const targetInventory: OrderInventory = cycleCountWSD.targetInventory
         const inventory: Inventory = targetInventory.inventory
 
-        // const sumInv = await getRepository(OrderInventory)
-        //   .createQueryBuilder('OI')
-        //   .select('COALESCE(SUM(OI.release_qty), 0)', 'sumQty')
-        //   .where('"OI"."inventory_id" = : invId', { invId: inventory.id })
-        //   .andWhere("\"OI\".\"status\" IN ('PENDING', 'PENDING_RECEIVE', 'READY_TO_PICK', 'PICKING', 'PENDING_SPLIT')")
-        //   .addSelect(subQuery =>
-        //     subQuery
-        //       .select('COALESCE(SUM(OI.release_weight), 0)', 'sumWeight')
-        //       .from('order_inventories', 'OI')
-        //       .where('"OI"."inventory_id" = : invId', { invId: inventory.id })
-        //       .andWhere(
-        //         "\"OI\".\"status\" IN ('PENDING', 'PENDING_RECEIVE', 'READY_TO_PICK', 'PICKING', 'PENDING_SPLIT')"
-        //       )
-        //   )
-        //   .getRawMany()
-
         return {
           name: cycleCountWSD.name,
           palletId: inventory.palletId,
