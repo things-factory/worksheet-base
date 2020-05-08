@@ -190,6 +190,7 @@ export const Mutation = /* GraphQL */ `
 
   executeVas (
     worksheetDetail: WorksheetDetailPatch!
+    completeParams: String
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   undoVas (
