@@ -252,7 +252,8 @@ export const Query = /* GraphQL */ `
   inventoriesByPallet (
     filters: [Filter],
     pagination: Pagination,
-    sortings: [Sorting]
+    sortings: [Sorting],
+    locationSortingRules: [Sorting]
   ): InventoryList @priviledge(category: "worksheet", priviledge: "query")
 
 `

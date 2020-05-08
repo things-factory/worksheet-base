@@ -7,11 +7,13 @@ import { getRepository, In, SelectQueryBuilder } from 'typeorm'
 export const inventoriesByPalletResolver = {
   async inventoriesByPallet(_: any, { filters, pagination, sortings, locationSortingRules }, context: any) {
     const params = { filters, pagination }
+    const permittedBizplaceIds: string[] = await getPermittedBizplaceIds(context.state.domain, context.state.user)
+
     if (!params.filters.find((filter: any) => filter.name === 'bizplace')) {
       params.filters.push({
         name: 'bizplace',
         operator: 'in',
-        value: await getPermittedBizplaceIds(context.state.domain, context.state.user),
+        value: permittedBizplaceIds,
         relation: true
       })
     }
@@ -19,8 +21,7 @@ export const inventoriesByPalletResolver = {
     const qb: SelectQueryBuilder<Inventory> = getRepository(Inventory).createQueryBuilder('iv')
     buildQuery(qb, params, context)
 
-    qb
-      .leftJoinAndSelect('iv.domain', 'domain')
+    qb.leftJoinAndSelect('iv.domain', 'domain')
       .leftJoinAndSelect('iv.bizplace', 'bizplace')
       .leftJoinAndSelect('iv.product', 'product')
       .leftJoinAndSelect('iv.warehouse', 'warehouse')
@@ -30,9 +31,19 @@ export const inventoriesByPalletResolver = {
       .andWhere('iv.qty > 0')
       .andWhere('CASE WHEN iv.lockedQty IS NULL THEN 0 ELSE iv.lockedQty END >= 0')
       .andWhere('iv.qty - CASE WHEN iv.lockedQty IS NULL THEN 0 ELSE iv.lockedQty END > 0')
-      .andWhere(`(iv.batch_id, product.name, iv.packing_type) NOT IN (
-        SELECT batch_id, product_name, packing_type from order_inventories OI where status = '${ORDER_INVENTORY_STATUS.PENDING_SPLIT}'
-      `)
+      .andWhere(
+        `(iv.batch_id, product.name, iv.packing_type) NOT IN (
+        SELECT 
+          batch_id, product_name, packing_type
+        FROM 
+          order_inventories OI 
+        WHERE 
+          status = '${ORDER_INVENTORY_STATUS.PENDING_SPLIT}'
+        AND bizplace_id IN (:...permittedBizplaceIds)
+        AND domain_id = (:domainId)
+      )`,
+        { permittedBizplaceIds, domainId: context.state.domain.id }
+      )
 
     if (sortings?.length !== 0) {
       const arrChildSortData = ['bizplace', 'product', 'location', 'warehouse', 'zone']
