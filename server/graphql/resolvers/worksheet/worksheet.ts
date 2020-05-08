@@ -24,6 +24,7 @@ export const worksheetResolver = {
         'bufferLocation.warehouse',
         'arrivalNotice',
         'releaseGood',
+        'inventoryCheck',
         'vasOrder',
         'worksheetDetails',
         'worksheetDetails.toLocation',
@@ -80,6 +81,17 @@ export const worksheetResolver = {
           releaseGood: worksheet.releaseGood
         },
         relations: ['targetProduct']
+      })
+    }
+
+    if (worksheet?.inventoryCheck?.id) {
+      worksheet.orderInventories = await getRepository(OrderInventory).find({
+        where: {
+          domain: context.state.domain,
+          bizplace: worksheet.bizplace,
+          inventoryCheck: worksheet.inventoryCheck
+        },
+        relations: ['inventory', 'inventory.location']
       })
     }
 
