@@ -219,7 +219,7 @@ export async function repack(trxMgr: EntityManager, orderVas: OrderVas, params: 
     releaseGood?: ReleaseGood
     vasOrder?: VasOrder
     shippingOrder?: ShippingOrder
-  }
+  } = {}
 
   if (orderVas.arrivalNotice) wsFindCondition.arrivalNotice = orderVas.arrivalNotice
   if (orderVas.releaseGood) wsFindCondition.releaseGood = orderVas.releaseGood
