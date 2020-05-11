@@ -26,7 +26,12 @@ interface IRepackedPallet {
   packageQty: number
 }
 
-export async function repack(trxMgr: EntityManager, orderVas: OrderVas, params: any, context: any) {
+export async function repack(
+  trxMgr: EntityManager,
+  orderVas: OrderVas,
+  repackedPallets: IRepackedPallet[],
+  context: any
+) {
   const ovRepo: Repository<OrderVas> = trxMgr.getRepository(OrderVas)
   const invRepo: Repository<Inventory> = trxMgr.getRepository(Inventory)
   const locRepo: Repository<Location> = trxMgr.getRepository(Location)
@@ -56,8 +61,6 @@ export async function repack(trxMgr: EntityManager, orderVas: OrderVas, params: 
   const domain: Domain = context.state.domain
   const bizplace: Bizplace = inventory.bizplace
   const user: User = context.state.user
-
-  const repackedPallets: IRepackedPallet[] = JSON.parse(params)
 
   const totalPackedAmount = repackedPallets.reduce(
     (totalPackedAmount: number, repackedPallet: IRepackedPallet): number => {
