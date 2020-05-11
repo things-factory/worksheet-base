@@ -28,13 +28,5 @@ export async function relabel(trxMgr: EntityManager, orderVas: OrderVas, context
   })
 
   // Generate inventory hisotry with relabeling transaction type
-  await generateInventoryHistory(
-    inventory,
-    refOrder,
-    INVENTORY_TRANSACTION_TYPE.RELABELING,
-    inventory.qty,
-    inventory.weight,
-    user,
-    trxMgr
-  )
+  await generateInventoryHistory(inventory, refOrder, INVENTORY_TRANSACTION_TYPE.RELABELING, 0, 0, user, trxMgr)
 }

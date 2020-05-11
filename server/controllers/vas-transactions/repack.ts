@@ -51,9 +51,9 @@ export async function repack(trxMgr: EntityManager, orderVas: OrderVas, params: 
   const bizplace: Bizplace = inventory.bizplace
   const user: User = context.state.user
 
-  const repackedPallets: [{ palletId: string; packageQty: number; locationId: string }] = params
+  const repackedPallets = JSON.parse(params)
 
-  const totalPackedAmount = repackedPallets.reduce((totalPackedAmount, repackedPallet): number => {
+  const totalPackedAmount = repackedPallets.reduce((totalPackedAmount: number, repackedPallet: any): number => {
     totalPackedAmount += repackedPallet.packageQty * stdAmount
     return totalPackedAmount
   }, 0)
@@ -96,7 +96,9 @@ export async function repack(trxMgr: EntityManager, orderVas: OrderVas, params: 
         weight = (inventory.weight / inventory.qty) * stdAmount * repackedPallet.packageQty
       }
 
-      const location: Location = await locRepo.findOne(repackedPallet.locationId)
+      const location: Location = await locRepo.findOne({
+        where: { domain, name: repackedPallet.locationName }
+      })
 
       const newInventory: Inventory = await invRepo.save({
         domain,
@@ -168,7 +170,7 @@ export async function repack(trxMgr: EntityManager, orderVas: OrderVas, params: 
         weight = (inventory.weight / inventory.qty) * stdAmount * repackedPallet.packageQty
       }
 
-      const location: Location = await locRepo.findOne(repackedPallet.locationId)
+      const location: Location = await locRepo.findOne(repackedPallet.locationName)
 
       const newInventory: Inventory = await invRepo.save({
         domain,
