@@ -20,6 +20,12 @@ interface IOperationGuideData {
   packageQty: number
 }
 
+interface IRepackedPallet {
+  palletId: string
+  locationName: string
+  packageQty: number
+}
+
 export async function repack(trxMgr: EntityManager, orderVas: OrderVas, params: any, context: any) {
   const ovRepo: Repository<OrderVas> = trxMgr.getRepository(OrderVas)
   const invRepo: Repository<Inventory> = trxMgr.getRepository(Inventory)
@@ -51,12 +57,15 @@ export async function repack(trxMgr: EntityManager, orderVas: OrderVas, params: 
   const bizplace: Bizplace = inventory.bizplace
   const user: User = context.state.user
 
-  const repackedPallets = JSON.parse(params)
+  const repackedPallets: IRepackedPallet[] = JSON.parse(params)
 
-  const totalPackedAmount = repackedPallets.reduce((totalPackedAmount: number, repackedPallet: any): number => {
-    totalPackedAmount += repackedPallet.packageQty * stdAmount
-    return totalPackedAmount
-  }, 0)
+  const totalPackedAmount = repackedPallets.reduce(
+    (totalPackedAmount: number, repackedPallet: IRepackedPallet): number => {
+      totalPackedAmount += repackedPallet.packageQty * stdAmount
+      return totalPackedAmount
+    },
+    0
+  )
 
   let isWholeRepack: boolean
   if (packingUnit === 'WEIGHT') {
@@ -212,10 +221,10 @@ export async function repack(trxMgr: EntityManager, orderVas: OrderVas, params: 
     shippingOrder?: ShippingOrder
   }
 
-  if (inventory.arrivalNotice) wsFindCondition.arrivalNotice = inventory.arrivalNotice
-  if (inventory.releaseGood) wsFindCondition.releaseGood = inventory.releaseGood
-  if (inventory.vasOrder) wsFindCondition.vasOrder = inventory.vasOrder
-  if (inventory.shippingOrder) wsFindCondition.shippingOrder = inventory.shippingOrder
+  if (orderVas.arrivalNotice) wsFindCondition.arrivalNotice = orderVas.arrivalNotice
+  if (orderVas.releaseGood) wsFindCondition.releaseGood = orderVas.releaseGood
+  if (orderVas.vasOrder) wsFindCondition.vasOrder = orderVas.vasOrder
+  if (orderVas.shippingOrder) wsFindCondition.shippingOrder = orderVas.shippingOrder
 
   const worksheet: Worksheet = await wsRepo.findOne({
     where: wsFindCondition,
@@ -231,7 +240,7 @@ export async function repack(trxMgr: EntityManager, orderVas: OrderVas, params: 
     ...operationGuideData,
     packageQty:
       operationGuideData.packageQty -
-      repackedPallets.reduce((totalPackageQty, repackedPallet): number => {
+      repackedPallets.reduce((totalPackageQty: number, repackedPallet: IRepackedPallet): number => {
         totalPackageQty += repackedPallet.packageQty
         return totalPackageQty
       }, 0)
