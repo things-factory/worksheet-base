@@ -17,7 +17,7 @@ export const executeVas = {
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.VAS
         },
-        relations: ['targetVas']
+        relations: ['targetVas', 'targetVas.vas']
       })
 
       if (!foundWorksheetDetail) throw new Error("Worksheet doesn't exists")

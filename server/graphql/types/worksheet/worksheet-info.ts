@@ -7,6 +7,7 @@ export const WorksheetInfo = gql`
     bufferLocation: String
     startedAt: String
     ownCollection: Boolean
+    palletId: String
     refNo: String
   }
 `
