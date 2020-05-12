@@ -6,7 +6,10 @@ import {
   ORDER_VAS_STATUS,
   ReleaseGood,
   ShippingOrder,
-  VasOrder
+  VasOrder,
+  OrderInventory,
+  OrderNoGenerator,
+  ORDER_INVENTORY_STATUS
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import {
@@ -17,9 +20,9 @@ import {
   Location
 } from '@things-factory/warehouse-base'
 import { EntityManager, Repository } from 'typeorm'
-import { WORKSHEET_STATUS } from '../../constants'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../constants'
 import { Worksheet, WorksheetDetail } from '../../entities'
-import { generateInventoryHistory } from '../../utils'
+import { generateInventoryHistory, WorksheetNoGenerator } from '../../utils'
 
 interface IOperationGuideData {
   packingUnit: string
@@ -32,6 +35,14 @@ interface IRepackedPallet {
   palletId: string
   locationName: string
   packageQty: number
+  inventory?: Inventory
+}
+
+enum RefOrderType {
+  ArrivalNotice,
+  ReleaseGood,
+  ShippingOrder,
+  VasOrder
 }
 
 export async function repack(
@@ -60,6 +71,14 @@ export async function repack(
   })
 
   let inventory: Inventory = orderVas.inventory
+
+  const orderType: RefOrderType = orderVas.arrivalNotice
+    ? orderVas.ArrivalNotice
+    : orderVas.releaseGood
+    ? RefOrderType.ReleaseGood
+    : orderVas.shippingOrder
+    ? RefOrderType.ShippingOrder
+    : RefOrderType.VasOrder
   const refOrder: any = orderVas.arrivalNotice || orderVas.releaseGood || orderVas.shippingOrder || orderVas.vasOrder
   const operationGuideData: IOperationGuideData = JSON.parse(orderVas.operationGuide).data
 
@@ -129,6 +148,8 @@ export async function repack(
         user,
         trxMgr
       )
+
+      repackedPallet.inventory = newInventory
     }
   } else {
     // Update original inventory
@@ -173,6 +194,8 @@ export async function repack(
         user,
         trxMgr
       )
+
+      repackedPallet.inventory = newInventory
     }
   }
 
@@ -243,6 +266,45 @@ export async function repack(
         updater: user
       }
     })
+
+    if (orderType === RefOrderType.ReleaseGood) {
+      const oiRepo: Repository<OrderInventory> = trxMgr.getRepository(OrderInventory)
+
+      const loadingOrdInv: OrderInventory = await oiRepo.findOne({
+        where: {
+          domain,
+          bizplace,
+          inventory,
+          releaseGood: refOrder
+        }
+      })
+
+      const loadingWSD: WorksheetDetail = await wsdRepo.findOne({
+        where: {
+          domain,
+          bizplace,
+          targetInventory: loadingOrdInv,
+          type: WORKSHEET_TYPE.LOADING
+        },
+        relations: ['worksheet']
+      })
+
+      if (isWholeRepack) {
+        // delete loading worksheet detail and order inventories for loading
+        await oiRepo.delete(loadingOrdInv.id)
+        await wsdRepo.delete(loadingWSD.id)
+      } else {
+        // change qty of worksheet and order inventories for loading
+        const { remainWeight, remainQty } = calcRemainAmount(packingUnit, inventory, totalPackedAmount)
+        await oiRepo.save({
+          ...loadingOrdInv,
+          releaseWeight: remainWeight,
+          releaseQty: remainQty
+        })
+      }
+
+      await createLoadingWorksheets(trxMgr, domain, bizplace, repackedPallets, loadingOrdInv, loadingWSD, user)
+    }
   }
 }
 
@@ -318,4 +380,61 @@ async function createNewInventory(
     creator: user,
     updater: user
   })
+}
+
+async function createLoadingWorksheets(
+  trxMgr: EntityManager,
+  domain: Domain,
+  bizplace: Bizplace,
+  repackedPallets: IRepackedPallet[],
+  originOrderInv: OrderInventory,
+  originWSD: WorksheetDetail,
+  user: User
+): Promise<void> {
+  const oiRepo: Repository<OrderInventory> = trxMgr.getRepository(OrderInventory)
+  const wsRepo: Repository<Worksheet> = trxMgr.getRepository(Worksheet)
+  const wsdRepo: Repository<WorksheetDetail> = trxMgr.getRepository(WorksheetDetail)
+
+  const originWS: Worksheet = await wsRepo.findOne(originWSD.worksheet.id)
+
+  delete originOrderInv.id
+  delete originWSD.id
+
+  // Create order inventoris
+  let orderInventories: OrderInventory[] = await Promise.all(
+    repackedPallets.map(async (repackedPallet: IRepackedPallet) => {
+      return {
+        ...originOrderInv,
+        domain,
+        bizplace,
+        name: OrderNoGenerator.orderInventory(),
+        inventory: repackedPallet.inventory,
+        releaseQty: repackedPallet.inventory.qty,
+        releaseWeight: repackedPallet.inventory.weight,
+        packingType: repackedPallet.inventory.packingType,
+        creator: user,
+        updater: user
+      }
+    })
+  )
+
+  orderInventories = await oiRepo.save(orderInventories)
+
+  const worksheetDetails: WorksheetDetail[] = orderInventories.map(
+    (targetInventory: OrderInventory): WorksheetDetail => {
+      return {
+        domain,
+        bizplace,
+        worksheet: originWS,
+        name: WorksheetNoGenerator.loadingDetail(),
+        targetInventory,
+        type: WORKSHEET_TYPE.LOADING,
+        status: WORKSHEET_STATUS.DEACTIVATED,
+        creator: user,
+        updater: user
+      } as WorksheetDetail
+    }
+  )
+
+  await wsdRepo.save(worksheetDetails)
 }
