@@ -94,7 +94,7 @@ export async function activateLoading(
   )
 
   /**
-   * 3. Update target inventories (status: PICKING => LOADING)
+   * 3. Update target inventories (status: PICKED => LOADING)
    */
   targetInventories = targetInventories.map((targetInventory: OrderInventory) => {
     return {

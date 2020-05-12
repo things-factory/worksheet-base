@@ -1,3 +1,4 @@
+import { Bizplace } from '@things-factory/biz-base'
 import { Product } from '@things-factory/product-base'
 import {
   OrderInventory,
@@ -8,9 +9,24 @@ import {
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
-import { FindOperator, getManager, In } from 'typeorm'
+import { EntityManager, FindOperator, getManager, In } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { Bizplace } from '@things-factory/biz-base'
+
+enum OrderType {
+  ArrivalNotice,
+  ReleaseGood,
+  VasOrder
+}
+interface IInventoryCondition {
+  id?: FindOperator<any>
+  domain: Domain
+  bizplace: Bizplace
+  batchId?: string
+  product?: Product
+  packingType?: string
+  orderProduct?: FindOperator<any>
+  status?: FindOperator<any>
+}
 
 export const vasCandidatesResolver = {
   async vasCandidates(_: any, { worksheetDetailId }, context: any) {
@@ -26,81 +42,126 @@ export const vasCandidatesResolver = {
           'targetVas.targetProduct'
         ]
       })
-      const customerBizplace: Bizplace = worksheetDetail.bizplace
+
       const worksheet: Worksheet = worksheetDetail.worksheet
       if (!worksheet) throw new Error(`Can't find worksheet.`)
+
+      const domain: Domain = context.state.domain
+      const bizplace: Bizplace = worksheetDetail.bizplace
       const orderVas: OrderVas = worksheetDetail.targetVas
+      const orderType: OrderType = worksheet.arrivalNotice
+        ? OrderType.ArrivalNotice
+        : worksheet.releaseGood
+        ? OrderType.ReleaseGood
+        : OrderType.VasOrder
 
-      let inventoryCondition: {
-        id?: FindOperator<any>
-        domain: Domain
-        bizplace: Bizplace
-        batchId?: string
-        product?: Product
-        packingType?: string
-        orderProduct?: FindOperator<any>
-        status: FindOperator<any>
-      } = {
-        domain: context.state.domain,
-        bizplace: customerBizplace,
-        status: In([
-          INVENTORY_STATUS.UNLOADED,
-          INVENTORY_STATUS.PARTIALLY_UNLOADED,
-          INVENTORY_STATUS.PUTTING_AWAY,
-          INVENTORY_STATUS.STORED,
-          INVENTORY_STATUS.PICKED
-        ])
-      }
+      const inventoryCondition: IInventoryCondition = await buildInventoryCondition(
+        trxMgr,
+        domain,
+        bizplace,
+        worksheet,
+        orderType,
+        orderVas
+      )
 
-      if (orderVas.targetBatchId) inventoryCondition.batchId = orderVas.targetBatchId
-      if (orderVas.targetProduct) inventoryCondition.product = orderVas.targetProduct
-      if (orderVas.packingType) inventoryCondition.packingType = orderVas.packingType
-
-      if (worksheet.arrivalNotice) {
-        const orderProducts: OrderProduct[] = await trxMgr.getRepository(OrderProduct).find({
-          where: {
-            domain: context.state.domain,
-            arrivalNotice: worksheet.arrivalNotice,
-            bizplace: customerBizplace,
-            status: In([
-              ORDER_PRODUCT_STATUS.READY_TO_UNLOAD,
-              ORDER_PRODUCT_STATUS.UNLOADING,
-              ORDER_PRODUCT_STATUS.PARTIALLY_UNLOADED,
-              ORDER_PRODUCT_STATUS.UNLOADED,
-              ORDER_PRODUCT_STATUS.PUTTING_AWAY,
-              ORDER_PRODUCT_STATUS.STORED
-            ])
-          }
-        })
-        inventoryCondition.orderProduct = In(orderProducts.map((ordProd: OrderProduct) => ordProd.id))
-      } else if (worksheet.releaseGood) {
-        const orderInventories: OrderInventory[] = await trxMgr.getRepository(OrderInventory).find({
-          where: {
-            domain: context.state.domain,
-            releaseGood: worksheet.releaseGood,
-            bizplace: customerBizplace,
-            status: In([
-              ORDER_INVENTORY_STATUS.READY_TO_PICK,
-              ORDER_INVENTORY_STATUS.PICKING,
-              ORDER_INVENTORY_STATUS.LOADING,
-              ORDER_INVENTORY_STATUS.PICKED
-            ])
-          },
-          relations: ['inventory']
-        })
-
-        const inventoryIds: string[] = orderInventories.map((ordInv: OrderInventory) => ordInv.inventory.id)
-        if (inventoryIds?.length) {
-          inventoryCondition.id = In(inventoryIds)
-        } else {
-          inventoryCondition.id = In([null])
-        }
-      }
-
-      return await trxMgr.getRepository(Inventory).find({
+      let inventories: Inventory = await trxMgr.getRepository(Inventory).find({
         where: inventoryCondition,
         relations: ['product', 'location']
       })
+
+      /**
+       * @description
+       * If current worksheet is comes together with release good.
+       * VAS order should be done before processing loading.
+       * And qty and weight information for target inventories should be originated from orderInventories
+       */
+
+      if (orderType === OrderType.ReleaseGood) {
+        inventories = await Promise.all(
+          inventories.map(async (inventory: Inventory) => {
+            const orderInv: OrderInventory = await trxMgr.getRepository(OrderInventory).findOne({
+              where: {
+                domain,
+                bizplace,
+                inventory,
+                releaseGood: worksheet.releaseGood,
+                status: In([ORDER_INVENTORY_STATUS.PICKED])
+              }
+            })
+            return {
+              ...inventory,
+              qty: orderInv.releaseQty,
+              weight: orderInv.releaseWeight
+            }
+          })
+        )
+      }
+
+      return inventories
     })
   }
+}
+
+async function buildInventoryCondition(
+  trxMgr: EntityManager,
+  domain: Domain,
+  bizplace: Bizplace,
+  worksheet: Worksheet,
+  orderType: OrderType,
+  orderVas: OrderVas
+): Promise<IInventoryCondition> {
+  let condition: IInventoryCondition = { domain, bizplace }
+
+  if (orderVas.targetBatchId) condition.batchId = orderVas.targetBatchId
+  if (orderVas.targetProduct) condition.product = orderVas.targetProduct
+  if (orderVas.packingType) condition.packingType = orderVas.packingType
+
+  switch (orderType) {
+    case OrderType.ArrivalNotice:
+      const orderProducts: OrderProduct[] = await trxMgr.getRepository(OrderProduct).find({
+        where: {
+          domain,
+          bizplace,
+          arrivalNotice: worksheet.arrivalNotice,
+          status: In([
+            ORDER_PRODUCT_STATUS.READY_TO_UNLOAD,
+            ORDER_PRODUCT_STATUS.UNLOADING,
+            ORDER_PRODUCT_STATUS.PARTIALLY_UNLOADED,
+            ORDER_PRODUCT_STATUS.UNLOADED,
+            ORDER_PRODUCT_STATUS.PUTTING_AWAY,
+            ORDER_PRODUCT_STATUS.STORED
+          ])
+        }
+      })
+
+      condition.orderProduct = In(orderProducts.map((ordProd: OrderProduct) => ordProd.id))
+      condition.status = In([
+        INVENTORY_STATUS.UNLOADED,
+        INVENTORY_STATUS.PARTIALLY_UNLOADED,
+        INVENTORY_STATUS.PUTTING_AWAY,
+        INVENTORY_STATUS.STORED
+      ])
+      break
+
+    case OrderType.ReleaseGood:
+      const orderInventories: OrderInventory[] = await trxMgr.getRepository(OrderInventory).find({
+        where: {
+          domain,
+          bizplace,
+          releaseGood: worksheet.releaseGood,
+          status: In([ORDER_INVENTORY_STATUS.PICKED])
+        },
+        relations: ['inventory']
+      })
+
+      const inventoryIds: string[] = orderInventories.map((ordInv: OrderInventory) => ordInv.inventory.id)
+      condition.id = inventoryIds?.length ? In(inventoryIds) : In([null])
+      condition.status = In([INVENTORY_STATUS.PICKED, INVENTORY_STATUS.TERMINATED])
+      break
+
+    case OrderType.VasOrder:
+      condition.status = In([INVENTORY_STATUS.STORED])
+  }
+
+  return condition
 }
