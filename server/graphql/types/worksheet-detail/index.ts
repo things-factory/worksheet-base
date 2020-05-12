@@ -3,7 +3,7 @@ import { WorksheetDetail } from './worksheet-detail'
 import { WorksheetDetailList } from './worksheet-detail-list'
 import { WorksheetDetailPatch } from './worksheet-detail-patch'
 import { PalletInfo } from './pallet-info'
-import { Inventory } from './inventory'
+import { InventoryDetail } from './inventory-detail'
 
 export const Mutation = /* GraphQL */ `
   createWorksheetDetail (
@@ -32,7 +32,7 @@ export const Query = /* GraphQL */ `
   worksheetDetails(filters: [Filter], pagination: Pagination, sortings: [Sorting]): WorksheetDetailList
   worksheetDetail(name: String!): WorksheetDetail
   checkProgressingPallet(palletId: String!): Boolean
-  generatePalletId(targets: [PalletInfo]): [Inventory]
+  generatePalletId(targets: [PalletInfo]): [InventoryDetail]
   worksheetDetailsByProductGroup(worksheetNo: String!, batchId: String!, productName: String!, packingType: String!): WorksheetDetailList
 `
 
@@ -42,5 +42,5 @@ export const Types = [
   WorksheetDetailPatch,
   WorksheetDetailList,
   PalletInfo,
-  Inventory,
+  InventoryDetail
 ]
