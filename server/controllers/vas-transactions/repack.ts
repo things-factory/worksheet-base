@@ -52,6 +52,7 @@ export async function repack(
   context: any
 ) {
   const ovRepo: Repository<OrderVas> = trxMgr.getRepository(OrderVas)
+  const oiRepo: Repository<OrderInventory> = trxMgr.getRepository(OrderInventory)
   const invRepo: Repository<Inventory> = trxMgr.getRepository(Inventory)
   const wsRepo: Repository<Worksheet> = trxMgr.getRepository(Worksheet)
   const wsdRepo: Repository<WorksheetDetail> = trxMgr.getRepository(WorksheetDetail)
@@ -71,7 +72,6 @@ export async function repack(
   })
 
   let inventory: Inventory = orderVas.inventory
-
   const orderType: RefOrderType = orderVas.arrivalNotice
     ? orderVas.ArrivalNotice
     : orderVas.releaseGood
@@ -79,6 +79,7 @@ export async function repack(
     : orderVas.shippingOrder
     ? RefOrderType.ShippingOrder
     : RefOrderType.VasOrder
+
   const refOrder: any = orderVas.arrivalNotice || orderVas.releaseGood || orderVas.shippingOrder || orderVas.vasOrder
   const operationGuideData: IOperationGuideData = JSON.parse(orderVas.operationGuide).data
 
@@ -88,6 +89,15 @@ export async function repack(
   const domain: Domain = context.state.domain
   const bizplace: Bizplace = inventory.bizplace
   const user: User = context.state.user
+
+  // If vas order comes with release good and whole products of target pallet is picked
+  if (orderType === RefOrderType.ReleaseGood && inventory.status === INVENTORY_STATUS.TERMINATED) {
+    const orderInv: OrderInventory = await oiRepo.findOne({
+      where: { domain, bizplace, inventory, releaseGood: refOrder, status: ORDER_INVENTORY_STATUS.PICKED }
+    })
+    inventory.qty = orderInv.releaseQty
+    inventory.weight = orderInv.releaseWeight
+  }
 
   const totalPackedAmount = repackedPallets.reduce(
     (totalPackedAmount: number, repackedPallet: IRepackedPallet): number => {
