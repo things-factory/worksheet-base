@@ -2,7 +2,7 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { EntityManager, getManager, getRepository, Repository } from 'typeorm'
+import { Not, Equal, EntityManager, getManager, getRepository, Repository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -55,6 +55,19 @@ export async function activateLoading(
   })
 
   if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
+
+  const relatedWorksheetCnt: number = await worksheetRepo.count({
+    where: {
+      domain,
+      type: Not(Equal(WORKSHEET_TYPE.LOADING)),
+      status: Not(Equal(WORKSHEET_STATUS.DONE)),
+      releaseGood: foundWorksheet.releaseGood
+    }
+  })
+
+  if (relatedWorksheetCnt)
+    throw new Error(`Related order with RO: ${foundWorksheet.releaseGood.name} is still under processing.`)
+
   const customerBizplace: Bizplace = foundWorksheet.bizplace
   const foundWSDs: WorksheetDetail[] = foundWorksheet.worksheetDetails
   let targetInventories: OrderInventory[] = foundWSDs.map((foundWSD: WorksheetDetail) => foundWSD.targetInventory)
