@@ -317,8 +317,8 @@ export async function repack(
 
       if (isWholeRepack) {
         // delete loading worksheet detail and order inventories for loading
-        await oiRepo.delete(loadingOrdInv.id)
         await wsdRepo.delete(loadingWSD.id)
+        await oiRepo.delete(loadingOrdInv.id)
       } else {
         // change qty of worksheet and order inventories for loading
         const { remainWeight, remainQty } = calcRemainAmount(packingUnit, inventory, totalPackedAmount)
