@@ -2,14 +2,14 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import {
   ArrivalNotice,
+  OrderInventory,
+  OrderNoGenerator,
   OrderVas,
+  ORDER_INVENTORY_STATUS,
   ORDER_VAS_STATUS,
   ReleaseGood,
   ShippingOrder,
-  VasOrder,
-  OrderInventory,
-  OrderNoGenerator,
-  ORDER_INVENTORY_STATUS
+  VasOrder
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import {
@@ -109,31 +109,43 @@ export async function repack(
 
   let isWholeRepack: boolean
   if (packingUnit === 'WEIGHT') {
+    if (inventory.weight < totalPackedAmount) throw new Error(`Packed weight can't exceed weight of inventory`)
     isWholeRepack = inventory.weight === totalPackedAmount
   } else if (packingUnit === 'QTY') {
+    if (inventory.qty < totalPackedAmount) throw new Error(`Packed qty can't exceed qty of inventory`)
     isWholeRepack = inventory.qty === totalPackedAmount
   }
 
   // Repack whole inventory
   if (isWholeRepack) {
     // Terminate original pallet.
-    await invRepo.save({
-      ...inventory,
-      qty: 0,
-      weight: 0,
-      status: INVENTORY_STATUS.TERMINATED,
-      updater: user
-    })
+    if (inventory.stats === INVENTORY_STATUS.TERMINATED) {
+      // If order comes with release order and whole products of target pallet is picekd then
+      // status of inventory is changed to TERMINATED already.
+      // No need to change qty, weight and status inventory
+      // creating inventory history is only needed.
 
-    await generateInventoryHistory(
-      inventory,
-      refOrder,
-      INVENTORY_TRANSACTION_TYPE.REPACKAGING,
-      -inventory.qty,
-      -inventory.weight,
-      user,
-      trxMgr
-    )
+      await generateInventoryHistory(inventory, refOrder, INVENTORY_TRANSACTION_TYPE.REPACKAGING, 0, 0, user, trxMgr)
+    } else {
+      // Common case
+      await invRepo.save({
+        ...inventory,
+        qty: 0,
+        weight: 0,
+        status: INVENTORY_STATUS.TERMINATED,
+        updater: user
+      })
+
+      await generateInventoryHistory(
+        inventory,
+        refOrder,
+        INVENTORY_TRANSACTION_TYPE.REPACKAGING,
+        -inventory.qty,
+        -inventory.weight,
+        user,
+        trxMgr
+      )
+    }
 
     for (const repackedPallet of repackedPallets) {
       let weight: number = calcWeight(packingUnit, stdAmount, repackedPallet, inventory)
@@ -214,7 +226,10 @@ export async function repack(
     releaseGood?: ReleaseGood
     vasOrder?: VasOrder
     shippingOrder?: ShippingOrder
-  } = {}
+    type: String
+  } = {
+    type: WORKSHEET_TYPE.VAS
+  }
 
   if (orderVas.arrivalNotice) wsFindCondition.arrivalNotice = orderVas.arrivalNotice
   if (orderVas.releaseGood) wsFindCondition.releaseGood = orderVas.releaseGood
@@ -276,6 +291,7 @@ export async function repack(
         updater: user
       }
     })
+    await ovRepo.save(relatedOrderVas)
 
     if (orderType === RefOrderType.ReleaseGood) {
       const oiRepo: Repository<OrderInventory> = trxMgr.getRepository(OrderInventory)
@@ -410,7 +426,7 @@ async function createLoadingWorksheets(
   delete originOrderInv.id
   delete originWSD.id
 
-  // Create order inventoris
+  // Create order inventories
   let orderInventories: OrderInventory[] = await Promise.all(
     repackedPallets.map(async (repackedPallet: IRepackedPallet) => {
       return {
