@@ -51,8 +51,8 @@ export async function repack(
   repackedPallets: IRepackedPallet[],
   context: any
 ) {
-  const ovRepo: Repository<OrderVas> = trxMgr.getRepository(OrderVas)
   const oiRepo: Repository<OrderInventory> = trxMgr.getRepository(OrderInventory)
+  const ovRepo: Repository<OrderVas> = trxMgr.getRepository(OrderVas)
   const invRepo: Repository<Inventory> = trxMgr.getRepository(Inventory)
   const wsRepo: Repository<Worksheet> = trxMgr.getRepository(Worksheet)
   const wsdRepo: Repository<WorksheetDetail> = trxMgr.getRepository(WorksheetDetail)
@@ -83,9 +83,7 @@ export async function repack(
   const refOrder: any = orderVas.arrivalNotice || orderVas.releaseGood || orderVas.shippingOrder || orderVas.vasOrder
   const operationGuideData: IOperationGuideData = JSON.parse(orderVas.operationGuide).data
 
-  const packingUnit: string = operationGuideData.packingUnit
-  const toPackingType: string = operationGuideData.toPackingType
-  const stdAmount: number = operationGuideData.stdAmount
+  const { packingUnit, toPackingType, stdAmount } = operationGuideData
   const domain: Domain = context.state.domain
   const bizplace: Bizplace = inventory.bizplace
   const user: User = context.state.user
@@ -118,13 +116,25 @@ export async function repack(
 
   // Repack whole inventory
   if (isWholeRepack) {
+    await repackWholePallet()
+  } else {
+    await repackPartialPallet()
+  }
+
+  await updateOperationGuide()
+
+  if (orderType === RefOrderType.ReleaseGood) {
+    await updateLoadingWorksheet()
+  }
+
+  async function repackWholePallet() {
     // Terminate original pallet.
-    if (inventory.stats === INVENTORY_STATUS.TERMINATED) {
+
+    if (inventory.status === INVENTORY_STATUS.TERMINATED) {
       // If order comes with release order and whole products of target pallet is picekd then
       // status of inventory is changed to TERMINATED already.
       // No need to change qty, weight and status inventory
       // creating inventory history is only needed.
-
       await generateInventoryHistory(inventory, refOrder, INVENTORY_TRANSACTION_TYPE.REPACKAGING, 0, 0, user, trxMgr)
     } else {
       // Common case
@@ -135,7 +145,6 @@ export async function repack(
         status: INVENTORY_STATUS.TERMINATED,
         updater: user
       })
-
       await generateInventoryHistory(
         inventory,
         refOrder,
@@ -160,7 +169,6 @@ export async function repack(
         weight,
         user
       )
-
       await generateInventoryHistory(
         newInventory,
         refOrder,
@@ -170,18 +178,15 @@ export async function repack(
         user,
         trxMgr
       )
-
       repackedPallet.inventory = newInventory
     }
-  } else {
-    // Update original inventory
+  }
+
+  async function repackPartialPallet() {
     const { remainWeight, remainQty } = calcRemainAmount(packingUnit, inventory, totalPackedAmount)
-    await invRepo.save({
-      ...inventory,
-      qty: remainQty,
-      weight: remainWeight,
-      updater: user
-    })
+
+    // Update original inventory
+    await invRepo.save({ ...inventory, qty: remainQty, weight: remainWeight, updater: user })
 
     await generateInventoryHistory(
       inventory,
@@ -194,7 +199,7 @@ export async function repack(
     )
 
     for (const repackedPallet of repackedPallets) {
-      let weight: number = calcWeight(packingUnit, stdAmount, repackedPallet, inventory)
+      const weight: number = calcWeight(packingUnit, stdAmount, repackedPallet, inventory)
       const newInventory: Inventory = await createNewInventory(
         trxMgr,
         domain,
@@ -221,116 +226,97 @@ export async function repack(
     }
   }
 
-  let wsFindCondition: {
-    arrivalNotice?: ArrivalNotice
-    releaseGood?: ReleaseGood
-    vasOrder?: VasOrder
-    shippingOrder?: ShippingOrder
-    type: String
-  } = {
-    type: WORKSHEET_TYPE.VAS
-  }
+  async function updateOperationGuide() {
+    let wsFindCondition: {
+      arrivalNotice?: ArrivalNotice
+      releaseGood?: ReleaseGood
+      vasOrder?: VasOrder
+      shippingOrder?: ShippingOrder
+      type: String
+    } = { type: WORKSHEET_TYPE.VAS }
 
-  if (orderVas.arrivalNotice) wsFindCondition.arrivalNotice = orderVas.arrivalNotice
-  if (orderVas.releaseGood) wsFindCondition.releaseGood = orderVas.releaseGood
-  if (orderVas.vasOrder) wsFindCondition.vasOrder = orderVas.vasOrder
-  if (orderVas.shippingOrder) wsFindCondition.shippingOrder = orderVas.shippingOrder
+    if (orderVas.arrivalNotice) wsFindCondition.arrivalNotice = orderVas.arrivalNotice
+    if (orderVas.releaseGood) wsFindCondition.releaseGood = orderVas.releaseGood
+    if (orderVas.vasOrder) wsFindCondition.vasOrder = orderVas.vasOrder
+    if (orderVas.shippingOrder) wsFindCondition.shippingOrder = orderVas.shippingOrder
 
-  const worksheet: Worksheet = await wsRepo.findOne({
-    where: wsFindCondition,
-    relations: ['worksheetDetails', 'worksheetDetails.targetVas', 'worksheetDetails.targetVas.vas']
-  })
-
-  let worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
-  let relatedOrderVas: OrderVas[] = worksheetDetails
-    .map((wsd: WorksheetDetail) => wsd.targetVas)
-    .filter((targetVas: OrderVas) => targetVas.set === orderVas.set && targetVas.vas.id === orderVas.vas.id)
-
-  const updatedOperationGuideData: IOperationGuideData = {
-    ...operationGuideData,
-    packageQty:
-      operationGuideData.packageQty -
-      repackedPallets.reduce((totalPackageQty: number, repackedPallet: IRepackedPallet): number => {
-        totalPackageQty += repackedPallet.packageQty
-        return totalPackageQty
-      }, 0)
-  }
-
-  relatedOrderVas = relatedOrderVas.map((orderVas: OrderVas) => {
-    let operationGuide: { data: IOperationGuideData; [key: string]: any } = JSON.parse(orderVas.operationGuide)
-
-    return {
-      ...orderVas,
-      operationGuide: JSON.stringify({
-        ...operationGuide,
-        data: updatedOperationGuideData
-      })
-    }
-  })
-
-  await ovRepo.save(relatedOrderVas)
-
-  // Complete related order vas if there's no more packageQty
-  if (!updatedOperationGuideData.packageQty) {
-    // Update worksheet details
-    worksheetDetails = worksheetDetails.map((wsd: WorksheetDetail) => {
-      return {
-        ...wsd,
-        status: WORKSHEET_STATUS.DONE,
-        updater: user
-      }
+    const worksheet: Worksheet = await wsRepo.findOne({
+      where: wsFindCondition,
+      relations: ['worksheetDetails', 'worksheetDetails.targetVas', 'worksheetDetails.targetVas.vas']
     })
 
-    await wsdRepo.save(worksheetDetails)
+    let worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
+    let relatedOrderVas: OrderVas[] = worksheetDetails
+      .map((wsd: WorksheetDetail) => wsd.targetVas)
+      .filter((targetVas: OrderVas) => targetVas.set === orderVas.set && targetVas.vas.id === orderVas.vas.id)
 
-    // Update vas
-    relatedOrderVas = relatedOrderVas.map((ov: OrderVas) => {
+    const updatedOperationGuideData: IOperationGuideData = {
+      ...operationGuideData,
+      packageQty:
+        operationGuideData.packageQty -
+        repackedPallets.reduce((totalPackageQty: number, repackedPallet: IRepackedPallet): number => {
+          totalPackageQty += repackedPallet.packageQty
+          return totalPackageQty
+        }, 0)
+    }
+
+    relatedOrderVas = relatedOrderVas.map((orderVas: OrderVas) => {
+      let operationGuide: {
+        data: IOperationGuideData
+        [key: string]: any
+      } = JSON.parse(orderVas.operationGuide)
       return {
-        ...ov,
-        status: ORDER_VAS_STATUS.COMPLETED,
-        updater: user
+        ...orderVas,
+        operationGuide: JSON.stringify({
+          ...operationGuide,
+          data: updatedOperationGuideData
+        })
       }
     })
     await ovRepo.save(relatedOrderVas)
 
-    if (orderType === RefOrderType.ReleaseGood) {
-      const oiRepo: Repository<OrderInventory> = trxMgr.getRepository(OrderInventory)
-
-      const loadingOrdInv: OrderInventory = await oiRepo.findOne({
-        where: {
-          domain,
-          bizplace,
-          inventory,
-          releaseGood: refOrder
+    // Complete related order vas if there's no more packageQty
+    if (!updatedOperationGuideData.packageQty) {
+      // Update worksheet details
+      worksheetDetails = worksheetDetails.map((wsd: WorksheetDetail) => {
+        return {
+          ...wsd,
+          status: WORKSHEET_STATUS.DONE,
+          updater: user
         }
       })
 
-      const loadingWSD: WorksheetDetail = await wsdRepo.findOne({
-        where: {
-          domain,
-          bizplace,
-          targetInventory: loadingOrdInv,
-          type: WORKSHEET_TYPE.LOADING
-        },
-        relations: ['worksheet']
+      await wsdRepo.save(worksheetDetails)
+
+      // Update vas
+      relatedOrderVas = relatedOrderVas.map((ov: OrderVas) => {
+        return {
+          ...ov,
+          status: ORDER_VAS_STATUS.COMPLETED,
+          updater: user
+        }
       })
-
-      if (isWholeRepack) {
-        // delete loading worksheet detail and order inventories for loading
-        await wsdRepo.delete(loadingWSD.id)
-        await oiRepo.delete(loadingOrdInv.id)
-      } else {
-        // change qty of worksheet and order inventories for loading
-        const { remainWeight, remainQty } = calcRemainAmount(packingUnit, inventory, totalPackedAmount)
-        await oiRepo.save({
-          ...loadingOrdInv,
-          releaseWeight: remainWeight,
-          releaseQty: remainQty
-        })
-      }
-
-      await createLoadingWorksheets(trxMgr, domain, bizplace, repackedPallets, loadingOrdInv, loadingWSD, user)
+      await ovRepo.save(relatedOrderVas)
     }
+  }
+
+  async function updateLoadingWorksheet() {
+    const loadingOrdInv: OrderInventory = await oiRepo.findOne({
+      where: { domain, bizplace, inventory, releaseGood: refOrder }
+    })
+    const loadingWSD: WorksheetDetail = await wsdRepo.findOne({
+      where: { domain, bizplace, targetInventory: loadingOrdInv, type: WORKSHEET_TYPE.LOADING },
+      relations: ['worksheet']
+    })
+    if (isWholeRepack) {
+      // delete loading worksheet detail
+      await wsdRepo.delete(loadingWSD.id)
+    } else {
+      // change qty of worksheet and order inventories for loading
+      const { remainWeight, remainQty } = calcRemainAmount(packingUnit, inventory, totalPackedAmount)
+      await oiRepo.save({ ...loadingOrdInv, releaseWeight: remainWeight, releaseQty: remainQty })
+    }
+    await createLoadingWorksheets(trxMgr, domain, bizplace, refOrder, repackedPallets, loadingOrdInv, loadingWSD, user)
   }
 }
 
@@ -412,14 +398,15 @@ async function createLoadingWorksheets(
   trxMgr: EntityManager,
   domain: Domain,
   bizplace: Bizplace,
+  releaseGood: ReleaseGood,
   repackedPallets: IRepackedPallet[],
   originOrderInv: OrderInventory,
   originWSD: WorksheetDetail,
   user: User
 ): Promise<void> {
-  const oiRepo: Repository<OrderInventory> = trxMgr.getRepository(OrderInventory)
   const wsRepo: Repository<Worksheet> = trxMgr.getRepository(Worksheet)
   const wsdRepo: Repository<WorksheetDetail> = trxMgr.getRepository(WorksheetDetail)
+  const oiRepo: Repository<OrderInventory> = trxMgr.getRepository(OrderInventory)
 
   const originWS: Worksheet = await wsRepo.findOne(originWSD.worksheet.id)
 
@@ -435,6 +422,7 @@ async function createLoadingWorksheets(
         bizplace,
         name: OrderNoGenerator.orderInventory(),
         inventory: repackedPallet.inventory,
+        releaseGood,
         releaseQty: repackedPallet.inventory.qty,
         releaseWeight: repackedPallet.inventory.weight,
         packingType: repackedPallet.inventory.packingType,

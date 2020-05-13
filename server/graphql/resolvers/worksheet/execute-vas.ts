@@ -21,7 +21,7 @@ export const executeVas = {
       })
 
       if (!foundWorksheetDetail) throw new Error("Worksheet doesn't exists")
-      const targetVas: OrderVas = foundWorksheetDetail.targetVas
+      let targetVas: OrderVas = foundWorksheetDetail.targetVas
       if (!targetVas) throw new Error("VAS doesn't exists")
 
       const vas: Vas = foundWorksheetDetail.targetVas.vas
@@ -29,12 +29,13 @@ export const executeVas = {
         switch (vas.operationGuide) {
           case 'vas-relabel':
             await relabel(trxMgr, targetVas, context)
-            break
 
           case 'vas-repack':
             const params = JSON.parse(completeParams)
             await repack(trxMgr, targetVas, params, context)
-            break
+
+          default:
+            targetVas = await trxMgr.getRepository(OrderVas).findOne(targetVas.id)
         }
       }
 
