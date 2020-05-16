@@ -8,16 +8,17 @@ import {
   OrderInventory,
   OrderVas,
   OrderProduct,
-  ORDER_INVENTORY_STATUS,
-  ORDER_TYPE
+  ORDER_PRODUCT_STATUS,
+  ORDER_TYPES
 } from '@things-factory/sales-base'
+import { DateTimeConverter } from '../utils/datetime-util'
 import { Product } from '@things-factory/product-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory, InventoryHistory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import FormData from 'form-data'
 import fetch from 'node-fetch'
-import { getRepository, IsNull, Not } from 'typeorm'
-import { TEMPLATE_TYPE, WORKSHEET_TYPE } from '../constants'
+import { getRepository, IsNull, Not, SelectQueryBuilder } from 'typeorm'
+import { TEMPLATE_TYPE, WORKSHEET_TYPE, TRANSACTION_TYPE } from '../constants'
 import { Worksheet } from '../entities'
 
 const REPORT_API_URL = config.get('reportApiUrl', 'http://localhost:8888/rest/report/show_html')
@@ -50,12 +51,6 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
     where: { id: foundDomainBizId.domainBizplace.id }
   })
 
-  // find unloading worksheet for getting unloading time
-  const foundWS: Worksheet = await getRepository(Worksheet).findOne({
-    where: { domain, arrivalNotice: foundGAN, type: WORKSHEET_TYPE.UNLOADING },
-    relations: ['updater']
-  })
-
   const foundTemplate: Attachment = await getRepository(Attachment).findOne({
     where: { domain, category: TEMPLATE_TYPE.JOB_TEMPLATE }
   })
@@ -73,6 +68,12 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
     logo = 'data:' + foundLogo.mimetype + ';base64,' + (await STORAGE.readFile(foundLogo.path, 'base64'))
   }
 
+  // find unloading worksheet for getting unloading time
+  const foundWS: Worksheet = await getRepository(Worksheet).findOne({
+    where: { domain, arrivalNotice: foundGAN, type: WORKSHEET_TYPE.UNLOADING },
+    relations: ['updater']
+  })
+
   // find list of unloaded product
   const targetProducts: OrderProduct[] = await getRepository(OrderProduct).find({
     where: { domain, arrivalNotice: foundGAN, actualPalletQty: Not(IsNull()) },
@@ -85,50 +86,68 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
   const sumPackQty: any = targetProducts.map((op: OrderProduct) => op.actualPackQty).reduce((a, b) => a + b, 0)
   const sumPalletQty: any = targetProducts.map((op: OrderProduct) => op.actualPalletQty).reduce((a, b) => a + b, 0)
 
-  //find list of unloaded inventory
-  const targetInventories: OrderInventory[] = await getRepository(OrderInventory).find({
-    where: { domain, arrivalNotice: foundGAN },
-    relations: ['inventory', 'inventory.product', 'inventory.location']
-  })
+  const subQueryInvHis = await getRepository(InventoryHistory)
+    .createQueryBuilder('invHis')
+    .select('invHis.palletId')
+    .addSelect('invHis.domain')
+    .addSelect('invHis.status')
+    .addSelect('MAX(invHis.seq)', 'seq')
+    .where("invHis.transactionType IN ('UNLOADING','ADJUSTMENT','TERMINATED')")
+    .andWhere('invHis.domain = :domainId', { domainId: domain.id })
+    .groupBy('invHis.palletId')
+    .addGroupBy('invHis.status')
+    .addGroupBy('invHis.domain')
 
-  const productList: any = targetInventories.map(async (oi: OrderInventory) => {
-    const inventory: Inventory = oi.inventory
-    const foundIH: InventoryHistory[] = await getRepository(InventoryHistory).find({
-      where: { domain, palletId: inventory.palletId, product: inventory.product.id }
+  const query = await getRepository(Inventory)
+    .createQueryBuilder('inv')
+    .select('inv.id')
+    .addSelect(subQuery => {
+      return subQuery
+        .select('COALESCE("invh".qty, 0)', 'unloadedQty')
+        .from('inventory_histories', 'invh')
+        .innerJoin(
+          '(' + subQueryInvHis.getQuery() + ')',
+          'invhsrc',
+          '"invhsrc"."invHis_pallet_id" = "invh"."pallet_id" AND "invhsrc"."seq" = "invh"."seq" AND "invhsrc"."domain_id" = "invh"."domain_id"'
+        )
+        .where('"invhsrc"."invHis_status" = \'UNLOADED\'')
+        .andWhere('"invh"."pallet_id" = "inv"."pallet_id"')
+        .andWhere('"invh"."domain_id" = "inv"."domain_id"')
+    }, 'unloadedQty')
+    .addSelect(subQuery => {
+      return subQuery
+        .select('COALESCE("invh".created_at, null)', 'outboundAt')
+        .from('inventory_histories', 'invh')
+        .innerJoin(
+          '(' + subQueryInvHis.getQuery() + ')',
+          'invhsrc',
+          '"invhsrc"."invHis_pallet_id" = "invh"."pallet_id" AND "invhsrc"."seq" = "invh"."seq" AND "invhsrc"."domain_id" = "invh"."domain_id"'
+        )
+        .where('"invhsrc"."invHis_status" = \'TERMINATED\'')
+        .andWhere('"invh"."pallet_id" = "inv"."pallet_id"')
+        .andWhere('"invh"."domain_id" = "inv"."domain_id"')
+    }, 'outboundAt')
+    .addSelect('inv.palletId', 'palletId')
+    .addSelect('inv.packingType', 'packingType')
+    .addSelect('inv.createdAt', 'createdAt')
+    .addSelect('product.name', 'productName')
+    .addSelect('dos.name', 'doName')
+    .addSelect('dos.ownTransport', 'transport')
+    .leftJoin('inv.orderInventory', 'orderInv')
+    .innerJoin('orderInv.deliveryOrder', 'dos')
+    .leftJoin('inv.product', 'product')
+    .where(qb => {
+      const subQuery = qb
+        .subQuery()
+        .select('oi.inventory_id')
+        .from('order_inventories', 'oi')
+        .where('oi.arrival_notice_id = :arrivalNoticeId', { arrivalNoticeId: foundGAN.id })
+        .getQuery()
+      return 'inv.id IN ' + subQuery
     })
+    .andWhere('inv.domain_id = :domainId', { domainId: domain.id })
 
-    const foundOV: OrderVas[] = await getRepository(OrderVas).find({
-      where: { domain, inventory },
-      relations: ['vas']
-    })
-
-    let terminatedInv = null
-    if (inventory.status === INVENTORY_STATUS.TERMINATED) {
-      terminatedInv = foundIH.filter(
-        (ih: InventoryHistory) =>
-          ih.status == ORDER_INVENTORY_STATUS.TERMINATED && ih.transactionType === ORDER_INVENTORY_STATUS.TERMINATED
-      )
-    }
-
-    const foundOI: OrderInventory[] = await getRepository(OrderInventory).find({
-      where: { domain, inventory, type: ORDER_TYPE.RELEASE_OF_GOODS },
-      relations: ['deliveryOrders']
-    })
-
-    const foundDO: DeliveryOrder[] = foundOI.map((oi: OrderInventory) => oi.deliveryOrder)
-
-    return {
-      pallet_id: inventory.palletId,
-      product_name: inventory.product.name,
-      product_type: inventory.packingType,
-      product_batch: inventory.batchId,
-      in_pallet: inventory.createdAt,
-      out_pallet: terminatedInv ? terminatedInv.updatedAt : '',
-      do_list: foundDO.map(dos => dos.name).join(', '),
-      product_qty: oi.releaseQty,
-      remark: foundOV.map(ov => ov.vas.name).join(', ')
-    }
-  })
+  const invItems: any[] = await query.getRawMany()
 
   const data = {
     logo_url: logo,
@@ -136,20 +155,32 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
     company_domain: foundDomainBiz.name,
     company_brn: foundDomainBiz.description,
     company_address: foundDomainBiz.address,
-    container_no: foundGAN.containerNo,
-    container_size: foundJS.containerSize,
-    eta: foundGAN.eta,
-    ata: foundGAN.ata,
-    unloading_date: foundWS.startedAt,
-    mt_date: foundJS.containerMtDate,
-    advise_mt_date: foundJS.adviseMtDate,
+    container_no: foundGAN?.containerNo ? foundGAN.containerNo : null,
+    container_size: foundJS ? foundJS.containerSize : null,
+    eta: foundGAN.etaDate,
+    ata: DateTimeConverter.date(foundGAN.ata),
+    unloading_date: foundWS?.startedAt ? DateTimeConverter.date(foundWS.startedAt) : '',
+    mt_date: foundJS?.containerMtDate ? DateTimeConverter.date(foundJS.containerMtDate) : '',
+    advise_mt_date: DateTimeConverter.date(foundJS.adviseMtDate),
     loose_item: foundGAN.looseItem ? 'Y' : 'N',
     no_of_pallet: foundGAN.looseItem ? `${sumPackQty} CTN` : `${sumPalletQty} PALLETS`,
     commodity: products.map(prod => prod.name).join(', '),
-    created_on: foundJS.createdAt,
-    job_no: foundJS.name,
+    created_on: DateTimeConverter.date(foundJS.createdAt),
+    job_no: foundJS ? foundJS.name : null,
     ref_no: foundGAN.name,
-    product_list: productList
+    product_list: invItems.map(item => {
+      return {
+        pallet_id: item.palletId,
+        product_name: item.productName,
+        product_type: item.packingType,
+        in_pallet: DateTimeConverter.date(item.createdAt),
+        out_pallet: item?.outboundAt ? DateTimeConverter.date(item.outboundAt) : null,
+        do_list: null,
+        transport: null,
+        product_qty: item.unloadedQty,
+        remark: null
+      }
+    })
   }
   const formData = new FormData()
 
