@@ -1,7 +1,7 @@
 import { OrderVas, ORDER_VAS_STATUS, Vas } from '@things-factory/sales-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { relabel, repack } from '../../../controllers/vas-transactions'
+import { Relabel, Repack } from '../../../controllers/vas-transactions'
 import { WorksheetDetail } from '../../../entities'
 
 export const executeVas = {
@@ -17,7 +17,7 @@ export const executeVas = {
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.VAS
         },
-        relations: ['targetVas', 'targetVas.vas']
+        relations: ['bizplace', 'targetVas', 'targetVas.vas']
       })
 
       if (!foundWorksheetDetail) throw new Error("Worksheet doesn't exists")
@@ -28,11 +28,10 @@ export const executeVas = {
       if (vas.operationGuide) {
         switch (vas.operationGuide) {
           case 'vas-relabel':
-            await relabel(trxMgr, targetVas, context)
+            await new Relabel(trxMgr, targetVas, completeParams, context).exec()
 
           case 'vas-repack':
-            const params = JSON.parse(completeParams)
-            await repack(trxMgr, targetVas, params, context)
+            await new Repack(trxMgr, targetVas, completeParams, context).exec()
 
           default:
             targetVas = await trxMgr.getRepository(OrderVas).findOne(targetVas.id)

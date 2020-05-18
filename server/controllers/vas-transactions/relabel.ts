@@ -1,32 +1,49 @@
-import { User } from '@things-factory/auth-base'
 import { Product } from '@things-factory/product-base'
 import { OrderVas } from '@things-factory/sales-base'
 import { Inventory, INVENTORY_TRANSACTION_TYPE } from '@things-factory/warehouse-base'
 import { EntityManager, Repository } from 'typeorm'
 import { generateInventoryHistory } from '../../utils'
+import { AbstractVasTransaction, RefOrderType } from './AbstractVasTransaction'
 
-export async function relabel(trxMgr: EntityManager, orderVas: OrderVas, context: any): Promise<void> {
-  const ovRepo: Repository<OrderVas> = trxMgr.getRepository(OrderVas)
-  const prodRepo: Repository<Product> = trxMgr.getRepository(Product)
-  const invRepo: Repository<Inventory> = trxMgr.getRepository(Inventory)
+interface OperationGuideDataInterface {
+  toProduct: Product
+}
 
-  orderVas = await ovRepo.findOne(orderVas.id, {
-    relations: ['inventory', 'arrivalNotice', 'releaseGood', 'shippingOrder', 'vasOrder']
-  })
+export class Relabel extends AbstractVasTransaction<OperationGuideDataInterface, void> {
+  operationGuideData: OperationGuideDataInterface
 
-  const operationGuide: any = JSON.parse(orderVas.operationGuide)
-  let inventory: Inventory = orderVas.inventory
-  const refOrder: any = orderVas.arrivalNotice || orderVas.releaseGood || orderVas.shippingOrder || orderVas.vasOrder
-  const toProduct: Product = await prodRepo.findOne(operationGuide.data.toProduct.id)
-  const user: User = context.state.user
+  constructor(trxMgr: EntityManager, orderVas: any, params: any, context: any) {
+    super(trxMgr, orderVas, params, context)
+  }
 
-  // Change product to toProduct
-  inventory = await invRepo.save({
-    ...inventory,
-    product: toProduct,
-    updater: user
-  })
+  async exec(): Promise<void> {
+    const ovRepo: Repository<OrderVas> = this.trxMgr.getRepository(OrderVas)
+    const prodRepo: Repository<Product> = this.trxMgr.getRepository(Product)
+    const invRepo: Repository<Inventory> = this.trxMgr.getRepository(Inventory)
 
-  // Generate inventory hisotry with relabeling transaction type
-  await generateInventoryHistory(inventory, refOrder, INVENTORY_TRANSACTION_TYPE.RELABELING, 0, 0, user, trxMgr)
+    this.orderVas = await ovRepo.findOne(this.orderVas.id, {
+      relations: ['inventory', 'arrivalNotice', 'releaseGood', 'shippingOrder', 'vasOrder']
+    })
+
+    let inventory: Inventory = this.orderVas.inventory
+    const refOrder: RefOrderType = this.getRefOrder()
+    const toProduct: Product = await prodRepo.findOne(this.operationGuideData.toProduct.id)
+
+    // Change product of inventory to have relation with toProduct
+    inventory = await invRepo.save({
+      ...inventory,
+      product: toProduct,
+      updater: this.user
+    })
+
+    await generateInventoryHistory(
+      inventory,
+      refOrder,
+      INVENTORY_TRANSACTION_TYPE.RELABELING,
+      0,
+      0,
+      this.user,
+      this.trxMgr
+    )
+  }
 }
