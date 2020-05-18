@@ -131,10 +131,13 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
     .addSelect('inv.packingType', 'packingType')
     .addSelect('inv.createdAt', 'createdAt')
     .addSelect('product.name', 'productName')
-    .addSelect('dos.name', 'doName')
-    .addSelect('dos.ownTransport', 'transport')
-    .leftJoin('inv.orderInventory', 'orderInv')
-    .innerJoin('orderInv.deliveryOrder', 'dos')
+    .addSelect('STRING_AGG ("do2".name, \', \')', 'doName')
+    .addSelect('do2.own_collection', 'ownTransport')
+    .addSelect('STRING_AGG ("vas".name, \', \')', 'vasName')
+    .leftJoin('order_inventories', 'orderInv', '"orderInv"."inventory_id" = "inv"."id"')
+    .leftJoin('order_vass', 'orderVass', '"orderVass"."inventory_id" = "inv"."id"')
+    .leftJoin('vass', 'vas', '"vas"."id" = "orderVass"."vas_id"')
+    .leftJoin('delivery_orders', 'do2', '"do2"."id" = "orderInv"."delivery_order_id"')
     .leftJoin('inv.product', 'product')
     .where(qb => {
       const subQuery = qb
@@ -146,6 +149,10 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
       return 'inv.id IN ' + subQuery
     })
     .andWhere('inv.domain_id = :domainId', { domainId: domain.id })
+    .andWhere('do2.name is not null')
+    .groupBy('inv.id')
+    .addGroupBy('product.name')
+    .addGroupBy('do2.own_collection')
 
   const invItems: any[] = await query.getRawMany()
 
@@ -175,10 +182,10 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
         product_type: item.packingType,
         in_pallet: DateTimeConverter.date(item.createdAt),
         out_pallet: item?.outboundAt ? DateTimeConverter.date(item.outboundAt) : null,
-        do_list: null,
-        transport: null,
+        do_list: item.doName,
+        transport: item.ownTransport ? 'Y' : 'N',
         product_qty: item.unloadedQty,
-        remark: null
+        remark: item.vasName
       }
     })
   }
