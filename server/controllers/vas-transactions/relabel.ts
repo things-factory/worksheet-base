@@ -13,7 +13,7 @@ export class Relabel extends AbstractVasTransaction<OperationGuideDataInterface,
   operationGuideData: OperationGuideDataInterface
 
   constructor(trxMgr: EntityManager, orderVas: any, params: any, context: any) {
-    super(trxMgr, orderVas, params, context)
+    super(trxMgr, orderVas, params, context, false)
   }
 
   async exec(): Promise<void> {
@@ -45,5 +45,9 @@ export class Relabel extends AbstractVasTransaction<OperationGuideDataInterface,
       this.user,
       this.trxMgr
     )
+  }
+
+  getUpdatedOperationGuideData(): { data: OperationGuideDataInterface; completed: boolean } {
+    return null
   }
 }

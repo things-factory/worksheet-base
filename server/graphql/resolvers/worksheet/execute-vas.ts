@@ -17,7 +17,7 @@ export const executeVas = {
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.VAS
         },
-        relations: ['bizplace', 'targetVas', 'targetVas.vas']
+        relations: ['targetVas', 'targetVas.bizplace', 'targetVas.vas']
       })
 
       if (!foundWorksheetDetail) throw new Error("Worksheet doesn't exists")
@@ -28,10 +28,10 @@ export const executeVas = {
       if (vas.operationGuide) {
         switch (vas.operationGuide) {
           case 'vas-relabel':
-            await new Relabel(trxMgr, targetVas, completeParams, context).exec()
+            await new Relabel(trxMgr, targetVas, completeParams, context).executeVas()
 
           case 'vas-repack':
-            await new Repack(trxMgr, targetVas, completeParams, context).exec()
+            await new Repack(trxMgr, targetVas, completeParams, context).executeVas()
 
           default:
             targetVas = await trxMgr.getRepository(OrderVas).findOne(targetVas.id)
@@ -46,7 +46,6 @@ export const executeVas = {
       })
 
       // 2. update vas
-
       await trxMgr.getRepository(OrderVas).save({
         ...targetVas,
         status: ORDER_VAS_STATUS.COMPLETED,

@@ -1,13 +1,9 @@
 import {
-  ArrivalNotice,
   OrderInventory,
   OrderNoGenerator,
   OrderVas,
   ORDER_INVENTORY_STATUS,
-  ORDER_VAS_STATUS,
-  ReleaseGood,
-  ShippingOrder,
-  VasOrder
+  ReleaseGood
 } from '@things-factory/sales-base'
 import {
   Inventory,
@@ -38,7 +34,7 @@ interface RepackPalletInterface {
 
 export class Repack extends AbstractVasTransaction<OperationGuideDataInterface, RepackPalletInterface[]> {
   constructor(trxMgr: EntityManager, orderVas: OrderVas, params: any, context: any) {
-    super(trxMgr, orderVas, params, context)
+    super(trxMgr, orderVas, params, context, true)
   }
 
   async exec(): Promise<void> {
@@ -110,18 +106,27 @@ export class Repack extends AbstractVasTransaction<OperationGuideDataInterface, 
         newInventory,
         refOrder,
         INVENTORY_TRANSACTION_TYPE.REPACKAGING,
-        -(inventory.qty - newInventory.qty),
-        -(inventory.weight - newInventory.weight),
+        newInventory.qty,
+        newInventory.weight,
         this.user,
         this.trxMgr
       )
       repackedPallet.inventory = newInventory
     }
 
-    await this.updateOperationGuide(refOrder, totalPackageQty)
-
     if (refOrder instanceof ReleaseGood) {
-      await this.updateLoadingWorksheet(inventory, refOrder, remainQty, remainWeight)
+      await this.updateLoadingWorksheet(refOrder, inventory, remainQty, remainWeight)
+    }
+  }
+
+  getUpdatedOperationGuideData(): { data: OperationGuideDataInterface; completed: boolean } {
+    const totalPackageQty: number = this.getTotalPackageQty()
+    return {
+      data: {
+        ...this.operationGuideData,
+        packageQty: this.operationGuideData.packageQty - totalPackageQty
+      },
+      completed: !Boolean(this.operationGuideData.packageQty - totalPackageQty)
     }
   }
 
@@ -172,6 +177,7 @@ export class Repack extends AbstractVasTransaction<OperationGuideDataInterface, 
 
     const weight: number = this.calcWeight(repackedPallet, inventory)
     const packingType: string = this.operationGuideData.toPackingType
+    inventory = await invRepo.findOne(inventory.id, { relations: ['product', 'warehouse', 'orderProduct'] })
     const location: Location = await locRepo.findOne({
       where: { domain: this.domain, name: repackedPallet.locationName }
     })
@@ -198,81 +204,9 @@ export class Repack extends AbstractVasTransaction<OperationGuideDataInterface, 
     })
   }
 
-  async updateOperationGuide(refOrder: RefOrderType, totalPackageQty: number): Promise<void> {
-    const ovRepo: Repository<OrderVas> = this.trxMgr.getRepository(OrderVas)
-    const wsRepo: Repository<Worksheet> = this.trxMgr.getRepository(Worksheet)
-    const wsdRepo: Repository<WorksheetDetail> = this.trxMgr.getRepository(WorksheetDetail)
-
-    let where: {
-      arrivalNotice?: ArrivalNotice
-      releaseGood?: ReleaseGood
-      vasOrder?: VasOrder
-      shippingOrder?: ShippingOrder
-    }
-    if (refOrder instanceof ArrivalNotice) {
-      where.arrivalNotice = refOrder
-    } else if (refOrder instanceof ReleaseGood) {
-      where.releaseGood = refOrder
-    } else if (refOrder instanceof VasOrder) {
-      where.vasOrder = refOrder
-    } else if (refOrder instanceof ShippingOrder) {
-      where.shippingOrder = refOrder
-    }
-
-    const worksheet: Worksheet = await wsRepo.findOne({
-      where,
-      relations: ['worksheetDetails', 'worksheetDetails.targetVas', 'worksheetDetails.targetVas.vas']
-    })
-
-    let worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
-    let relatedOrderVas: OrderVas[] = worksheetDetails
-      .map((wsd: WorksheetDetail) => wsd.targetVas)
-      .filter((targetVas: OrderVas) => targetVas.set === this.orderVas.set && targetVas.vas.id === this.orderVas.vas.id)
-
-    const updatedOperationGuideData: OperationGuideDataInterface = {
-      ...this.operationGuideData,
-      packageQty: this.operationGuideData.packageQty - totalPackageQty
-    }
-
-    relatedOrderVas = relatedOrderVas.map((orderVas: OrderVas) => {
-      let operationGuide: {
-        data: OperationGuideDataInterface
-        [key: string]: any
-      } = JSON.parse(orderVas.operationGuide)
-      return {
-        ...orderVas,
-        operationGuide: JSON.stringify({
-          ...operationGuide,
-          data: updatedOperationGuideData
-        })
-      }
-    })
-    await ovRepo.save(relatedOrderVas)
-
-    // Complete related order vas if there's no more packageQty
-    if (!updatedOperationGuideData.packageQty) {
-      // Update worksheet details
-      worksheetDetails = worksheetDetails.map((wsd: WorksheetDetail) => {
-        return { ...wsd, status: WORKSHEET_STATUS.DONE, updater: this.user }
-      })
-
-      await wsdRepo.save(worksheetDetails)
-
-      // Update vas
-      relatedOrderVas = relatedOrderVas.map((ov: OrderVas) => {
-        return {
-          ...ov,
-          status: ORDER_VAS_STATUS.COMPLETED,
-          updater: this.user
-        }
-      })
-      await ovRepo.save(relatedOrderVas)
-    }
-  }
-
   async updateLoadingWorksheet(
-    inventory: Inventory,
     refOrder: ReleaseGood,
+    inventory: Inventory,
     remainQty: number,
     remainWeight: number
   ): Promise<void> {
