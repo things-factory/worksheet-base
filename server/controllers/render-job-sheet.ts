@@ -171,7 +171,7 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
     advise_mt_date: DateTimeConverter.date(foundJS.adviseMtDate),
     loose_item: foundGAN.looseItem ? 'Y' : 'N',
     no_of_pallet: foundGAN.looseItem ? `${sumPackQty} CTN` : `${sumPalletQty} PALLETS`,
-    commodity: products.map(prod => prod.name).join(', '),
+    commodity: products.map(prod => prod.type).join(', '),
     created_on: DateTimeConverter.date(foundJS.createdAt),
     job_no: foundJS ? foundJS.name : null,
     ref_no: foundGAN.name,
