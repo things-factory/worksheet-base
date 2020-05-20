@@ -1,11 +1,10 @@
-import { OrderVas, ORDER_VAS_STATUS, Vas } from '@things-factory/sales-base'
+import { OrderVas, ORDER_VAS_STATUS } from '@things-factory/sales-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { Relabel, Repack } from '../../../controllers/vas-transactions'
 import { WorksheetDetail } from '../../../entities'
 
 export const executeVas = {
-  async executeVas(_: any, { worksheetDetail, completeParams }, context: any) {
+  async executeVas(_: any, { worksheetDetail }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const worksheetDetailName = worksheetDetail.name
 
@@ -23,20 +22,6 @@ export const executeVas = {
       if (!foundWorksheetDetail) throw new Error("Worksheet doesn't exists")
       let targetVas: OrderVas = foundWorksheetDetail.targetVas
       if (!targetVas) throw new Error("VAS doesn't exists")
-
-      const vas: Vas = foundWorksheetDetail.targetVas.vas
-      if (vas.operationGuide) {
-        switch (vas.operationGuide) {
-          case 'vas-relabel':
-            await new Relabel(trxMgr, targetVas, completeParams, context).executeVas()
-
-          case 'vas-repack':
-            await new Repack(trxMgr, targetVas, completeParams, context).executeVas()
-
-          default:
-            targetVas = await trxMgr.getRepository(OrderVas).findOne(targetVas.id)
-        }
-      }
 
       await trxMgr.getRepository(WorksheetDetail).save({
         ...foundWorksheetDetail,

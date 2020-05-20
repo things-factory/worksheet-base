@@ -1,10 +1,17 @@
-import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, OrderVas, ORDER_STATUS, ORDER_TYPES, ReleaseGood, VasOrder } from '@things-factory/sales-base'
+import {
+  ArrivalNotice,
+  OrderVas,
+  ORDER_STATUS,
+  ORDER_TYPES,
+  ReleaseGood,
+  VasOrder,
+  OrderInventory
+} from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Location } from '@things-factory/warehouse-base'
 import { Equal, getRepository, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
+import { Inventory } from '@things-factory/warehouse-base'
 
 export const vasWorksheetResolver = {
   async vasWorksheet(_: any, { orderNo, orderType }, context: any) {
@@ -65,6 +72,17 @@ export const vasWorksheetResolver = {
       relations: commonRelations
     })
 
+    if (orderType === ORDER_TYPES.RELEASE_OF_GOODS) {
+      for (let wsd of worksheet.worksheetDetails) {
+        const inventory: Inventory = wsd.targetVas.inventory
+        const orderInv: OrderInventory = await getRepository(OrderInventory).findOne({
+          where: { domain: context.state.domain, releaseGood: refOrder, inventory }
+        })
+
+        wsd.targetInventory = orderInv
+      }
+    }
+
     return {
       worksheetInfo: {
         bizplaceName: refOrder.bizplace.name,
@@ -91,7 +109,8 @@ export const vasWorksheetResolver = {
           description: wsd.description,
           remark: targetVas.remark,
           status: wsd.status,
-          issue: wsd.issue
+          issue: wsd.issue,
+          relatedOrderInv: wsd.targetInventory
         }
       })
     }

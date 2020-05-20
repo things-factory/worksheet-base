@@ -190,7 +190,6 @@ export const Mutation = /* GraphQL */ `
 
   executeVas (
     worksheetDetail: WorksheetDetailPatch!
-    completeParams: String
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   undoVas (
@@ -200,6 +199,13 @@ export const Mutation = /* GraphQL */ `
   completeVas (
     orderNo: String!
     orderType: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  repalletizing (
+    worksheetDetailName: String!
+    palletId: String!
+    locationName: String!
+    packageQty: Int!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   proceedExtraProducts (

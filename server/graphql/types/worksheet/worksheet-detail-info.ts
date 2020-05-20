@@ -31,5 +31,6 @@ export const WorksheetDetailInfo = gql`
     locationInv: String
     toLocation: Location
     inventory: Inventory
+    relatedOrderInv: OrderInventory
   }
 `
