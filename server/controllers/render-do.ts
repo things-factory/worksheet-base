@@ -142,7 +142,8 @@ export async function renderDO({ domain: domainName, doNo }) {
             return {
               ...ni,
               remark: ni.remark + 1,
-              product_qty: ni.product_qty + item.product_qty
+              product_qty: ni.product_qty + item.product_qty,
+              product_weight: ni.product_weight + item.product_weight
             }
           } else {
             return ni
