@@ -81,6 +81,7 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
   })
 
   const products: Product[] = targetProducts.map((op: OrderProduct) => op.product)
+  const prodType: any[] = products.map(prod => prod.type)
 
   // sum up unloaded pack and pallet qty
   const sumPackQty: any = targetProducts.map((op: OrderProduct) => op.actualPackQty).reduce((a, b) => a + b, 0)
@@ -134,7 +135,11 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
     .addSelect('STRING_AGG ("do2".name, \', \')', 'doName')
     .addSelect('do2.own_collection', 'ownTransport')
     .addSelect('STRING_AGG ("vas".name, \', \')', 'vasName')
-    .leftJoin('order_inventories', 'orderInv', '"orderInv"."inventory_id" = "inv"."id"')
+    .leftJoin(
+      'order_inventories',
+      'orderInv',
+      '"orderInv"."inventory_id" = "inv"."id" AND "orderInv"."release_good_id" is not null'
+    )
     .leftJoin('order_vass', 'orderVass', '"orderVass"."inventory_id" = "inv"."id"')
     .leftJoin('vass', 'vas', '"vas"."id" = "orderVass"."vas_id"')
     .leftJoin('delivery_orders', 'do2', '"do2"."id" = "orderInv"."delivery_order_id"')
@@ -149,7 +154,6 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
       return 'inv.id IN ' + subQuery
     })
     .andWhere('inv.domain_id = :domainId', { domainId: domain.id })
-    .andWhere('do2.name is not null')
     .groupBy('inv.id')
     .addGroupBy('product.name')
     .addGroupBy('do2.own_collection')
@@ -171,7 +175,7 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
     advise_mt_date: DateTimeConverter.date(foundJS.adviseMtDate),
     loose_item: foundGAN.looseItem ? 'Y' : 'N',
     no_of_pallet: foundGAN.looseItem ? `${sumPackQty} CTN` : `${sumPalletQty} PALLETS`,
-    commodity: products.map(prod => prod.type).join(', '),
+    commodity: prodType.filter((a, b) => prodType.indexOf(a) === b).join(', '),
     created_on: DateTimeConverter.date(foundJS.createdAt),
     job_no: foundJS ? foundJS.name : null,
     ref_no: foundGAN.name,
