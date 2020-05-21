@@ -118,7 +118,6 @@ export async function generatePutawayWorksheet(
         domain,
         bizplace,
         name: OrderNoGenerator.orderInventory(),
-        releaseQty: inventory.qty,
         status: ORDER_PRODUCT_STATUS.UNLOADED,
         type: ORDER_TYPES.ARRIVAL_NOTICE,
         arrivalNotice,

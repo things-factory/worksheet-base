@@ -1,37 +1,11 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import {
-  ArrivalNotice,
-  OrderInventory,
-  OrderNoGenerator,
-  OrderVas,
-  ReleaseGood,
-  ShippingOrder,
-  VasOrder
-} from '@things-factory/sales-base'
+import { OrderInventory, OrderVas, ORDER_TYPES, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import {
-  Inventory,
-  InventoryNoGenerator,
-  INVENTORY_STATUS,
-  INVENTORY_TRANSACTION_TYPE,
-  Location,
-  Warehouse
-} from '@things-factory/warehouse-base'
+import { Inventory, Location, Warehouse } from '@things-factory/warehouse-base'
 import { EntityManager, getManager } from 'typeorm'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
-import { Worksheet, WorksheetDetail } from '../../../../entities'
-import { generateInventoryHistory, WorksheetNoGenerator } from '../../../../utils'
-
-interface OperationGuideDataInterface {
-  palletType: string
-  stdQty: number
-  requiredPalletQty: number
-  repalletizedInvIds: string[]
-  completed: boolean
-}
-
-export declare type RefOrderType = ArrivalNotice | ReleaseGood | VasOrder | ShippingOrder
+import { WorksheetDetail } from '../../../../entities'
+import { OperationGuideDataInterface, OperationGuideInterface, RefOrderType, RepalletizedInvInfo } from './intefaces'
 
 export const repalletizingResolver = {
   async repalletizing(_: any, { worksheetDetailName, palletId, locationName, packageQty }, context: any) {
@@ -54,7 +28,8 @@ export const repalletizingResolver = {
           'targetVas.arrivalNotice',
           'targetVas.releaseGood',
           'targetVas.shippingOrder',
-          'targetVas.vasOrder'
+          'targetVas.vasOrder',
+          'worksheet'
         ]
       })
 
@@ -66,7 +41,9 @@ export const repalletizingResolver = {
         relations: ['warehouse']
       })
       const warehouse: Warehouse = location.warehouse
-      const operationGuideData: OperationGuideDataInterface = JSON.parse(targetVas.operationGuide)
+      // Update operation guide data for every related repalletizing vas
+      const operationGuide: OperationGuideInterface = JSON.parse(targetVas.operationGuide)
+      const operationGuideData: OperationGuideDataInterface = operationGuide.data
 
       let refOrder: RefOrderType
       if (targetVas?.arrivalNotice?.id) {
@@ -83,164 +60,121 @@ export const repalletizingResolver = {
       if (!wsd) throw new Error(`Couldn't find target worksheet detail`)
       if (!targetVas) throw new Error(`Counldn't find target vas`)
       if (!originInv) throw new Error(`Inventory wasn't assigned to target vas`)
-      if (originInv.qty < packageQty) throw new Error(`Inventory doesn't have enough packages`)
       if (!refOrder) throw new Error(`Couldn't find reference order with current order vas`)
       if (!location) throw new Error(`Counldn't find location by its name (${locationName})`)
       if (!warehouse) throw new Error(`Location (name: ${locationName}) doesn't have any relation with warehouse`)
 
-      // Get release qty and release weight if refOrder is release good
+      // Calculate remain qty and weight
+      const { repalletizedQty, repalletizedWeight } = operationGuideData.repalletizedInvs.reduce(
+        (
+          repalletizedAmount: {
+            repalletizedQty: number
+            repalletizedWeight: number
+          },
+          repalletizedInv: RepalletizedInvInfo
+        ) => {
+          return {
+            repalletizedQty: repalletizedAmount.repalletizedQty + repalletizedInv.addedQty,
+            repalletizedWeight: repalletizedAmount.repalletizedWeight + repalletizedInv.addedWeight
+          }
+        },
+        {
+          repalletizedQty: 0,
+          repalletizedWeight: 0
+        }
+      )
+
+      // Validity check for amount of inventory
+      let remainQty: number
+      let remainWeight: number
+
       if (refOrder instanceof ReleaseGood) {
         const orderInv: OrderInventory = await trxMgr.getRepository(OrderInventory).findOne({
-          where: { domain, bizplace, inventory: originInv, releaseGood: refOrder }
+          where: { domain, bizplace, inventory: originInv, releaseGood: refOrder, type: ORDER_TYPES.RELEASE_OF_GOODS }
         })
-
-        originInv.qty = orderInv.releaseQty
-        originInv.weight = originInv.releaseWeight
+        remainQty = orderInv.releaseQty - repalletizedQty
+        remainWeight = orderInv.releaseWeight - repalletizedWeight
+      } else {
+        remainQty = originInv.qty - repalletizedQty
+        remainWeight = originInv.weight - repalletizedWeight
       }
 
-      // Create new inventory
-      const unitWeight: number = originInv.weight / originInv.qty
-      const copiedInv: Inventory = Object.assign({}, originInv)
-      delete copiedInv.id
+      if (!remainQty) throw new Error(`There's no more remain package of pallet (${originInv.palletId})`)
+      if (remainQty < packageQty)
+        throw new Error(`Pallet doesn't have enough number of packages (${originInv.palletId}`)
 
-      const newInventory: Inventory = await trxMgr.getRepository(Inventory).save({
-        ...copiedInv,
-        domain,
-        bizplace,
-        palletId,
-        name: InventoryNoGenerator.inventoryName(),
-        warehouse,
-        location,
-        qty: packageQty,
-        weight: packageQty * unitWeight,
-        refOrderId: refOrder.id,
-        refInventory: originInv,
-        zone: location.zone,
-        creator: User,
-        updater: User
+      const unitWeight: number = remainWeight / remainQty
+
+      let repalletizedInvs: RepalletizedInvInfo[] = operationGuideData.repalletizedInvs
+      let isCompleted: boolean // completed flag
+      // Add more into prev repalletized pallet
+      if (repalletizedInvs.find((inv: RepalletizedInvInfo) => inv.palletId === palletId)) {
+        repalletizedInvs = repalletizedInvs.map((inv: RepalletizedInvInfo) => {
+          if (inv.palletId === palletId) {
+            isCompleted = inv.addedQty + packageQty === operationGuideData.stdQty
+
+            return {
+              ...inv,
+              addedQty: inv.addedQty + packageQty,
+              addedWeight: inv.addedWeight + unitWeight * packageQty,
+              completed: isCompleted
+            }
+          } else {
+            return inv
+          }
+        })
+      } else {
+        // Append new inventory information
+        isCompleted = packageQty === operationGuideData.stdQty
+        repalletizedInvs.push({
+          palletId,
+          locationName,
+          addedQty: packageQty,
+          addedWeight: unitWeight * packageQty,
+          completed: isCompleted
+        })
+      }
+
+      const updatedOperationGuideData: OperationGuideDataInterface = {
+        ...operationGuideData,
+        requiredPalletQty: isCompleted ? operationGuideData.requiredPalletQty - 1 : operationGuideData.requiredPalletQty
+      }
+
+      const relatedWSDs: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
+        where: {
+          domain,
+          bizplace,
+          worksheet: targetVas.worksheet
+        },
+        relations: ['targetVas', 'targetVas.vas']
       })
 
-      await generateInventoryHistory(
-        newInventory,
-        refOrder,
-        INVENTORY_TRANSACTION_TYPE.REPALLETIZING,
-        packageQty,
-        packageQty * unitWeight,
-        user,
-        trxMgr
-      )
-
-      if (originInv.status !== INVENTORY_STATUS.TERMINATED) {
-        const remainQty: number = originInv.qty - packageQty
-        const remainWeight: number = originInv.weight - packageQty * unitWeight
-
-        if (remainQty < 0 || remainWeight < 0)
-          throw new Error(`Remain amount of product in inventory should't be negative value`)
-
-        // Update original inventory
-        originInv = await trxMgr.getRepository(Inventory).save({
-          ...originInv,
-          qty: remainQty,
-          weight: remainWeight,
-          updater: user
-        })
-      }
-
-      await generateInventoryHistory(
-        originInv,
-        refOrder,
-        INVENTORY_TRANSACTION_TYPE,
-        -packageQty,
-        -(packageQty * unitWeight),
-        user,
-        trxMgr
-      )
-
-      // Terminate if there's no more products on original inventory
-      if (originInv.status !== INVENTORY_STATUS.TERMINATED && (originInv.qty == 0 || originInv.weight == 0)) {
-        originInv = await trxMgr.getRepository(Inventory).save({
-          ...originInv,
-          status: INVENTORY_STATUS.TERMINATED,
-          updater: user
+      const relatedOrderVass: OrderVas[] = relatedWSDs
+        .map((wsd: WorksheetDetail) => wsd.targetVas)
+        .filter((ov: OrderVas) => ov.id !== targetVas.id && ov.vas.set === targetVas.vas.set)
+        .map((ov: OrderVas) => {
+          return {
+            ...ov,
+            operationGuide: {
+              ...operationGuide,
+              data: updatedOperationGuideData
+            }
+          }
         })
 
-        await generateInventoryHistory(
-          originInv,
-          refOrder,
-          INVENTORY_TRANSACTION_TYPE.REPALLETIZING,
-          0,
-          0,
-          user,
-          trxMgr
-        )
-      }
+      // Update related order vas
+      await trxMgr.getRepository(OrderVas).save(relatedOrderVass)
 
-      if (refOrder instanceof ReleaseGood) {
-        // If Reference Order is release good
-        // Loading worksheet should be changed.
-
-        const loadingOrderInv: OrderInventory = await trxMgr.getRepository(OrderInventory).findOne({
-          where: { domain, bizplace, inventory: originInv, releaseGood: refOrder }
-        })
-        const loadingWSD: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
-          where: { domain, bizplace, targetInventory: loadingOrderInv, type: WORKSHEET_TYPE.LOADING },
-          relations: ['worksheet']
-        })
-        const loadingWS: Worksheet = loadingWSD.worksheet
-
-        if (originInv.qty == 0 || originInv.weight == 0) {
-          await trxMgr.getRepository(WorksheetDetail).delete(loadingWSD.id)
-        } else {
-          await trxMgr.getRepository(OrderInventory).save({
-            ...loadingOrderInv,
-            releaseQty: loadingOrderInv.releaseQty - packageQty,
-            releaseWeight: loadingOrderInv.releaseWeight - unitWeight * packageQty,
-            updater: user
-          })
-        }
-
-        // Create new order inventory for loading
-        delete loadingOrderInv.id
-        const newOrdInv: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
-          ...loadingOrderInv,
-          domain,
-          bizplace,
-          name: OrderNoGenerator.orderInventory(),
-          inventory: originInv,
-          releaseGood: refOrder,
-          releaseQty: packageQty,
-          releaseWeight: unitWeight * packageQty,
-          creator: user,
-          updater: user
-        })
-
-        // Create worksheet detail for loading
-        delete loadingWSD.id
-        await trxMgr.getRepository(WorksheetDetail).save({
-          domain,
-          bizplace,
-          worksheet: loadingWS,
-          name: WorksheetNoGenerator.loadingDetail(),
-          targetInventory: newOrdInv,
-          type: WORKSHEET_TYPE.LOADING,
-          status: WORKSHEET_STATUS.DEACTIVATED,
-          creator: user,
-          updater: user
-        })
-      }
-
-      const updatedOperationGuide: OperationGuideDataInterface = {
-        palletType: operationGuideData.palletType,
-        stdQty: operationGuideData.stdQty,
-        requiredPalletQty: operationGuideData.requiredPalletQty - 1,
-        repalletizedInvIds: [...operationGuideData.repalletizedInvIds, newInventory.id],
-        completed: !Boolean(operationGuideData.requiredPalletQty - 1)
-      }
-
+      // Update current order vas
       await trxMgr.getRepository(OrderVas).save({
         ...targetVas,
-        operationGuide: JSON.stringify(updatedOperationGuide),
-        updater: user
+        operationGuide: {
+          ...operationGuide,
+          data: {
+            ...updatedOperationGuideData,
+            repalletizedInvs
+          }
+        }
       })
     })
   }
