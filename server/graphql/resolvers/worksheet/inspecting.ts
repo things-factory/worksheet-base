@@ -84,7 +84,7 @@ export async function executeInspection(
     // Change status of order inventory
     await trxMgr.getRepository(OrderInventory).save({
       ...targetInventory,
-      inspectedLocation: currentLocation.name,
+      inspectedLocation: currentLocation,
       inspectedQty,
       inspectedWeight,
       status: ORDER_INVENTORY_STATUS.NOT_TALLY,
@@ -100,7 +100,7 @@ export async function executeInspection(
     // Change status of order inventory
     await trxMgr.getRepository(OrderInventory).save({
       ...targetInventory,
-      inspectedLocation: currentLocation.name,
+      inspectedLocation: currentLocation,
       inspectedQty,
       inspectedWeight,
       status: ORDER_INVENTORY_STATUS.INSPECTED,

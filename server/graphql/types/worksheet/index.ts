@@ -180,6 +180,10 @@ export const Mutation = /* GraphQL */ `
     inspectedWeight: Float!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
+  undoInspection (
+    worksheetDetailName: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
   completePicking (
     releaseGoodNo: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")

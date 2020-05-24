@@ -2,6 +2,7 @@ import { InventoryCheck, OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS } 
 import {
   Inventory,
   Location,
+  Warehouse,
   INVENTORY_STATUS,
   INVENTORY_TRANSACTION_TYPE,
   LOCATION_STATUS
@@ -40,8 +41,11 @@ export const cycleCountAdjustment = {
           const inventory: Inventory = foundOI.inventory
 
           const foundInspectedLoc: Location = await trxMgr.getRepository(Location).findOne({
-            where: { domain: context.state.domain, name: foundOI.inspectedLocation }
+            where: { domain: context.state.domain, name: foundOI.inspectedLocation },
+            relations: ['warehouse']
           })
+
+          const foundWarehouse: Warehouse = foundInspectedLoc.warehouse
 
           // new allocated location
           const allocatedItemCnt: number = await trxMgr.getRepository(Inventory).count({
@@ -71,7 +75,7 @@ export const cycleCountAdjustment = {
             const terminatedInv: Inventory = await trxMgr.getRepository(Inventory).save({
               ...inventory,
               qty: foundOI.inspectedQty,
-              lockedQy: 0,
+              lockedQty: 0,
               weight: foundOI.inspectedWeight,
               lockedWeight: 0,
               location: foundInspectedLoc,
@@ -114,10 +118,11 @@ export const cycleCountAdjustment = {
             const adjustedInv: Inventory = await trxMgr.getRepository(Inventory).save({
               ...inventory,
               qty: foundOI.inspectedQty,
-              lockedQy: 0,
+              lockedQty: 0,
               weight: foundOI.inspectedWeight,
               lockedWeight: 0,
               location: foundInspectedLoc,
+              warehouse: foundWarehouse,
               updater: context.state.user
             })
 
@@ -125,7 +130,7 @@ export const cycleCountAdjustment = {
             await generateInventoryHistory(
               adjustedInv,
               foundCC,
-              INVENTORY_TRANSACTION_TYPE.TERMINATED,
+              INVENTORY_TRANSACTION_TYPE.ADJUSTMENT,
               foundOI.inspectedQty,
               foundOI.inspectedWeight,
               context.state.user,

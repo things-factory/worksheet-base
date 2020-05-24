@@ -22,6 +22,7 @@ export const cycleCountWorksheetResolver = {
     const qb: SelectQueryBuilder<WorksheetDetail> = createQueryBuilder(WorksheetDetail, 'WSD')
     qb.leftJoinAndSelect('WSD.targetInventory', 'T_INV')
       .leftJoinAndSelect('T_INV.inventory', 'INV')
+      .leftJoinAndSelect('T_INV.inspectedLocation', 'INS_LOC')
       .leftJoinAndSelect('INV.location', 'LOC')
       .leftJoinAndSelect('INV.product', 'PROD')
 
