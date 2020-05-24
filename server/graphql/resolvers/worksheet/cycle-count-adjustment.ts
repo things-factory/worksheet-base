@@ -40,6 +40,9 @@ export const cycleCountAdjustment = {
           const foundOI: OrderInventory = wsd.targetInventory
           const inventory: Inventory = foundOI.inventory
 
+          const transactQty: number = foundOI.inspectedQty - inventory.qty
+          const transactWeight: number = foundOI.inspectedWeight - inventory.weight
+
           const foundInspectedLoc: Location = await trxMgr.getRepository(Location).findOne({
             where: { domain: context.state.domain, name: foundOI.inspectedLocation },
             relations: ['warehouse']
@@ -70,6 +73,17 @@ export const cycleCountAdjustment = {
                 updater: context.state.user
               })
             }
+
+            // create inventory history
+            await generateInventoryHistory(
+              inventory,
+              foundCC,
+              INVENTORY_TRANSACTION_TYPE.ADJUSTMENT,
+              transactQty,
+              transactWeight,
+              context.state.user,
+              trxMgr
+            )
 
             // change inventory qty to 0 and terminate it
             const terminatedInv: Inventory = await trxMgr.getRepository(Inventory).save({
@@ -131,8 +145,8 @@ export const cycleCountAdjustment = {
               adjustedInv,
               foundCC,
               INVENTORY_TRANSACTION_TYPE.ADJUSTMENT,
-              foundOI.inspectedQty,
-              foundOI.inspectedWeight,
+              transactQty,
+              transactWeight,
               context.state.user,
               trxMgr
             )
