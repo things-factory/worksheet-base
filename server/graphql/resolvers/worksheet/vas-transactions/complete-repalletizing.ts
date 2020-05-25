@@ -1,6 +1,6 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { OrderVas, ReleaseGood } from '@things-factory/sales-base'
+import { OrderInventory, OrderNoGenerator, OrderVas, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import {
   Inventory,
@@ -11,7 +11,9 @@ import {
   Warehouse
 } from '@things-factory/warehouse-base'
 import { EntityManager } from 'typeorm'
-import { generateInventoryHistory } from '../../../../utils'
+import { WORKSHEET_TYPE } from '../../../../constants'
+import { Worksheet, WorksheetDetail } from '../../../../entities'
+import { generateInventoryHistory, WorksheetNoGenerator } from '../../../../utils'
 import { OperationGuideDataInterface, OperationGuideInterface, RefOrderType, RepalletizedInvInfo } from './intefaces'
 
 export async function completeRepalletizing(trxMgr: EntityManager, orderVas: OrderVas, user: User): Promise<void> {
@@ -52,16 +54,16 @@ export async function completeRepalletizing(trxMgr: EntityManager, orderVas: Ord
     const addedWeight: number = repalletizedInv.addedWeight
     const locationName: string = repalletizedInv.locationName
     // Try to find inventory by pallet ID and domain, bizplace
-    const inv: Inventory = await trxMgr.getRepository(Inventory).findOne({
+    let inv: Inventory = await trxMgr.getRepository(Inventory).findOne({
       where: { domain, bizplace, palletId }
     })
 
     if (inv) {
       // Inventory exists
-      await updateInv(refOrder, trxMgr, domain, inv, addedQty, addedWeight, locationName, updateInv)
+      inv = await updateInv(refOrder, trxMgr, domain, inv, addedQty, addedWeight, locationName, updateInv)
     } else {
       // Inventory doesn't exists
-      await createInv(
+      inv = await createInv(
         refOrder,
         trxMgr,
         domain,
@@ -76,6 +78,12 @@ export async function completeRepalletizing(trxMgr: EntityManager, orderVas: Ord
     }
 
     originInv = await deductInventoryQty(trxMgr, refOrder, originInv, addedQty, addedWeight, user)
+
+    if (refOrder instanceof ReleaseGood) {
+      // If current VAS Order realted with release good
+      // Create loading worksheet and order inventories for loading task
+      await createLoadingWorksheet(trxMgr, domain, bizplace, refOrder, originInv, inv, user)
+    }
   }
 
   // Check whether original inv has qty or not.
@@ -84,8 +92,96 @@ export async function completeRepalletizing(trxMgr: EntityManager, orderVas: Ord
     throw new Error('Unbalanced amount of inventory.')
 
   // If there's no more qty of products => Terminate inventory
-  if (originInv.qty == 0 && originInv.weight == 0) {
+  if (originInv.qty == 0 && originInv.weight == 0 && !(refOrder instanceof ReleaseGood)) {
     await terminateEmptyInventory(trxMgr, refOrder, originInv, user)
+  }
+}
+
+async function createLoadingWorksheet(
+  trxMgr: EntityManager,
+  domain: Domain,
+  bizplace: Bizplace,
+  refOrder: ReleaseGood,
+  originInv: OrderInventory,
+  inv: Inventory,
+  user: User
+) {
+  const changedQty: number = inv.qty
+  const changedWeight: number = inv.weight
+  const loadingWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+    where: { domain, bizplace, releaseGood: refOrder, type: WORKSHEET_TYPE.LOADING },
+    relations: ['worksheetDetails', 'worksheetDetails.targetInventory', 'worksheetDetails.targetInventory.inventory']
+  })
+  const loadingWSD: WorksheetDetail = loadingWS.worksheetDetails.find(
+    (wsd: WorksheetDetail) => wsd.targetInventory.inventory.id === originInv.id
+  )
+  let loadingOrdInv: OrderInventory = loadingWSD.targetInventory
+  // Create new order inventory
+  const copiedOrderInv: OrderInventory = Object.assign({}, loadingOrdInv)
+  delete copiedOrderInv.id
+
+  const newOrderInv: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
+    ...copiedOrderInv,
+    domain,
+    bizplace,
+    releaseQty: changedQty,
+    releaseWeight: changedWeight,
+    name: OrderNoGenerator.orderInventory(),
+    releaseGood: refOrder,
+    inventory: inv,
+    creator: user,
+    updater: user
+  })
+
+  const copiedWSD: WorksheetDetail = Object.assign({}, loadingWSD)
+  delete copiedWSD.id
+  await trxMgr.getRepository(WorksheetDetail).save({
+    ...copiedWSD,
+    domain,
+    bizplace,
+    worksheet: loadingWS,
+    name: WorksheetNoGenerator.loadingDetail(),
+    targetInventory: newOrderInv,
+    type: WORKSHEET_TYPE.LOADING,
+    creator: user,
+    updater: user
+  })
+
+  // Deduct qty of loading order inventory
+  loadingOrdInv.releaseQty = loadingOrdInv.releaseQty - changedQty
+  loadingOrdInv.releaseWeight = loadingOrdInv.releaseWeight - changedWeight
+  loadingOrdInv = await trxMgr.getRepository(OrderInventory).save({
+    ...loadingOrdInv,
+    updater: user
+  })
+
+  // Update inventory to PICKED inventory
+  inv = await trxMgr.getRepository(Inventory).save({
+    ...inv,
+    qty: 0,
+    weight: 0,
+    updater: user
+  })
+
+  // Generate PICKING inventory history
+  await generateInventoryHistory(
+    inv,
+    refOrder,
+    INVENTORY_TRANSACTION_TYPE.PICKING,
+    -changedQty,
+    -changedWeight,
+    user,
+    trxMgr
+  )
+
+  // Generate TERMINATED inventory history
+  await generateInventoryHistory(inv, refOrder, INVENTORY_TRANSACTION_TYPE.TERMINATED, 0, 0, user, trxMgr)
+
+  // Delete worksheet detail & order inventory
+  // If order inventory doesn't have release qty any more
+  if (loadingOrdInv.releaseQty <= 0) {
+    await trxMgr.getRepository(WorksheetDetail).delete(loadingWSD)
+    await trxMgr.getRepository(OrderInventory).delete(loadingOrdInv)
   }
 }
 
@@ -117,6 +213,7 @@ async function deductInventoryQty(
   user: User
 ): Promise<Inventory> {
   if (refOrder instanceof ReleaseGood) {
+    return originInv
   } else {
     originInv = await trxMgr.getRepository(Inventory).save({
       ...originInv,
@@ -148,7 +245,7 @@ async function updateInv(
   addedWeight: number,
   locationName: string,
   user: User
-): Promise<void> {
+): Promise<Inventory> {
   const location: Location = await trxMgr.getRepository(Location).findOne({
     where: { domain, name: locationName },
     relations: ['warehouse']
@@ -156,12 +253,9 @@ async function updateInv(
   const warehouse: Warehouse = location.warehouse
   const zone: string = location.zone
 
-  if (refOrder instanceof ReleaseGood) {
-    // Ref Order is Release Good
-    console.log('Case for inv exists and ref RO')
-  } else {
+  if (!(refOrder instanceof ReleaseGood)) {
     // Add qty and weight
-    await trxMgr.getRepository(Inventory).save({
+    inv = await trxMgr.getRepository(Inventory).save({
       ...inv,
       qty: inv.qty + addedQty,
       weight: inv.weight + addedWeight,
@@ -171,6 +265,8 @@ async function updateInv(
       updater: user
     })
   }
+
+  return inv
 }
 
 async function createInv(
@@ -184,7 +280,7 @@ async function createInv(
   addedWeight: number,
   locationName: Location,
   user: User
-): Promise<void> {
+): Promise<Inventory> {
   const location: Location = await trxMgr.getRepository(Location).findOne({
     where: { domain, name: locationName },
     relations: ['warehouse']
@@ -192,39 +288,35 @@ async function createInv(
   const warehouse: Warehouse = location.warehouse
   const zone: string = location.zone
 
-  if (refOrder instanceof ReleaseGood) {
-    // Ref Order is Release Good
-    console.log(`Case for inv doesn't exists and ref RO`)
-  } else {
-    // Create new Inventory
-    const newInv: Inventory = await trxMgr.getRepository(Inventory).save({
-      domain,
-      bizplace,
-      palletId,
-      batchId: originInv.batchId,
-      name: InventoryNoGenerator.inventoryName(),
-      product: originInv.product,
-      packingType: originInv.packingType,
-      qty: addedQty,
-      weight: addedWeight,
-      refOrderId: originInv.refOrderId,
-      warehouse,
-      location,
-      zone,
-      status: originInv.status,
-      orderProductId: originInv.orderProductId,
-      creator: user,
-      updater: user
-    })
-    // Create inventory history
-    await generateInventoryHistory(
-      newInv,
-      refOrder,
-      INVENTORY_TRANSACTION_TYPE.REPALLETIZING,
-      addedQty,
-      addedWeight,
-      user,
-      trxMgr
-    )
-  }
+  const newInv: Inventory = await trxMgr.getRepository(Inventory).save({
+    domain,
+    bizplace,
+    palletId,
+    batchId: originInv.batchId,
+    name: InventoryNoGenerator.inventoryName(),
+    product: originInv.product,
+    packingType: originInv.packingType,
+    qty: addedQty,
+    weight: addedWeight,
+    refOrderId: originInv.refOrderId,
+    warehouse,
+    location,
+    zone,
+    status: originInv.status,
+    orderProductId: originInv.orderProductId,
+    creator: user,
+    updater: user
+  })
+  // Create inventory history
+  await generateInventoryHistory(
+    newInv,
+    refOrder,
+    INVENTORY_TRANSACTION_TYPE.REPALLETIZING,
+    addedQty,
+    addedWeight,
+    user,
+    trxMgr
+  )
+
+  return newInv
 }

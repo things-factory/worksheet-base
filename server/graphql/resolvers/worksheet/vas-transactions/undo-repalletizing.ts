@@ -45,9 +45,8 @@ export const undoRepalletizingResolver = {
       )
       if (!undoInventory) throw new Error(`Coundn't find pallet, ussing pallet id (${palletId})`)
 
-      const requiredPalletQty: number = undoInventory.completed
-        ? operationGuideData.requiredPalletQty + 1
-        : operationGuideData.requiredPalletQty
+      const requiredPalletQty: number =
+        operationGuideData.requiredPalletQty + Math.floor(undoInventory.addedQty / operationGuideData.stdQty)
 
       repalletizedInvs = repalletizedInvs.filter((inv: RepalletizedInvInfo) => inv.palletId !== palletId)
 

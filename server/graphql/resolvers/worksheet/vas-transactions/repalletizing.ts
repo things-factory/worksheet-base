@@ -106,18 +106,15 @@ export const repalletizingResolver = {
 
       const unitWeight: number = remainWeight / remainQty
 
-      let isCompleted: boolean // completed flag
       // Add more into prev repalletized pallet
       if (repalletizedInvs.find((inv: RepalletizedInvInfo) => inv.palletId === palletId)) {
         repalletizedInvs = repalletizedInvs.map((inv: RepalletizedInvInfo) => {
           if (inv.palletId === palletId) {
-            isCompleted = inv.addedQty + packageQty === operationGuide.data.stdQty
-
             return {
               ...inv,
               addedQty: inv.addedQty + packageQty,
               addedWeight: inv.addedWeight + unitWeight * packageQty,
-              completed: isCompleted
+              completed: inv.addedQty + packageQty >= operationGuide.data.stdQty
             }
           } else {
             return inv
@@ -125,21 +122,19 @@ export const repalletizingResolver = {
         })
       } else {
         // Append new inventory information
-        isCompleted = packageQty === operationGuide.data.stdQty
         const newRepalletizedInv: RepalletizedInvInfo = {
           palletId,
           locationName,
           addedQty: packageQty,
           addedWeight: unitWeight * packageQty,
-          completed: isCompleted
+          completed: packageQty >= operationGuide.data.stdQty
         }
 
         repalletizedInvs.push(newRepalletizedInv)
       }
 
-      const requiredPalletQty: number = isCompleted
-        ? operationGuide.data.requiredPalletQty - 1
-        : operationGuide.data.requiredPalletQty
+      const requiredPalletQty: number =
+        operationGuide.data.requiredPalletQty - Math.floor(packageQty / operationGuide.data.stdQty)
 
       const targetWSD: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
         where: {
