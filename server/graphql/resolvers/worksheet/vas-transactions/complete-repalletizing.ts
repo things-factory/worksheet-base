@@ -1,6 +1,12 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { OrderInventory, OrderNoGenerator, OrderVas, ReleaseGood } from '@things-factory/sales-base'
+import {
+  OrderInventory,
+  OrderNoGenerator,
+  OrderVas,
+  ORDER_INVENTORY_STATUS,
+  ReleaseGood
+} from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import {
   Inventory,
@@ -180,8 +186,12 @@ async function createLoadingWorksheet(
   // Delete worksheet detail & order inventory
   // If order inventory doesn't have release qty any more
   if (loadingOrdInv.releaseQty <= 0) {
-    await trxMgr.getRepository(WorksheetDetail).delete(loadingWSD)
-    await trxMgr.getRepository(OrderInventory).delete(loadingOrdInv)
+    await trxMgr.getRepository(WorksheetDetail).delete(loadingWSD.id)
+    await trxMgr.getRepository(OrderInventory).save({
+      ...loadingOrdInv,
+      status: ORDER_INVENTORY_STATUS.DONE,
+      updater: user
+    })
   }
 }
 
