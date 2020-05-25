@@ -42,9 +42,9 @@ import { replacePickingPalletsResolver } from './replace-picking-pallets'
 import { returnWorksheetResolver } from './return-worksheet'
 import { returning } from './returning'
 import { transfer } from './transfer'
+import { undoInspection } from './undo-inspection'
 import { undoLoading } from './undo-loading'
 import { undoPutaway } from './undo-putaway'
-import { undoInspection } from './undo-inspection'
 import { undoUnloading } from './undo-unloading'
 import { undoVas } from './undo-vas'
 import { unload } from './unload'
@@ -52,7 +52,7 @@ import { unloadedInventories } from './unloaded-inventories'
 import { unloadingWorksheetResolver } from './unloading-worksheet'
 import { updateWorksheet } from './update-worksheet'
 import { vasCandidatesResolver } from './vas-candidates'
-import { repalletizingResolver } from './vas-transactions/repalletizing'
+import { repalletizingResolver, undoRepalletizingResolver } from './vas-transactions'
 import { vasWorksheetResolver } from './vas-worksheet'
 import { worksheetResolver } from './worksheet'
 import { worksheetsResolver } from './worksheets'
@@ -118,5 +118,6 @@ export const Mutation = {
   ...pendingCancellationReleaseOrder,
   ...confirmCancellationReleaseOrder,
   ...assignVasInventoriesResolver,
-  ...repalletizingResolver
+  ...repalletizingResolver,
+  ...undoRepalletizingResolver
 }

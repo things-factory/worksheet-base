@@ -68,7 +68,6 @@ export const Mutation = /* GraphQL */ `
     cycleCountWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
-
   activatePutaway (
     worksheetNo: String!
     putawayWorksheetDetails: [WorksheetDetailPatch]
@@ -210,6 +209,11 @@ export const Mutation = /* GraphQL */ `
     palletId: String!
     locationName: String!
     packageQty: Int!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  undoRepalletizing (
+    worksheetDetailName: String!
+    palletId: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   proceedExtraProducts (

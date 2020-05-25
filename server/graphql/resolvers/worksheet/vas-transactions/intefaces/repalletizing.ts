@@ -13,6 +13,7 @@ export interface RepalletizedInvInfo {
 export interface OperationGuideInterface {
   data: OperationGuideDataInterface
   transactions?: [any]
+  completed: boolean
 }
 
 export interface OperationGuideDataInterface {
@@ -20,5 +21,4 @@ export interface OperationGuideDataInterface {
   stdQty: number
   requiredPalletQty: number
   repalletizedInvs: RepalletizedInvInfo[]
-  completed: boolean
 }

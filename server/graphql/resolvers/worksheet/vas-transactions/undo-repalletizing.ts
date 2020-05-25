@@ -2,12 +2,10 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderVas } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, INVENTORY_TRANSACTION_TYPE } from '@things-factory/warehouse-base'
 import { EntityManager, getManager } from 'typeorm'
-import { WorksheetDetail } from '../../../../entities'
-import { generateInventoryHistory } from '../../../../utils'
-import { OperationGuideDataInterface, OperationGuideInterface, RefOrderType, RepalletizedInvInfo } from './intefaces'
-import { ReleaseGood } from '@things-factory/sales-base'
+import { WORKSHEET_TYPE } from '../../../../constants'
+import { Worksheet, WorksheetDetail } from '../../../../entities'
+import { OperationGuideDataInterface, OperationGuideInterface, RepalletizedInvInfo } from './intefaces'
 
 export const undoRepalletizingResolver = {
   async undoRepalletizing(_: any, { worksheetDetailName, palletId }, context: any) {
@@ -27,29 +25,18 @@ export const undoRepalletizingResolver = {
           'targetVas.arrivalNotice',
           'targetVas.releaseGood',
           'targetVas.shippingOrder',
-          'targetVas.vasOrder'
+          'targetVas.vasOrder',
+          'targetVas.vas'
         ]
       })
 
       const bizplace: Bizplace = wsd.bizplace
       const targetVas: OrderVas = wsd.targetVas
-      const originInv: Inventory = targetVas.inventory
-
-      let refOrder: RefOrderType
-      if (targetVas?.arrivalNotice?.id) {
-        refOrder = targetVas.arrivalNotice
-      } else if (targetVas?.releaseGood?.id) {
-        refOrder = targetVas.releaseGood
-      } else if (targetVas?.shippingOrder?.id) {
-        refOrder = targetVas.shippingOrder
-      } else if (targetVas?.vasOrder?.id) {
-        refOrder = targetVas.vasOrder
-      }
 
       if (!wsd) throw new Error(`Couldn't find worksheet detail with name: ${worksheetDetailName}`)
       if (!targetVas) throw new Error(`Couldn't find any related target vas, using current worksheet detail`)
 
-      let operationGuide: OperationGuideInterface = targetVas.operationGuide
+      let operationGuide: OperationGuideInterface = JSON.parse(targetVas.operationGuide)
       let operationGuideData: OperationGuideDataInterface = operationGuide.data
       let repalletizedInvs: RepalletizedInvInfo[] = operationGuideData.repalletizedInvs
 
@@ -58,34 +45,56 @@ export const undoRepalletizingResolver = {
       )
       if (!undoInventory) throw new Error(`Coundn't find pallet, ussing pallet id (${palletId})`)
 
-      const updatedOperationGuideData: OperationGuideDataInterface = {
-        ...operationGuideData,
-        requiredPalletQty: undoInventory.completed
-          ? operationGuideData.requiredPalletQty + 1
-          : operationGuideData.requiredPalletQty
-      }
+      const requiredPalletQty: number = undoInventory.completed
+        ? operationGuideData.requiredPalletQty + 1
+        : operationGuideData.requiredPalletQty
 
       repalletizedInvs = repalletizedInvs.filter((inv: RepalletizedInvInfo) => inv.palletId !== palletId)
 
+      const targetWSD: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
+        where: {
+          domain,
+          bizplace,
+          targetVas,
+          type: WORKSHEET_TYPE.VAS
+        },
+        relations: ['worksheet']
+      })
+
+      const worksheet: Worksheet = targetWSD.worksheet
       const relatedWSDs: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
         where: {
           domain,
           bizplace,
-          worksheet: targetVas.worksheet
+          worksheet
         },
         relations: ['targetVas', 'targetVas.vas']
       })
 
       const relatedOrderVass: OrderVas[] = relatedWSDs
         .map((wsd: WorksheetDetail) => wsd.targetVas)
-        .filter((ov: OrderVas) => ov.id !== targetVas.id && ov.vas.set === targetVas.vas.set)
+        .filter((ov: OrderVas) => ov.id !== targetVas.id && ov.set === targetVas.set && ov.vas.id === targetVas.vas.id)
         .map((ov: OrderVas) => {
+          ov.operationGuide = JSON.parse(ov.operationGuide)
+          const refOperationGuideData: OperationGuideDataInterface = {
+            palletType: ov.operationGuide.data.palletType,
+            stdQty: ov.operationGuide.data.stdQty,
+            repalletizedInvs: ov.operationGuide.data.repalletizedInvs,
+            requiredPalletQty
+          }
+
+          delete ov.operationGuide.data
+
+          const refOperationGuide: OperationGuideInterface = {
+            ...ov.operationGuide,
+            data: refOperationGuideData,
+            completed: !Boolean(requiredPalletQty)
+          }
+
           return {
             ...ov,
-            operationGuide: {
-              ...operationGuide,
-              data: updatedOperationGuideData
-            }
+            operationGuide: JSON.stringify(refOperationGuide),
+            updater: user
           }
         })
 
@@ -93,15 +102,24 @@ export const undoRepalletizingResolver = {
       await trxMgr.getRepository(OrderVas).save(relatedOrderVass)
 
       // Update current order vas
+      const currentOperationGuideData: OperationGuideDataInterface = {
+        palletType: operationGuide.data.palletType,
+        stdQty: operationGuide.data.stdQty,
+        repalletizedInvs,
+        requiredPalletQty
+      }
+      delete operationGuide.data
+
+      const currentOperationGuide: OperationGuideInterface = {
+        ...operationGuide,
+        data: currentOperationGuideData,
+        completed: !Boolean(requiredPalletQty)
+      }
+
       await trxMgr.getRepository(OrderVas).save({
         ...targetVas,
-        operationGuide: {
-          ...operationGuide,
-          data: {
-            ...updatedOperationGuideData,
-            repalletizedInvs
-          }
-        }
+        operationGuide: JSON.stringify(currentOperationGuide),
+        updater: user
       })
     })
   }

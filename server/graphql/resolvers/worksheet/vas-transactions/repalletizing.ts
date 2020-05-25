@@ -4,7 +4,8 @@ import { OrderInventory, OrderVas, ORDER_TYPES, ReleaseGood } from '@things-fact
 import { Domain } from '@things-factory/shell'
 import { Inventory, Location, Warehouse } from '@things-factory/warehouse-base'
 import { EntityManager, getManager } from 'typeorm'
-import { WorksheetDetail } from '../../../../entities'
+import { WORKSHEET_TYPE } from '../../../../constants'
+import { Worksheet, WorksheetDetail } from '../../../../entities'
 import { OperationGuideDataInterface, OperationGuideInterface, RefOrderType, RepalletizedInvInfo } from './intefaces'
 
 export const repalletizingResolver = {
@@ -43,7 +44,6 @@ export const repalletizingResolver = {
       const warehouse: Warehouse = location.warehouse
       // Update operation guide data for every related repalletizing vas
       const operationGuide: OperationGuideInterface = JSON.parse(targetVas.operationGuide)
-      const operationGuideData: OperationGuideDataInterface = operationGuide.data
 
       let refOrder: RefOrderType
       if (targetVas?.arrivalNotice?.id) {
@@ -65,7 +65,8 @@ export const repalletizingResolver = {
       if (!warehouse) throw new Error(`Location (name: ${locationName}) doesn't have any relation with warehouse`)
 
       // Calculate remain qty and weight
-      const { repalletizedQty, repalletizedWeight } = operationGuideData.repalletizedInvs.reduce(
+      let repalletizedInvs: RepalletizedInvInfo[] = operationGuide.data.repalletizedInvs || []
+      const { repalletizedQty, repalletizedWeight } = repalletizedInvs.reduce(
         (
           repalletizedAmount: {
             repalletizedQty: number
@@ -105,13 +106,12 @@ export const repalletizingResolver = {
 
       const unitWeight: number = remainWeight / remainQty
 
-      let repalletizedInvs: RepalletizedInvInfo[] = operationGuideData.repalletizedInvs
       let isCompleted: boolean // completed flag
       // Add more into prev repalletized pallet
       if (repalletizedInvs.find((inv: RepalletizedInvInfo) => inv.palletId === palletId)) {
         repalletizedInvs = repalletizedInvs.map((inv: RepalletizedInvInfo) => {
           if (inv.palletId === palletId) {
-            isCompleted = inv.addedQty + packageQty === operationGuideData.stdQty
+            isCompleted = inv.addedQty + packageQty === operationGuide.data.stdQty
 
             return {
               ...inv,
@@ -125,40 +125,66 @@ export const repalletizingResolver = {
         })
       } else {
         // Append new inventory information
-        isCompleted = packageQty === operationGuideData.stdQty
-        repalletizedInvs.push({
+        isCompleted = packageQty === operationGuide.data.stdQty
+        const newRepalletizedInv: RepalletizedInvInfo = {
           palletId,
           locationName,
           addedQty: packageQty,
           addedWeight: unitWeight * packageQty,
           completed: isCompleted
-        })
+        }
+
+        repalletizedInvs.push(newRepalletizedInv)
       }
 
-      const updatedOperationGuideData: OperationGuideDataInterface = {
-        ...operationGuideData,
-        requiredPalletQty: isCompleted ? operationGuideData.requiredPalletQty - 1 : operationGuideData.requiredPalletQty
-      }
+      const requiredPalletQty: number = isCompleted
+        ? operationGuide.data.requiredPalletQty - 1
+        : operationGuide.data.requiredPalletQty
 
+      const targetWSD: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
+        where: {
+          domain,
+          bizplace,
+          targetVas,
+          type: WORKSHEET_TYPE.VAS
+        },
+        relations: ['worksheet']
+      })
+
+      const worksheet: Worksheet = targetWSD.worksheet
       const relatedWSDs: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
         where: {
           domain,
           bizplace,
-          worksheet: targetVas.worksheet
+          worksheet
         },
         relations: ['targetVas', 'targetVas.vas']
       })
 
       const relatedOrderVass: OrderVas[] = relatedWSDs
         .map((wsd: WorksheetDetail) => wsd.targetVas)
-        .filter((ov: OrderVas) => ov.id !== targetVas.id && ov.vas.set === targetVas.vas.set)
+        .filter((ov: OrderVas) => ov.id !== targetVas.id && ov.set === targetVas.set && ov.vas.id === targetVas.vas.id)
         .map((ov: OrderVas) => {
+          ov.operationGuide = JSON.parse(ov.operationGuide)
+          const refOperationGuideData: OperationGuideDataInterface = {
+            palletType: ov.operationGuide.data.palletType,
+            stdQty: ov.operationGuide.data.stdQty,
+            repalletizedInvs: ov.operationGuide.data.repalletizedInvs,
+            requiredPalletQty
+          }
+
+          delete ov.operationGuide.data
+
+          const refOperationGuide: OperationGuideInterface = {
+            ...ov.operationGuide,
+            data: refOperationGuideData,
+            completed: !Boolean(requiredPalletQty)
+          }
+
           return {
             ...ov,
-            operationGuide: {
-              ...operationGuide,
-              data: updatedOperationGuideData
-            }
+            operationGuide: JSON.stringify(refOperationGuide),
+            updater: user
           }
         })
 
@@ -166,15 +192,24 @@ export const repalletizingResolver = {
       await trxMgr.getRepository(OrderVas).save(relatedOrderVass)
 
       // Update current order vas
+      const currentOperationGuideData: OperationGuideDataInterface = {
+        palletType: operationGuide.data.palletType,
+        stdQty: operationGuide.data.stdQty,
+        repalletizedInvs,
+        requiredPalletQty
+      }
+      delete operationGuide.data
+
+      const currentOperationGuide: OperationGuideInterface = {
+        ...operationGuide,
+        data: currentOperationGuideData,
+        completed: !Boolean(requiredPalletQty)
+      }
+
       await trxMgr.getRepository(OrderVas).save({
         ...targetVas,
-        operationGuide: {
-          ...operationGuide,
-          data: {
-            ...updatedOperationGuideData,
-            repalletizedInvs
-          }
-        }
+        operationGuide: JSON.stringify(currentOperationGuide),
+        updater: user
       })
     })
   }

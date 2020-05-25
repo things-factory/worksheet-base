@@ -1,3 +1,4 @@
+import { User } from '@things-factory/auth-base'
 import {
   ArrivalNotice,
   OrderVas,
@@ -7,13 +8,20 @@ import {
   ReleaseGood,
   VasOrder
 } from '@things-factory/sales-base'
-import { Equal, getManager, Not } from 'typeorm'
+import { EntityManager, Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
+import { completeRepalletizing } from './vas-transactions/complete-repalletizing'
+
+type CompleteTransactionType = (trxMgr: EntityManager, orderVas: OrderVas, user: User) => Promise<void>
+
+const COMPLETE_TRX_MAP: { [key: string]: CompleteTransactionType } = {
+  'vas-repalletizing': completeRepalletizing
+}
 
 export const completeVas = {
   async completeVas(_: any, { orderNo, orderType }, context: any) {
-    return await getManager().transaction(async trxMgr => {
+    return await getManager().transaction(async (trxMgr: EntityManager) => {
       let orderCondition: any = {}
       switch (orderType) {
         case ORDER_TYPES.ARRIVAL_NOTICE:
@@ -57,7 +65,7 @@ export const completeVas = {
           type: WORKSHEET_TYPE.VAS,
           status: WORKSHEET_STATUS.EXECUTING
         },
-        relations: ['worksheetDetails', 'worksheetDetails.targetVas']
+        relations: ['worksheetDetails', 'worksheetDetails.targetVas', 'worksheetDetails.targetVas.vas']
       })
 
       if (!worksheet) throw new Error(`Worksheet doesn't exist`)
@@ -85,6 +93,12 @@ export const completeVas = {
           status: ORDER_VAS_STATUS.TERMINATED
         }
       })
+
+      for (const orderVas of orderVass) {
+        if (orderVas?.operationGuide) {
+          await doOperationTransaction(trxMgr, orderVas, context.state.user)
+        }
+      }
 
       // 2. If there's no more worksheet related with current arrival notice
       // update status of work sheet
@@ -123,5 +137,12 @@ export const completeVas = {
         }
       }
     })
+  }
+}
+
+async function doOperationTransaction(trxMgr: EntityManager, orderVas: OrderVas, user: User) {
+  const operationGuide: string = orderVas?.vas?.operationGuide
+  if (operationGuide) {
+    await COMPLETE_TRX_MAP[operationGuide](trxMgr, orderVas, user)
   }
 }
