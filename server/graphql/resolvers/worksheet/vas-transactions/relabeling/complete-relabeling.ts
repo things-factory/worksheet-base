@@ -26,13 +26,14 @@ export async function completeRelabeling(trxMgr: EntityManager, orderVas: OrderV
     refOrder = orderVas.vasOrder
   }
 
-  const operationGuide: OperationGuideInterface<RelabelingGuide> = orderVas.operationGuide
+  const operationGuide: OperationGuideInterface<RelabelingGuide> = JSON.parse(orderVas.operationGuide)
   const operationGuideData: RelabelingGuide = operationGuide.data
 
   const toBatchId: string = operationGuideData?.toBatchId
   const toProductId: string = operationGuideData?.toProduct?.id
 
-  if (toBatchId && toProductId) throw new Error(`Invalid target inforation both batch id and product id doesn't exists`)
+  if (!toBatchId && !toProductId)
+    throw new Error(`Invalid target inforation both batch id and product id doesn't exists`)
 
   if (toBatchId) {
     originInv.batchId = toBatchId
@@ -43,7 +44,7 @@ export async function completeRelabeling(trxMgr: EntityManager, orderVas: OrderV
       where: { domain, id: toProductId }
     })
 
-    if (toProduct) throw new Error(`Couldn't find product, via Product ID: (${toProductId})`)
+    if (!toProduct) throw new Error(`Couldn't find product, via Product ID: (${toProductId})`)
     originInv.product = toProduct
   }
 
