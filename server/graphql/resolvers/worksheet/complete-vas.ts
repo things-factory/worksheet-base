@@ -18,7 +18,7 @@ type CompleteTransactionType = (trxMgr: EntityManager, orderVas: OrderVas, user:
 const COMPLETE_TRX_MAP: { [key: string]: CompleteTransactionType } = {
   'vas-repalletizing': completeRepalletizing,
   'vas-repack': completeRepackaging,
-  'vas-relabl': completeRelabeling
+  'vas-relabel': completeRelabeling
 }
 
 export const completeVas = {
