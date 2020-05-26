@@ -18,6 +18,7 @@ export const undoRepackaging = {
         where: { domain, name: worksheetDetailName },
         relations: [
           'bizplace',
+          'worksheet',
           'targetVas',
           'targetVas.inventory',
           'targetVas.arrivalNotice',
