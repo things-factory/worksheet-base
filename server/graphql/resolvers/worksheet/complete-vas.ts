@@ -11,13 +11,14 @@ import {
 import { EntityManager, Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { completeRepackaging, completeRepalletizing } from './vas-transactions'
+import { completeRepackaging, completeRepalletizing, completeRelabeling } from './vas-transactions'
 
 type CompleteTransactionType = (trxMgr: EntityManager, orderVas: OrderVas, user: User) => Promise<void>
 
 const COMPLETE_TRX_MAP: { [key: string]: CompleteTransactionType } = {
   'vas-repalletizing': completeRepalletizing,
-  'vas-repack': completeRepackaging
+  'vas-repack': completeRepackaging,
+  'vas-relabl': completeRelabeling
 }
 
 export const completeVas = {

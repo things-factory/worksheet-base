@@ -156,7 +156,7 @@ async function buildInventoryCondition(
 
       const inventoryIds: string[] = orderInventories.map((ordInv: OrderInventory) => ordInv.inventory.id)
       condition.id = inventoryIds?.length ? In(inventoryIds) : In([null])
-      condition.status = In([INVENTORY_STATUS.PICKED, INVENTORY_STATUS.TERMINATED])
+      condition.status = In([INVENTORY_STATUS.PICKED, INVENTORY_STATUS.TERMINATED, INVENTORY_STATUS.STORED])
       break
 
     case OrderType.VasOrder:
