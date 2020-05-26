@@ -17,10 +17,10 @@ import {
   Warehouse
 } from '@things-factory/warehouse-base'
 import { EntityManager } from 'typeorm'
-import { WORKSHEET_TYPE } from '../../../../constants'
-import { Worksheet, WorksheetDetail } from '../../../../entities'
-import { generateInventoryHistory, WorksheetNoGenerator } from '../../../../utils'
-import { OperationGuideDataInterface, OperationGuideInterface, RefOrderType, RepalletizedInvInfo } from './intefaces'
+import { WORKSHEET_TYPE } from '../../../../../constants'
+import { Worksheet, WorksheetDetail } from '../../../../../entities'
+import { generateInventoryHistory, WorksheetNoGenerator } from '../../../../../utils'
+import { OperationGuideInterface, RefOrderType, RepalletizedInvInfo, RepalletizingGuide } from '../intefaces'
 
 export async function completeRepalletizing(trxMgr: EntityManager, orderVas: OrderVas, user: User): Promise<void> {
   orderVas = await trxMgr.getRepository(OrderVas).findOne(orderVas.id, {
@@ -38,8 +38,8 @@ export async function completeRepalletizing(trxMgr: EntityManager, orderVas: Ord
   const domain: Domain = orderVas.domain
   const bizplace: Bizplace = orderVas.bizplace
   let originInv: Inventory = orderVas.inventory
-  const operationGuide: OperationGuideInterface = JSON.parse(orderVas.operationGuide)
-  const operationGuideData: OperationGuideDataInterface = operationGuide.data
+  const operationGuide: OperationGuideInterface<RepalletizingGuide> = JSON.parse(orderVas.operationGuide)
+  const operationGuideData: RepalletizingGuide = operationGuide.data
 
   const repalletizedInvs: RepalletizedInvInfo[] = operationGuideData.repalletizedInvs
 
@@ -218,8 +218,8 @@ async function deductInventoryQty(
   trxMgr: EntityManager,
   refOrder: RefOrderType,
   originInv: Inventory,
-  addedQty: number,
-  addedWeight: number,
+  reducedQty: number,
+  reducedWeight: number,
   user: User
 ): Promise<Inventory> {
   if (refOrder instanceof ReleaseGood) {
@@ -227,8 +227,8 @@ async function deductInventoryQty(
   } else {
     originInv = await trxMgr.getRepository(Inventory).save({
       ...originInv,
-      qty: originInv.qty - addedQty,
-      weight: originInv.weight - addedWeight,
+      qty: originInv.qty - reducedQty,
+      weight: originInv.weight - reducedWeight,
       updater: user
     })
 
@@ -236,8 +236,8 @@ async function deductInventoryQty(
       originInv,
       refOrder,
       INVENTORY_TRANSACTION_TYPE.REPALLETIZING,
-      -addedQty,
-      -addedWeight,
+      -reducedQty,
+      -reducedWeight,
       user,
       trxMgr
     )

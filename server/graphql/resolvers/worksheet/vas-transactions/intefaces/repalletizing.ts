@@ -1,7 +1,3 @@
-import { ArrivalNotice, ReleaseGood, ShippingOrder, VasOrder } from '@things-factory/sales-base'
-
-export declare type RefOrderType = ArrivalNotice | ReleaseGood | VasOrder | ShippingOrder
-
 export interface RepalletizedInvInfo {
   palletId: string
   locationName: string
@@ -10,13 +6,7 @@ export interface RepalletizedInvInfo {
   completed: boolean
 }
 
-export interface OperationGuideInterface {
-  data: OperationGuideDataInterface
-  transactions?: [any]
-  completed: boolean
-}
-
-export interface OperationGuideDataInterface {
+export interface RepalletizingGuide {
   palletType: string
   stdQty: number
   requiredPalletQty: number

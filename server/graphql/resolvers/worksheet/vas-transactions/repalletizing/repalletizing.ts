@@ -4,9 +4,8 @@ import { OrderInventory, OrderVas, ORDER_TYPES, ReleaseGood } from '@things-fact
 import { Domain } from '@things-factory/shell'
 import { Inventory, Location, Warehouse } from '@things-factory/warehouse-base'
 import { EntityManager, getManager } from 'typeorm'
-import { WORKSHEET_TYPE } from '../../../../constants'
-import { Worksheet, WorksheetDetail } from '../../../../entities'
-import { OperationGuideDataInterface, OperationGuideInterface, RefOrderType, RepalletizedInvInfo } from './intefaces'
+import { Worksheet, WorksheetDetail } from '../../../../../entities'
+import { OperationGuideInterface, RefOrderType, RepalletizedInvInfo, RepalletizingGuide } from '../intefaces'
 
 export const repalletizingResolver = {
   async repalletizing(_: any, { worksheetDetailName, palletId, locationName, packageQty }, context: any) {
@@ -43,7 +42,7 @@ export const repalletizingResolver = {
       })
       const warehouse: Warehouse = location.warehouse
       // Update operation guide data for every related repalletizing vas
-      const operationGuide: OperationGuideInterface = JSON.parse(targetVas.operationGuide)
+      const operationGuide: OperationGuideInterface<RepalletizingGuide> = JSON.parse(targetVas.operationGuide)
 
       let refOrder: RefOrderType
       if (targetVas?.arrivalNotice?.id) {
@@ -58,10 +57,10 @@ export const repalletizingResolver = {
 
       // Validity checking
       if (!wsd) throw new Error(`Couldn't find target worksheet detail`)
-      if (!targetVas) throw new Error(`Counldn't find target vas`)
+      if (!targetVas) throw new Error(`Couldn't find target vas`)
       if (!originInv) throw new Error(`Inventory wasn't assigned to target vas`)
       if (!refOrder) throw new Error(`Couldn't find reference order with current order vas`)
-      if (!location) throw new Error(`Counldn't find location by its name (${locationName})`)
+      if (!location) throw new Error(`Couldn't find location by its name (${locationName})`)
       if (!warehouse) throw new Error(`Location (name: ${locationName}) doesn't have any relation with warehouse`)
 
       // Calculate remain qty and weight
@@ -136,17 +135,7 @@ export const repalletizingResolver = {
       const requiredPalletQty: number =
         operationGuide.data.requiredPalletQty - Math.floor(packageQty / operationGuide.data.stdQty)
 
-      const targetWSD: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
-        where: {
-          domain,
-          bizplace,
-          targetVas,
-          type: WORKSHEET_TYPE.VAS
-        },
-        relations: ['worksheet']
-      })
-
-      const worksheet: Worksheet = targetWSD.worksheet
+      const worksheet: Worksheet = wsd.worksheet
       const relatedWSDs: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
         where: {
           domain,
@@ -156,12 +145,13 @@ export const repalletizingResolver = {
         relations: ['targetVas', 'targetVas.vas']
       })
 
+      // Update related order vas
       const relatedOrderVass: OrderVas[] = relatedWSDs
         .map((wsd: WorksheetDetail) => wsd.targetVas)
         .filter((ov: OrderVas) => ov.id !== targetVas.id && ov.set === targetVas.set && ov.vas.id === targetVas.vas.id)
         .map((ov: OrderVas) => {
           ov.operationGuide = JSON.parse(ov.operationGuide)
-          const refOperationGuideData: OperationGuideDataInterface = {
+          const refOperationGuideData: RepalletizingGuide = {
             palletType: ov.operationGuide.data.palletType,
             stdQty: ov.operationGuide.data.stdQty,
             repalletizedInvs: ov.operationGuide.data.repalletizedInvs,
@@ -170,7 +160,7 @@ export const repalletizingResolver = {
 
           delete ov.operationGuide.data
 
-          const refOperationGuide: OperationGuideInterface = {
+          const refOperationGuide: OperationGuideInterface<RepalletizingGuide> = {
             ...ov.operationGuide,
             data: refOperationGuideData,
             completed: !Boolean(requiredPalletQty)
@@ -183,11 +173,10 @@ export const repalletizingResolver = {
           }
         })
 
-      // Update related order vas
       await trxMgr.getRepository(OrderVas).save(relatedOrderVass)
 
       // Update current order vas
-      const currentOperationGuideData: OperationGuideDataInterface = {
+      const currentOperationGuideData: RepalletizingGuide = {
         palletType: operationGuide.data.palletType,
         stdQty: operationGuide.data.stdQty,
         repalletizedInvs,
@@ -195,7 +184,7 @@ export const repalletizingResolver = {
       }
       delete operationGuide.data
 
-      const currentOperationGuide: OperationGuideInterface = {
+      const currentOperationGuide: OperationGuideInterface<RepalletizingGuide> = {
         ...operationGuide,
         data: currentOperationGuideData,
         completed: !Boolean(requiredPalletQty)

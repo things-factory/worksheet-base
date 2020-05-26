@@ -5,6 +5,7 @@ import { DeliveryOrderInfo } from './delivery-order-info'
 import { DeliveryWorksheet } from './delivery-worksheet'
 import { ExecutingWorksheet } from './executing-worksheet'
 import { GoodsDeliveryNote } from './goods-delivery-note'
+import { InventoryCheckWorksheet } from './inventory-check-worksheet'
 import { LoadedWorksheetDetail } from './loaded-worksheet-detail'
 import { NewWorksheet } from './new-worksheet'
 import { ReleaseGoodWorksheet } from './release-good-worksheet'
@@ -14,7 +15,6 @@ import { WorksheetDetailInfo } from './worksheet-detail-info'
 import { WorksheetInfo } from './worksheet-info'
 import { WorksheetList } from './worksheet-list'
 import { WorksheetPatch } from './worksheet-patch'
-import { InventoryCheckWorksheet } from './inventory-check-worksheet'
 
 export const Mutation = /* GraphQL */ `
   createWorksheet (
@@ -212,6 +212,18 @@ export const Mutation = /* GraphQL */ `
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   undoRepalletizing (
+    worksheetDetailName: String!
+    palletId: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  repackaging (
+    worksheetDetailName: String!
+    palletId: String!
+    locationName: String!
+    packageQty: Int!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  undoRepackaging (
     worksheetDetailName: String!
     palletId: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")

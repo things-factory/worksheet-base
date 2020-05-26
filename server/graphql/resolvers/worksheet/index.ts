@@ -52,7 +52,12 @@ import { unloadedInventories } from './unloaded-inventories'
 import { unloadingWorksheetResolver } from './unloading-worksheet'
 import { updateWorksheet } from './update-worksheet'
 import { vasCandidatesResolver } from './vas-candidates'
-import { repalletizingResolver, undoRepalletizingResolver } from './vas-transactions'
+import {
+  repackagingResolver,
+  repalletizingResolver,
+  undoRepackaging,
+  undoRepalletizingResolver
+} from './vas-transactions'
 import { vasWorksheetResolver } from './vas-worksheet'
 import { worksheetResolver } from './worksheet'
 import { worksheetsResolver } from './worksheets'
@@ -119,5 +124,7 @@ export const Mutation = {
   ...confirmCancellationReleaseOrder,
   ...assignVasInventoriesResolver,
   ...repalletizingResolver,
-  ...undoRepalletizingResolver
+  ...undoRepalletizingResolver,
+  ...repackagingResolver,
+  ...undoRepackaging
 }
