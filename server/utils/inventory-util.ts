@@ -43,6 +43,9 @@ export async function generateInventoryHistory(
     })
   }
 
+  const domain: Domain = inventory.domain
+  const location: Location = inventory.location
+
   const seq: number = await invHistoryRepo.count({ domain: inventory.domain, palletId: inventory.palletId })
   let openingQty: number = 0
   let openingWeight: number = 0
@@ -86,6 +89,7 @@ export async function generateInventoryHistory(
     })
   }
 
+  await switchLocationStatus(domain, location, user, trxMgr)
   return inventoryHistory
 }
 

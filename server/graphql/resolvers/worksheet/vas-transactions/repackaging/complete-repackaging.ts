@@ -20,7 +20,7 @@ import {
 import { EntityManager } from 'typeorm'
 import { WORKSHEET_TYPE } from '../../../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
-import { generateInventoryHistory, WorksheetNoGenerator } from '../../../../../utils'
+import { generateInventoryHistory, WorksheetNoGenerator, checkPalletDuplication } from '../../../../../utils'
 import { OperationGuideInterface, PackingUnits, RefOrderType, RepackagingGuide, RepackedInvInfo } from '../intefaces'
 
 export async function completeRepackaging(trxMgr: EntityManager, orderVas: OrderVas, user: User): Promise<void> {
@@ -66,7 +66,7 @@ export async function completeRepackaging(trxMgr: EntityManager, orderVas: Order
     const packingType: string = operationGuideData.toPackingType
 
     // Try to find inventory by pallet ID and domain, bizplace
-    let isPalletExisting = await trxMgr.getRepository(Inventory).count({ where: { domain, bizplace, palletId } })
+    let isPalletExisting: boolean = await checkPalletDuplication(domain, bizplace, palletId, trxMgr)
 
     // Check whether inventory is existing or not.
     if (isPalletExisting) throw new Error(`Inventory (Pallet Id: ${palletId}) is already existing.`) // Repackaging should create new inventory.

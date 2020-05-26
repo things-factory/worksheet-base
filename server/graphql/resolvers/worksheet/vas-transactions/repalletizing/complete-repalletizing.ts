@@ -317,6 +317,7 @@ async function createInv(
     creator: user,
     updater: user
   })
+
   // Create inventory history
   await generateInventoryHistory(
     newInv,
