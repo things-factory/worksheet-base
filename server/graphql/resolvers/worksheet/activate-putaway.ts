@@ -2,13 +2,38 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { EntityManager, Equal, getManager, getRepository, Not, Repository } from 'typeorm'
+import { EntityManager, getManager, getRepository, Repository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const activatePutawayResolver = {
   async activatePutaway(_: any, { worksheetNo, putawayWorksheetDetails }, context: any) {
-    return await getManager().transaction(async trxMgr => {
+    return await getManager().transaction(async (trxMgr: EntityManager) => {
+      const domain: Domain = context.state.domain
+      const foundWorksheet: Worksheet = await trxMgr.getTreeRepository(Worksheet).findOne({
+        where: {
+          domain,
+          name: worksheetNo,
+          status: WORKSHEET_STATUS.DEACTIVATED,
+          type: WORKSHEET_TYPE.PUTAWAY
+        },
+        relations: ['bizplace', 'arrivalNotice', 'worksheetDetails', 'worksheetDetails.targetInventory']
+      })
+
+      if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
+
+      const relatedWorksheetCnt: number = await trxMgr.getRepository(Worksheet).count({
+        where: {
+          domain,
+          arrivalNotice: foundWorksheet.arrivalNotice,
+          type: WORKSHEET_TYPE.VAS
+        }
+      })
+
+      if (relatedWorksheetCnt) {
+        throw new Error(`Related VAS order with GAN: ${foundWorksheet.arrivalNotice.name} is still under processing.`)
+      }
+
       return await activatePutaway(
         worksheetNo,
         putawayWorksheetDetails,
@@ -36,7 +61,8 @@ export async function activatePutaway(
     where: {
       domain,
       name: worksheetNo,
-      status: WORKSHEET_STATUS.DEACTIVATED
+      status: WORKSHEET_STATUS.DEACTIVATED,
+      type: WORKSHEET_TYPE.PUTAWAY
     },
     relations: ['bizplace', 'arrivalNotice', 'worksheetDetails', 'worksheetDetails.targetInventory']
   })
@@ -46,14 +72,12 @@ export async function activatePutaway(
   const relatedWorksheetCnt: number = await wsRepo.count({
     where: {
       domain,
-      id: Not(Equal(foundWorksheet.id)),
-      releaseGood: foundWorksheet.releaseGood,
+      arrivalNotice: foundWorksheet.arrivalNotice,
       type: WORKSHEET_TYPE.VAS
     }
   })
 
-  if (relatedWorksheetCnt)
-    throw new Error(`Related order with GAN: ${foundWorksheet.arrivalNotice.name} is still under processing.`)
+  if (relatedWorksheetCnt) return
 
   const customerBizplace: Bizplace = foundWorksheet.bizplace
   const foundWSDs: WorksheetDetail[] = foundWorksheet.worksheetDetails

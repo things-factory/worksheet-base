@@ -2,20 +2,47 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { EntityManager, Equal, getManager, getRepository, Not, Repository } from 'typeorm'
+import { EntityManager, getManager, getRepository, Repository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const activateLoadingResolver = {
   async activateLoading(_: any, { worksheetNo, loadingWorksheetDetails }, context: any) {
-    return await getManager().transaction(async trxMgr => {
-      return await activateLoading(
-        worksheetNo,
-        loadingWorksheetDetails,
-        context.state.domain,
-        context.state.user,
-        trxMgr
-      )
+    return getManager().transaction(async (trxMgr: EntityManager) => {
+      const domain: Domain = context.state.domain
+      const foundWorksheet: Worksheet = await trxMgr.getTreeRepository(Worksheet).findOne({
+        where: {
+          domain,
+          name: worksheetNo,
+          status: WORKSHEET_STATUS.DEACTIVATED,
+          type: WORKSHEET_TYPE.LOADING
+        },
+        relations: ['bizplace', 'arrivalNotice', 'worksheetDetails', 'worksheetDetails.targetInventory']
+      })
+
+      if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
+
+      const relatedWorksheetCnt: number = await trxMgr.getRepository(Worksheet).count({
+        where: {
+          domain,
+          arrivalNotice: foundWorksheet.arrivalNotice,
+          type: WORKSHEET_TYPE.VAS
+        }
+      })
+
+      if (relatedWorksheetCnt) {
+        throw new Error(`Related VAS order with RO: ${foundWorksheet.arrivalNotice.name} is still under processing.`)
+      }
+
+      return await getManager().transaction(async trxMgr => {
+        return await activateLoading(
+          worksheetNo,
+          loadingWorksheetDetails,
+          context.state.domain,
+          context.state.user,
+          trxMgr
+        )
+      })
     })
   }
 }
@@ -59,13 +86,12 @@ export async function activateLoading(
   const relatedWorksheetCnt: number = await worksheetRepo.count({
     where: {
       domain,
-      id: Not(Equal(foundWorksheet.id)),
-      releaseGood: foundWorksheet.releaseGood
+      releaseGood: foundWorksheet.releaseGood,
+      type: WORKSHEET_TYPE.VAS
     }
   })
 
-  if (relatedWorksheetCnt)
-    throw new Error(`Related order with RO: ${foundWorksheet.releaseGood.name} is still under processing.`)
+  if (relatedWorksheetCnt) return
 
   const customerBizplace: Bizplace = foundWorksheet.bizplace
   const foundWSDs: WorksheetDetail[] = foundWorksheet.worksheetDetails

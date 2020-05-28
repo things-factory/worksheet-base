@@ -1,10 +1,12 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import {
+  ArrivalNotice,
   OrderInventory,
   OrderNoGenerator,
   OrderVas,
   ORDER_INVENTORY_STATUS,
+  ORDER_TYPES,
   ReleaseGood
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
@@ -85,7 +87,11 @@ export async function completeRepalletizing(trxMgr: EntityManager, orderVas: Ord
 
     originInv = await deductInventoryQty(trxMgr, refOrder, originInv, addedQty, addedWeight, user)
 
-    if (refOrder instanceof ReleaseGood) {
+    if (refOrder instanceof ArrivalNotice) {
+      // If current VAS order related with arrival notice
+      // Create putaway worksheet and order inventories for putaway task
+      await createPutawayWorksheet(trxMgr, domain, bizplace, refOrder, originInv, inv, user)
+    } else if (refOrder instanceof ReleaseGood) {
       // If current VAS Order realted with release good
       // Create loading worksheet and order inventories for loading task
       await createLoadingWorksheet(trxMgr, domain, bizplace, refOrder, originInv, inv, user)
@@ -103,6 +109,71 @@ export async function completeRepalletizing(trxMgr: EntityManager, orderVas: Ord
   }
 }
 
+async function createPutawayWorksheet(
+  trxMgr: EntityManager,
+  domain: Domain,
+  bizplace: Bizplace,
+  refOrder: ReleaseGood,
+  originInv: OrderInventory,
+  inv: Inventory,
+  user: User
+): Promise<void> {
+  const changedQty: number = inv.qty
+  const changedWeight: number = inv.weight
+  const putawayWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+    where: { domain, bizplace, arrivalNotice: refOrder, type: WORKSHEET_TYPE.PUTAWAY },
+    relations: ['worksheetDetails', 'worksheetDetails.targetInventory', 'worksheetDetails.targetInventory.inventory']
+  })
+
+  if (!putawayWS)
+    throw new Error(
+      `Unloading process is not finished yet. Please complete unloading first before complete Repalletizing`
+    )
+
+  const putawayWSD: WorksheetDetail = putawayWS.worksheetDetails.find(
+    (wsd: WorksheetDetail) => wsd.targetInventory.inventory.id === originInv.id
+  )
+  let putawayOrderInv: OrderInventory = putawayWSD.targetInventory
+
+  //Create new order inventory
+  const copiedOrderInv: OrderInventory = Object.assign({}, putawayOrderInv)
+  delete copiedOrderInv.id
+
+  const newOrderInv: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
+    ...copiedOrderInv,
+    domain,
+    bizplace,
+    releaseQty: changedQty,
+    releaseWeight: changedWeight,
+    name: OrderNoGenerator.orderInventory(),
+    type: ORDER_TYPES.ARRIVAL_NOTICE,
+    arrivalNotice: refOrder,
+    inventory: inv,
+    creator: user,
+    updater: user
+  })
+
+  const copiedWSD: WorksheetDetail = Object.assign({}, putawayWSD)
+  delete copiedWSD.id
+  await trxMgr.getRepository(WorksheetDetail).save({
+    ...copiedWSD,
+    domain,
+    bizplace,
+    worksheet: putawayWS,
+    name: WorksheetNoGenerator.putawayDetail(),
+    targetInventory: newOrderInv,
+    type: WORKSHEET_TYPE.PUTAWAY,
+    creator: user,
+    updater: user
+  })
+
+  // Deduct qty of putaway order inventory
+  putawayOrderInv.releaseQty = putawayOrderInv.releaseQty - changedQty
+  putawayOrderInv.releaseWeight = putawayOrderInv.releaseWeight - changedWeight
+  putawayOrderInv.updater = user
+  putawayOrderInv = await trxMgr.getRepository(OrderInventory).save(putawayOrderInv)
+}
+
 async function createLoadingWorksheet(
   trxMgr: EntityManager,
   domain: Domain,
@@ -111,17 +182,22 @@ async function createLoadingWorksheet(
   originInv: OrderInventory,
   inv: Inventory,
   user: User
-) {
+): Promise<void> {
   const changedQty: number = inv.qty
   const changedWeight: number = inv.weight
   const loadingWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
     where: { domain, bizplace, releaseGood: refOrder, type: WORKSHEET_TYPE.LOADING },
     relations: ['worksheetDetails', 'worksheetDetails.targetInventory', 'worksheetDetails.targetInventory.inventory']
   })
+
+  if (!loadingWS)
+    throw new Error(`Picking process is not finished yet. Please complete picking first before complete Repalletizing`)
+
   const loadingWSD: WorksheetDetail = loadingWS.worksheetDetails.find(
     (wsd: WorksheetDetail) => wsd.targetInventory.inventory.id === originInv.id
   )
   let loadingOrdInv: OrderInventory = loadingWSD.targetInventory
+
   // Create new order inventory
   const copiedOrderInv: OrderInventory = Object.assign({}, loadingOrdInv)
   delete copiedOrderInv.id
@@ -133,6 +209,7 @@ async function createLoadingWorksheet(
     releaseQty: changedQty,
     releaseWeight: changedWeight,
     name: OrderNoGenerator.orderInventory(),
+    type: ORDER_TYPES.RELEASE_OF_GOODS,
     releaseGood: refOrder,
     inventory: inv,
     creator: user,
@@ -156,10 +233,8 @@ async function createLoadingWorksheet(
   // Deduct qty of loading order inventory
   loadingOrdInv.releaseQty = loadingOrdInv.releaseQty - changedQty
   loadingOrdInv.releaseWeight = loadingOrdInv.releaseWeight - changedWeight
-  loadingOrdInv = await trxMgr.getRepository(OrderInventory).save({
-    ...loadingOrdInv,
-    updater: user
-  })
+  loadingOrdInv.updater = user
+  loadingOrdInv = await trxMgr.getRepository(OrderInventory).save(loadingOrdInv)
 
   // Update inventory to PICKED inventory
   inv = await trxMgr.getRepository(Inventory).save({
