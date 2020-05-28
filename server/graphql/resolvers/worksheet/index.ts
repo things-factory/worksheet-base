@@ -1,7 +1,7 @@
 import { activateCycleCount } from './activate-cycle-count'
 import { activateLoadingResolver } from './activate-loading'
 import { activatePicking } from './activate-picking'
-import { activatePutaway } from './activate-putaway'
+import { activatePutawayResolver } from './activate-putaway'
 import { activateReturnResolver } from './activate-return'
 import { activateUnloading } from './activate-unloading'
 import { activateVas } from './activate-vas'
@@ -91,7 +91,7 @@ export const Mutation = {
   ...generateReleaseGoodWorksheet,
   ...generateVasOrderWorksheet,
   ...activateUnloading,
-  ...activatePutaway,
+  ...activatePutawayResolver,
   ...activateLoadingResolver,
   ...activateReturnResolver,
   ...activateVas,

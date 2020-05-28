@@ -2,7 +2,7 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { EntityManager, getManager, getRepository, Repository } from 'typeorm'
+import { EntityManager, getManager, getRepository, Repository, Not, Equal } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -10,7 +10,7 @@ export const activatePutawayResolver = {
   async activatePutaway(_: any, { worksheetNo, putawayWorksheetDetails }, context: any) {
     return await getManager().transaction(async (trxMgr: EntityManager) => {
       const domain: Domain = context.state.domain
-      const foundWorksheet: Worksheet = await trxMgr.getTreeRepository(Worksheet).findOne({
+      const foundWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: {
           domain,
           name: worksheetNo,
@@ -26,7 +26,8 @@ export const activatePutawayResolver = {
         where: {
           domain,
           arrivalNotice: foundWorksheet.arrivalNotice,
-          type: WORKSHEET_TYPE.VAS
+          type: WORKSHEET_TYPE.VAS,
+          status: Not(Equal(WORKSHEET_STATUS.DONE))
         }
       })
 
@@ -73,7 +74,8 @@ export async function activatePutaway(
     where: {
       domain,
       arrivalNotice: foundWorksheet.arrivalNotice,
-      type: WORKSHEET_TYPE.VAS
+      type: WORKSHEET_TYPE.VAS,
+      status: Not(Equal(WORKSHEET_STATUS.DONE))
     }
   })
 

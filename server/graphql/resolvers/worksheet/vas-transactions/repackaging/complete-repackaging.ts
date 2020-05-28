@@ -205,9 +205,9 @@ async function createPutawayWorksheet(
     (wsd: WorksheetDetail) => wsd.targetInventory.inventory.id === originInv.id
   )
 
-  let putawayOrdInv: OrderInventory = putawayWSD.targetInventory
+  let putawayOrderInv: OrderInventory = putawayWSD.targetInventory
   // Create new order inventory
-  const copiedOrderInv: OrderInventory = Object.assign({}, putawayOrdInv)
+  const copiedOrderInv: OrderInventory = Object.assign({}, putawayOrderInv)
   delete copiedOrderInv.id
 
   const newOrderInv: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
@@ -237,6 +237,24 @@ async function createPutawayWorksheet(
     creator: user,
     updater: user
   })
+
+  // Deduct qty of putaway order inventory
+  putawayOrderInv.releaseQty = putawayOrderInv.releaseQty - changedQty
+  putawayOrderInv.releaseWeight = putawayOrderInv.releaseWeight - changedWeight
+  putawayOrderInv.updater = user
+  putawayOrderInv = await trxMgr.getRepository(OrderInventory).save(putawayOrderInv)
+
+  // Delete worksheet detail
+  // If there's no more qty of inventory delete worksheet detail which is assigned for the inventory
+  // and change status of order inventory
+  if (originInv.qty <= 0) {
+    await trxMgr.getRepository(WorksheetDetail).delete(putawayWSD.id)
+    await trxMgr.getRepository(OrderInventory).save({
+      ...putawayOrderInv,
+      status: ORDER_INVENTORY_STATUS.DONE,
+      updater: user
+    })
+  }
 }
 
 async function createLoadingWorksheet(
@@ -298,10 +316,8 @@ async function createLoadingWorksheet(
   // Deduct qty of loading order inventory
   loadingOrdInv.releaseQty = loadingOrdInv.releaseQty - changedQty
   loadingOrdInv.releaseWeight = loadingOrdInv.releaseWeight - changedWeight
-  loadingOrdInv = await trxMgr.getRepository(OrderInventory).save({
-    ...loadingOrdInv,
-    updater: user
-  })
+  loadingOrdInv.updater = user
+  loadingOrdInv = await trxMgr.getRepository(OrderInventory).save(loadingOrdInv)
 
   // Update inventory to PICKED inventory
   inv = await trxMgr.getRepository(Inventory).save({

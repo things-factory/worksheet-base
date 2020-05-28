@@ -2,7 +2,7 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { EntityManager, getManager, getRepository, Repository } from 'typeorm'
+import { EntityManager, Equal, getManager, getRepository, Not, Repository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -26,7 +26,8 @@ export const activateLoadingResolver = {
         where: {
           domain,
           arrivalNotice: foundWorksheet.arrivalNotice,
-          type: WORKSHEET_TYPE.VAS
+          type: WORKSHEET_TYPE.VAS,
+          status: Not(Equal(WORKSHEET_STATUS.DONE))
         }
       })
 
@@ -87,7 +88,8 @@ export async function activateLoading(
     where: {
       domain,
       releaseGood: foundWorksheet.releaseGood,
-      type: WORKSHEET_TYPE.VAS
+      type: WORKSHEET_TYPE.VAS,
+      status: Not(Equal(WORKSHEET_STATUS.DONE))
     }
   })
 

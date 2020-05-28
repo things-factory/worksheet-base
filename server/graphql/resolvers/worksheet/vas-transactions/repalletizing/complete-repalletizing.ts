@@ -172,6 +172,18 @@ async function createPutawayWorksheet(
   putawayOrderInv.releaseWeight = putawayOrderInv.releaseWeight - changedWeight
   putawayOrderInv.updater = user
   putawayOrderInv = await trxMgr.getRepository(OrderInventory).save(putawayOrderInv)
+
+  // Delete worksheet detail
+  // If there's no more qty of inventory delete worksheet detail which is assigned for the inventory
+  // and change status of order inventory
+  if (originInv.qty <= 0) {
+    await trxMgr.getRepository(WorksheetDetail).delete(putawayWSD.id)
+    await trxMgr.getRepository(OrderInventory).save({
+      ...putawayOrderInv,
+      status: ORDER_INVENTORY_STATUS.DONE,
+      updater: user
+    })
+  }
 }
 
 async function createLoadingWorksheet(
@@ -259,7 +271,7 @@ async function createLoadingWorksheet(
   await generateInventoryHistory(inv, refOrder, INVENTORY_TRANSACTION_TYPE.TERMINATED, 0, 0, user, trxMgr)
 
   // Delete worksheet detail & order inventory
-  // If order inventory doesn't have release qty any more
+  // If order inventory doesn't have release qty any more change status to DONE
   if (loadingOrdInv.releaseQty <= 0) {
     await trxMgr.getRepository(WorksheetDetail).delete(loadingWSD.id)
     await trxMgr.getRepository(OrderInventory).save({
