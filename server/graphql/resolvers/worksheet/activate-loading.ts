@@ -2,7 +2,7 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Not, Equal, EntityManager, getManager, getRepository, Repository } from 'typeorm'
+import { EntityManager, Equal, getManager, getRepository, Not, Repository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -59,8 +59,7 @@ export async function activateLoading(
   const relatedWorksheetCnt: number = await worksheetRepo.count({
     where: {
       domain,
-      type: Not(Equal(WORKSHEET_TYPE.LOADING)),
-      status: Not(Equal(WORKSHEET_STATUS.DONE)),
+      id: Not(Equal(foundWorksheet.id)),
       releaseGood: foundWorksheet.releaseGood
     }
   })

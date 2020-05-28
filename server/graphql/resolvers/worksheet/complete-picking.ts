@@ -1,7 +1,7 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { sendNotification } from '@things-factory/shell'
-import { Equal, getManager, Not } from 'typeorm'
+import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils'
@@ -77,34 +77,13 @@ export const completePicking = {
       })
       await trxMgr.getRepository(WorksheetDetail).save(loadingWorksheetDetails)
 
-      const foundLoadingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-        where: {
-          domain: context.state.domain,
-          releaseGood: releaseGood.id,
-          type: WORKSHEET_TYPE.LOADING,
-          status: WORKSHEET_STATUS.DEACTIVATED
-        },
-        relations: ['worksheetDetails']
-      })
-
-      // if there's non related order
-      const relatedOrderCnt: number = await trxMgr.getRepository(Worksheet).count({
-        where: {
-          domain: context.state.domain,
-          releaseGood,
-          type: Not(Equal(WORKSHEET_TYPE.LOADING)),
-          status: Not(Equal(WORKSHEET_STATUS.DEACTIVATED))
-        }
-      })
-      if (!relatedOrderCnt) {
-        await activateLoading(
-          foundLoadingWorksheet.name,
-          foundLoadingWorksheet.worksheetDetails,
-          context.state.domain,
-          context.state.user,
-          trxMgr
-        )
-      }
+      await activateLoading(
+        loadingWorksheet.name,
+        loadingWorksheet.worksheetDetails,
+        context.state.domain,
+        context.state.user,
+        trxMgr
+      )
 
       // 3. update status of release good
       await trxMgr.getRepository(ReleaseGood).save({

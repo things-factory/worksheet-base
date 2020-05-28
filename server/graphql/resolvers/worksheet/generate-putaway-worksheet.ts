@@ -90,9 +90,9 @@ export async function generatePutawayWorksheet(
     }
   })
 
-  let WSD_STATUS: string = WORKSHEET_STATUS.EXECUTING
+  let wsdStatus: string = WORKSHEET_STATUS.EXECUTING
   if (!putawayWorksheet) {
-    WSD_STATUS = WORKSHEET_STATUS.DEACTIVATED
+    wsdStatus = WORKSHEET_STATUS.DEACTIVATED
     putawayWorksheet = await worksheetRepo.save({
       domain,
       arrivalNotice,
@@ -134,7 +134,7 @@ export async function generatePutawayWorksheet(
         type: WORKSHEET_TYPE.PUTAWAY,
         targetInventory,
         fromLocation: bufferLocation,
-        status: WSD_STATUS,
+        status: wsdStatus,
         creator: user,
         updater: user
       })

@@ -110,12 +110,12 @@ export const Mutation = /* GraphQL */ `
   completeUnloadingPartially (
     arrivalNoticeNo: String!
     worksheetDetail: WorksheetDetailPatch!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   completeUnloading (
     arrivalNoticeNo: String!
     worksheetDetails: [WorksheetDetailPatch]
-  ): Worksheet @priviledge(category: "worksheet_execute", priviledge: "mutation")
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   completeLoading (
     releaseGoodNo: String!
