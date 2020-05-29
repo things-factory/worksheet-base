@@ -1,7 +1,7 @@
 import gql from 'graphql-tag'
 
-export const Inventory = gql`
-  type Inventory {
+export const InventoryDetail = gql`
+  type InventoryDetail {
     id: String
     domain: Domain
     bizplace: Bizplace

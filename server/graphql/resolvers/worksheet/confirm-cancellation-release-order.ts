@@ -5,7 +5,6 @@ import {
   INVENTORY_STATUS,
   INVENTORY_TRANSACTION_TYPE
 } from '@things-factory/warehouse-base'
-import { Bizplace } from '@things-factory/biz-base'
 import { getManager, In } from 'typeorm'
 import {
   ORDER_INVENTORY_STATUS,
