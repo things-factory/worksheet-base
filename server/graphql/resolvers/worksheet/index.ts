@@ -44,6 +44,7 @@ import { returning } from './returning'
 import { transfer } from './transfer'
 import { undoInspection } from './undo-inspection'
 import { undoLoading } from './undo-loading'
+import { undoPickingAssigmentResolver } from './undo-picking-assignment'
 import { undoPutaway } from './undo-putaway'
 import { undoUnloading } from './undo-unloading'
 import { undoVas } from './undo-vas'
@@ -126,5 +127,6 @@ export const Mutation = {
   ...repalletizingResolver,
   ...undoRepalletizingResolver,
   ...repackagingResolver,
-  ...undoRepackaging
+  ...undoRepackaging,
+  ...undoPickingAssigmentResolver
 }
