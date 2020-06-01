@@ -31,7 +31,12 @@ export const cycleCountAdjustment = {
           name: In(cycleCountWorksheetDetails.map(wsd => wsd.name)),
           status: WORKSHEET_STATUS.NOT_TALLY
         },
-        relations: ['targetInventory', 'targetInventory.inventory', 'targetInventory.inventory.location']
+        relations: [
+          'targetInventory',
+          'targetInventory.inventory',
+          'targetInventory.inventory.location',
+          'targetInventory.inspectedLocation'
+        ]
       })
 
       // get order inventory
@@ -44,7 +49,7 @@ export const cycleCountAdjustment = {
           const transactWeight: number = foundOI.inspectedWeight - inventory.weight
 
           const foundInspectedLoc: Location = await trxMgr.getRepository(Location).findOne({
-            where: { domain: context.state.domain, name: foundOI.inspectedLocation },
+            where: { domain: context.state.domain, name: foundOI.inspectedLocation.name },
             relations: ['warehouse']
           })
 
