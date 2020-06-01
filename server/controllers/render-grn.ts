@@ -87,6 +87,14 @@ export async function renderGRN({ domain: domainName, grnNo }) {
     }
   })
 
+  const foundCop: Attachment = await getRepository(Attachment).findOne({
+    where: {
+      domain,
+      refBy: foundGRN.id,
+      category: TEMPLATE_TYPE.COP
+    }
+  })
+
   const template = await STORAGE.readFile(foundTemplate.path, 'utf-8')
 
   let logo = null
@@ -99,9 +107,15 @@ export async function renderGRN({ domain: domainName, grnNo }) {
     signature = 'data:' + foundSignature.mimetype + ';base64,' + (await STORAGE.readFile(foundSignature.path, 'base64'))
   }
 
+  let cop = null
+  if (foundCop?.path) {
+    cop = 'data:' + foundSignature.mimetype + ';base64,' + (await STORAGE.readFile(foundCop.path, 'base64'))
+  }
+
   const data = {
     logo_url: logo,
-    signature_url: signature,
+    sign_url: signature,
+    cop_url: cop,
     customer_biz: partnerBiz.name,
     customer_address: partnerBiz.address,
     company_domain: foundDomainBiz.name,
