@@ -40,6 +40,7 @@ export const worksheetResolver = {
         'worksheetDetails.targetInventory.inventory.product',
         'worksheetDetails.targetInventory.inventory.warehouse',
         'worksheetDetails.targetInventory.inventory.location',
+        'worksheetDetails.targetInventory.inspectedLocation',
         'creator',
         'updater'
       ]
