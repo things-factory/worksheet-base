@@ -62,7 +62,7 @@ export const completePicking = {
       })
 
       // 2) Create loading worksheet details
-      const loadingWorksheetDetails = pickedtargetInv.map((targetInventory: OrderInventory) => {
+      let loadingWorksheetDetails = pickedtargetInv.map((targetInventory: OrderInventory) => {
         return {
           domain: context.state.domain,
           bizplace: customerBizplace,
@@ -75,11 +75,11 @@ export const completePicking = {
           updater: context.state.user
         }
       })
-      await trxMgr.getRepository(WorksheetDetail).save(loadingWorksheetDetails)
+      loadingWorksheetDetails = await trxMgr.getRepository(WorksheetDetail).save(loadingWorksheetDetails)
 
       await activateLoading(
         loadingWorksheet.name,
-        loadingWorksheet.worksheetDetails,
+        loadingWorksheetDetails,
         context.state.domain,
         context.state.user,
         trxMgr
