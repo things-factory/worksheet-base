@@ -82,7 +82,6 @@ export async function renderGRN({ domain: domainName, grnNo }) {
   const foundSignature: Attachment = await getRepository(Attachment).findOne({
     where: {
       domain,
-      refBy: foundGRN.id,
       category: TEMPLATE_TYPE.SIGNATURE
     }
   })
@@ -90,7 +89,6 @@ export async function renderGRN({ domain: domainName, grnNo }) {
   const foundCop: Attachment = await getRepository(Attachment).findOne({
     where: {
       domain,
-      refBy: foundGRN.id,
       category: TEMPLATE_TYPE.COP
     }
   })
@@ -139,6 +137,7 @@ export async function renderGRN({ domain: domainName, grnNo }) {
         product_batch: op.batchId,
         product_qty: op.actualPackQty,
         product_weight: op.totalWeight,
+        unit_weight: op.weight,
         pallet_qty: op.actualPalletQty > 1 ? `${op.actualPalletQty} PALLETS` : `${op.actualPalletQty} PALLET`,
         remark: op.remark
       }
