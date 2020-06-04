@@ -9,7 +9,7 @@ import {
   LOCATION_STATUS
 } from '@things-factory/warehouse-base'
 import { Equal, getManager, Not } from 'typeorm'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
+import { WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { generateInventoryHistory } from '../../../utils'
 
@@ -78,7 +78,7 @@ export const unload = {
         product: foundWorksheetDetail.targetProduct.product,
         packingType: foundWorksheetDetail.targetProduct.packingType,
         qty,
-        weight: inventory.qty * foundWorksheetDetail.targetProduct.weight,
+        weight: Math.round(inventory.qty * foundWorksheetDetail.targetProduct.weight * 100) / 100,
         refOrderId: arrivalNotice.id,
         warehouse: foundWorksheetDetail.worksheet.bufferLocation.warehouse,
         location: foundWorksheetDetail.worksheet.bufferLocation,
@@ -95,7 +95,7 @@ export const unload = {
         arrivalNotice,
         INVENTORY_TRANSACTION_TYPE.UNLOADING,
         qty,
-        inventory.qty * foundWorksheetDetail.targetProduct.weight,
+        Math.round(inventory.qty * foundWorksheetDetail.targetProduct.weight * 100) / 100,
         context.state.user,
         trxMgr
       )
