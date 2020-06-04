@@ -4,7 +4,7 @@ import { Domain } from '@things-factory/shell'
 import { Inventory } from '@things-factory/warehouse-base'
 import { getRepository, Repository } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
-import { RefOrderType } from '../intefaces'
+import { OperationGuideInterface, RefOrderType, RepackagingGuide, RepackedFrom, RepackedInvInfo } from '../intefaces'
 
 export const checkRepackablePalletResolver = {
   /**
@@ -46,6 +46,7 @@ export const checkRepackablePalletResolver = {
     if (targetVas?.shippingOrder?.id) refOrder = targetVas.shippingOrder
     if (targetVas?.vasOrder?.id) refOrder = targetVas.vasOrder
 
+    const { reducedQty, reducedWeight } = calcInvReducedAmount(palletId, targetVas)
     const vasId: string = worksheetDetail.targetVas.vas.id
     const vasSet: number = worksheetDetail.targetVas.set
 
@@ -55,22 +56,47 @@ export const checkRepackablePalletResolver = {
 
     // Return available qty of inventory
     const candidateOV: OrderVas = relatedOVs.find((ov: OrderVas) => ov.inventory.palletId === palletId)
-
     if (!candidateOV) throw new Error(`Pallet (${palletId}) is not acceptable for this Repackaging`)
 
     if (refOrder instanceof ReleaseGood) {
       const targetInv: OrderInventory = await getTargetInventory(domain, bizplace, refOrder, candidateOV.inventory)
       return {
-        qty: targetInv.releaseQty,
-        weight: targetInv.releaseWeight
+        qty: targetInv.releaseQty - reducedQty,
+        weight: targetInv.releaseWeight - reducedWeight
       }
     } else {
       return {
-        qty: candidateOV.inventory.qty,
-        weight: candidateOV.inventory.weight
+        qty: candidateOV.inventory.qty - reducedQty,
+        weight: candidateOV.inventory.weight - reducedWeight
       }
     }
   }
+}
+
+function calcInvReducedAmount(palletId: string, targetVas: OrderVas): { reducedQty: number; reducedWeight: number } {
+  const operationGuide: OperationGuideInterface<RepackagingGuide> = JSON.parse(targetVas.operationGuide)
+  const operationGuideData: RepackagingGuide = operationGuide.data
+  const repackedFromList: RepackedFrom[] = (operationGuideData.repackedInvs || [])
+    .map((repacekdInv: RepackedInvInfo) => repacekdInv.repackedFrom)
+    .flat()
+
+  return repackedFromList
+    .filter((repackedFrom: RepackedFrom) => repackedFrom.fromPalletId === palletId)
+    .reduce(
+      (
+        reducedAmount: {
+          reducedQty: number
+          reducedWeight: number
+        },
+        repackedFrom: RepackedFrom
+      ) => {
+        return {
+          reducedQty: reducedAmount.reducedQty + repackedFrom.reducedQty,
+          reducedWeight: reducedAmount.reducedWeight + repackedFrom.reducedWeight
+        }
+      },
+      { reducedQty: 0, reducedWeight: 0 }
+    )
 }
 
 async function getTargetInventory(

@@ -20,7 +20,7 @@ import { cycleCountAdjustment } from './cycle-count-adjustment'
 import { cycleCountWorksheetResolver } from './cycle-count-worksheet'
 import { deleteWorksheet } from './delete-worksheet'
 import { deliveryOrderByWorksheetResolver } from './delivery-order-by-worksheet'
-import { executeVas } from './execute-vas'
+import { executeVasResolver } from './execute-vas'
 import { generateArrivalNoticeWorksheet } from './generate-arrival-notice-worksheet'
 import { generateCycleCountWorksheet } from './generate-cycle-count-worksheet'
 import { generatePartialPutawayWorksheetResolver } from './generate-partial-putaway-worksheet'
@@ -118,7 +118,7 @@ export const Mutation = {
   ...completePutaway,
   ...picking,
   ...completePicking,
-  ...executeVas,
+  ...executeVasResolver,
   ...undoVas,
   ...completeVas,
   ...proceedExtraProductsResolver,

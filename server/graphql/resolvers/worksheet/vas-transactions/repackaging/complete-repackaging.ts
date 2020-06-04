@@ -22,7 +22,14 @@ import { EntityManager } from 'typeorm'
 import { WORKSHEET_TYPE } from '../../../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
 import { checkPalletDuplication, generateInventoryHistory, WorksheetNoGenerator } from '../../../../../utils'
-import { OperationGuideInterface, PackingUnits, RefOrderType, RepackagingGuide, RepackedInvInfo } from '../intefaces'
+import {
+  OperationGuideInterface,
+  PackingUnits,
+  RefOrderType,
+  RepackagingGuide,
+  RepackedFrom,
+  RepackedInvInfo
+} from '../intefaces'
 
 export async function completeRepackaging(trxMgr: EntityManager, orderVas: OrderVas, user: User): Promise<void> {
   orderVas = await trxMgr.getRepository(OrderVas).findOne(orderVas.id, {
@@ -42,7 +49,7 @@ export async function completeRepackaging(trxMgr: EntityManager, orderVas: Order
   let originInv: Inventory = orderVas.inventory
   const operationGuide: OperationGuideInterface<RepackagingGuide> = JSON.parse(orderVas.operationGuide)
   const operationGuideData: RepackagingGuide = operationGuide.data
-  const repackedInvs: RepackedInvInfo[] = operationGuideData.repackedInvs
+  const repackedInvs: RepackedInvInfo[] = extractRepackedInvs(operationGuideData, originInv)
 
   let refOrder: RefOrderType
   if (orderVas.arrivalNotice) {
@@ -55,23 +62,18 @@ export async function completeRepackaging(trxMgr: EntityManager, orderVas: Order
     refOrder = orderVas.vasOrder
   }
 
-  const packingUnit: string = operationGuideData.packingUnit
-  const unitWeight: number = await getUnitWeight(refOrder, trxMgr, domain, bizplace, originInv)
-
   let newlyRepackedInvs: Inventory = []
-  for (let repalletizedInv of repackedInvs) {
-    const palletId: string = repalletizedInv.palletId
-    const qty: number = repalletizedInv.repackedPkgQty
-    const weight: number = qty * unitWeight
-    const locationName: string = repalletizedInv.locationName
+  for (let repackedInv of repackedInvs) {
+    const palletId: string = repackedInv.palletId
+    const qty: number = repackedInv.repackedFrom.length
+    const weight: number = repackedInv.repackedFrom.reduce(
+      (weight: number, rf: RepackedFrom) => (weight += rf.reducedWeight),
+      0
+    )
+    const locationName: string = repackedInv.locationName
     const packingType: string = operationGuideData.toPackingType
 
     // Try to find inventory by pallet ID and domain, bizplace
-    let isPalletExisting: boolean = await checkPalletDuplication(domain, bizplace, palletId, trxMgr)
-
-    // Check whether inventory is existing or not.
-    if (isPalletExisting) throw new Error(`Inventory (Pallet Id: ${palletId}) is already existing.`) // Repackaging should create new inventory.
-
     if (newlyRepackedInvs.find((inv: Inventory) => inv.palletId === palletId)) {
       newlyRepackedInvs.map((inv: Inventory) => {
         if (inv.palletId === palletId) {
@@ -112,6 +114,11 @@ export async function completeRepackaging(trxMgr: EntityManager, orderVas: Order
 
   for (let newlyRepackedInv of newlyRepackedInvs) {
     // Create inventories
+    const foundInv: Inventory = await trxMgr.getRepository(Inventory).find({
+      where: { domain, bizplace, palletId: newlyRepackedInv.palletId }
+    })
+    if (foundInv) newlyRepackedInv = foundInv
+
     newlyRepackedInv = await trxMgr.getRepository(Inventory).save(newlyRepackedInv)
 
     // Create inventory histories
@@ -124,14 +131,11 @@ export async function completeRepackaging(trxMgr: EntityManager, orderVas: Order
       user,
       trxMgr
     )
+  }
 
-    const { reducedQty, reducedWeight } = getReducedAmount(
-      packingUnit,
-      newlyRepackedInv,
-      operationGuideData,
-      unitWeight
-    )
-
+  // Update original inventory qty and weight
+  for (let repackedInv of repackedInvs) {
+    const { reducedQty, reducedWeight } = getReducedAmount(repackedInv)
     originInv = await deductInventoryQty(trxMgr, refOrder, originInv, reducedQty, reducedWeight, user)
   }
 
@@ -160,24 +164,30 @@ export async function completeRepackaging(trxMgr: EntityManager, orderVas: Order
   }
 }
 
-function getReducedAmount(
-  packingUnit: string,
-  newlyRepackedInv: any,
-  operationGuideData: RepackagingGuide,
-  unitWeight: number
-) {
-  let reducedQty: number
-  let reducedWeight: number
+function getReducedAmount(repackedInv: RepackedInvInfo): { reducedQty: number; reducedWeight: number } {
+  return repackedInv.repackedFrom.reduce(
+    (reducedAmount: { reducedQty: number; reducedWeight: number }, rf: RepackedFrom) => {
+      return {
+        reducedQty: reducedAmount.reducedQty + rf.reducedQty,
+        reducedWeight: reducedAmount.reducedWeight + rf.reducedWeight
+      }
+    },
+    { reducedQty: 0, reducedWeight: 0 }
+  )
+}
 
-  if (packingUnit === PackingUnits.WEIGHT) {
-    reducedWeight = newlyRepackedInv.qty * operationGuideData.stdAmount
-    reducedQty = reducedWeight / unitWeight
-  } else if (packingUnit === PackingUnits.QTY) {
-    reducedQty = newlyRepackedInv.qty * operationGuideData.stdAmount
-    reducedWeight = reducedQty * unitWeight
-  }
-
-  return { reducedQty, reducedWeight }
+function extractRepackedInvs(operationGuideData: RepackagingGuide, originInv: Inventory): RepackedInvInfo[] {
+  return operationGuideData.repackedInvs
+    .filter((repackedInv: RepackedInvInfo) => {
+      const isPalletIncluded: boolean = Boolean(
+        repackedInv.repackedFrom.find((rf: RepackedFrom) => rf.fromPalletId === originInv.palletId)
+      )
+      if (isPalletIncluded) return repackedInv
+    })
+    .map((ri: RepackedInvInfo) => {
+      ri.repackedFrom = ri.repackedFrom.filter((rf: RepackedFrom) => rf.fromPalletId === originInv.palletId)
+      return ri
+    })
 }
 
 async function createPutawayWorksheet(
@@ -205,6 +215,7 @@ async function createPutawayWorksheet(
     (wsd: WorksheetDetail) => wsd.targetInventory.inventory.id === originInv.id
   )
 
+  if (!putawayWSD) return // Worksheet has been updated already.
   let putawayOrderInv: OrderInventory = putawayWSD.targetInventory
   // Create new order inventory
   const copiedOrderInv: OrderInventory = Object.assign({}, putawayOrderInv)
@@ -237,12 +248,6 @@ async function createPutawayWorksheet(
     creator: user,
     updater: user
   })
-
-  // Deduct qty of putaway order inventory
-  putawayOrderInv.releaseQty = putawayOrderInv.releaseQty - changedQty
-  putawayOrderInv.releaseWeight = putawayOrderInv.releaseWeight - changedWeight
-  putawayOrderInv.updater = user
-  putawayOrderInv = await trxMgr.getRepository(OrderInventory).save(putawayOrderInv)
 
   // Delete worksheet detail
   // If there's no more qty of inventory delete worksheet detail which is assigned for the inventory
