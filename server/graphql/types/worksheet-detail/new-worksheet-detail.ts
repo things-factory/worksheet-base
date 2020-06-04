@@ -4,6 +4,7 @@ export const NewWorksheetDetail = gql`
   input NewWorksheetDetail {
     name: String
     description: String
+    seq: Int
     type: String
     worksheet: ObjectRef
     worker: ObjectRef

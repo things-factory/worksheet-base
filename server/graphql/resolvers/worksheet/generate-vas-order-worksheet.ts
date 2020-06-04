@@ -40,12 +40,13 @@ export const generateVasOrderWorksheet = {
         })
 
         // 2. 2) Create vas worksheet details
-        const vasWorksheetDetails = foundOVs.map((ov: OrderVas) => {
+        const vasWorksheetDetails = foundOVs.map((ov: OrderVas, idx: number) => {
           return {
             domain: context.state.domain,
             bizplace: customerBizplace,
             worksheet: vasWorksheet,
             name: WorksheetNoGenerator.vasDetail(),
+            seq: idx,
             targetVas: ov,
             type: WORKSHEET_TYPE.VAS,
             status: WORKSHEET_STATUS.DEACTIVATED,

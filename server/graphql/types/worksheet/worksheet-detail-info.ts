@@ -24,6 +24,7 @@ export const WorksheetDetailInfo = gql`
     vas: Vas
     targetName: String
     description: String
+    seq: Int
     remark: String
     issue: String
     status: String

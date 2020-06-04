@@ -54,6 +54,7 @@ import { unloadingWorksheetResolver } from './unloading-worksheet'
 import { updateWorksheet } from './update-worksheet'
 import { vasCandidatesResolver } from './vas-candidates'
 import {
+  checkRepackablePalletResolver,
   repackagingResolver,
   repalletizingResolver,
   undoRepackaging,
@@ -77,7 +78,8 @@ export const Query = {
   ...unloadedInventories,
   ...loadedInventories,
   ...vasCandidatesResolver,
-  ...inventoriesByPalletResolver
+  ...inventoriesByPalletResolver,
+  ...checkRepackablePalletResolver
 }
 
 export const Mutation = {

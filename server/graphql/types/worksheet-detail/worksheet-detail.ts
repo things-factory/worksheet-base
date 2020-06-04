@@ -7,6 +7,7 @@ export const WorksheetDetail = gql`
     bizplace: Bizplace
     name: String
     description: String
+    seq: Int
     type: String
     worksheet: Worksheet
     worker: Worker

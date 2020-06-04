@@ -30,6 +30,16 @@ export class WorksheetDetail {
   })
   description: string
 
+  /**
+   * @description Sequance for VAS Order
+   */
+  @Column({
+    nullable: true,
+    type: 'smallint',
+    default: 0
+  })
+  seq: number
+
   @Column()
   type: string
 

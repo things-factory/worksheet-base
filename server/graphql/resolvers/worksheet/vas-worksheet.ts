@@ -1,17 +1,17 @@
 import {
   ArrivalNotice,
+  OrderInventory,
   OrderVas,
   ORDER_STATUS,
   ORDER_TYPES,
   ReleaseGood,
-  VasOrder,
-  OrderInventory
+  VasOrder
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
+import { Inventory } from '@things-factory/warehouse-base'
 import { Equal, getRepository, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { Inventory } from '@things-factory/warehouse-base'
 
 export const vasWorksheetResolver = {
   async vasWorksheet(_: any, { orderNo, orderType }, context: any) {
@@ -89,30 +89,33 @@ export const vasWorksheetResolver = {
         containerNo: refOrder?.containerNo,
         startedAt: worksheet.startedAt
       },
-      worksheetDetailInfos: worksheet.worksheetDetails.map((wsd: WorksheetDetail) => {
-        const targetVas: OrderVas = wsd.targetVas
-        return {
-          name: wsd.name,
-          batchId: targetVas.batchId,
-          targetName: targetVas.name,
-          vas: targetVas.vas,
-          set: targetVas?.set,
-          inventory: targetVas?.inventory,
-          locationInv: targetVas?.inventory?.location?.name,
-          targetType: targetVas?.targetType,
-          targetBatchId: targetVas?.targetBatchId,
-          targetProduct: targetVas?.targetProduct,
-          otherTarget: targetVas?.otherTarget,
-          qty: targetVas?.qty,
-          weight: targetVas?.weight,
-          operationGuide: targetVas.operationGuide,
-          description: wsd.description,
-          remark: targetVas.remark,
-          status: wsd.status,
-          issue: wsd.issue,
-          relatedOrderInv: wsd.targetInventory
-        }
-      })
+      worksheetDetailInfos: worksheet.worksheetDetails
+        .sort((a: WorksheetDetail, b: WorksheetDetail) => a.seq - b.seq)
+        .map((wsd: WorksheetDetail) => {
+          const targetVas: OrderVas = wsd.targetVas
+          return {
+            name: wsd.name,
+            seq: wsd.seq,
+            status: wsd.status,
+            issue: wsd.issue,
+            relatedOrderInv: wsd.targetInventory,
+            batchId: targetVas?.batchId,
+            targetName: targetVas?.name,
+            vas: targetVas?.vas,
+            set: targetVas?.set,
+            inventory: targetVas?.inventory,
+            locationInv: targetVas?.inventory?.location?.name,
+            targetType: targetVas?.targetType,
+            targetBatchId: targetVas?.targetBatchId,
+            targetProduct: targetVas?.targetProduct,
+            otherTarget: targetVas?.otherTarget,
+            qty: targetVas?.qty,
+            weight: targetVas?.weight,
+            operationGuide: targetVas?.operationGuide,
+            description: wsd.description,
+            remark: targetVas?.remark
+          }
+        })
     }
   }
 }

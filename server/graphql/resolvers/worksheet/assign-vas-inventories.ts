@@ -25,6 +25,8 @@ export const assignVasInventoriesResolver = {
         ]
       })
 
+      let seq: number = 0 // Sequance for VAS order
+
       for (let worksheetDetail of worksheetDetails) {
         const worksheetDetailId = worksheetDetail.id
         const orderVas: OrderVas = worksheetDetail.targetVas
@@ -56,10 +58,13 @@ export const assignVasInventoriesResolver = {
             domain,
             bizplace,
             name: WorksheetNoGenerator.vasDetail(),
+            seq,
             targetVas,
             creator: context.state.user,
             updater: context.state.user
           })
+
+          seq++
         }
 
         // Delete previous worksheet detail
