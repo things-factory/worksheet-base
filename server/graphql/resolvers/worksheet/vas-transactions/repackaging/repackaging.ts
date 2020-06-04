@@ -5,6 +5,7 @@ import { Domain } from '@things-factory/shell'
 import { Inventory, Location, Warehouse } from '@things-factory/warehouse-base'
 import { EntityManager, getManager } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
+import { executeVas } from '../../execute-vas'
 import {
   OperationGuideInterface,
   PackingUnits,
@@ -140,34 +141,69 @@ export const repackagingResolver = {
 
       // Update operation guide data for whole related order vas
       const worksheet: Worksheet = wsd.worksheet
-      const relatedWSDs: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
+      let relatedWSDs: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
         where: { domain, bizplace, worksheet },
         relations: ['targetVas', 'targetVas.vas']
       })
+      relatedWSDs = relatedWSDs.filter(
+        (wsd: WorksheetDetail) => wsd.targetVas.set === targetVas.set && wsd.targetVas.vas.id === targetVas.vas.id
+      )
 
+      let isCompleted: boolean = false
       const relatedOVs: OrderVas[] = relatedWSDs
         .map((wsd: WorksheetDetail) => wsd.targetVas)
-        .filter((ov: OrderVas) => ov.set === targetVas.set && ov.vas.id === targetVas.vas.id)
         .map((ov: OrderVas) => {
+          let repackedInvs: RepackedInvInfo[] = []
+
+          // 이전 작업에서 생성된 pallet에 package를 추가 하는지 확인
+          const isExsistingPallet: boolean = Boolean(
+            operationGuideData.repackedInvs.find(
+              (originRepackedInv: RepackedInvInfo) => originRepackedInv.palletId === repackedInv.palletId
+            )
+          )
+
+          if (isExsistingPallet) {
+            // 이전 작업에 생성된 pallet에 package를 추가하는 경우
+            repackedInvs = operationGuideData.repackedInvs.map((originRepackedInv: RepackedInvInfo) => {
+              if (originRepackedInv.palletId === repackedInv.palletId) {
+                originRepackedInv = {
+                  ...originRepackedInv,
+                  ...repackedInv,
+                  repackedPkgQty: originRepackedInv.repackedPkgQty + repackedInv.repackedPkgQty,
+                  repackedFrom: [...originRepackedInv.repackedFrom, ...repackedInv.repackedFrom]
+                }
+              }
+              return originRepackedInv
+            })
+          } else {
+            // 현재 작업을 통해 새롭게 pallet이 추가되는 경우
+            repackedInvs = [...operationGuideData.repackedInvs, repackedInv]
+          }
           const updatedOperationGuideData: RepackagingGuide = {
             packingUnit: operationGuideData.packingUnit,
             toPackingType: operationGuideData.toPackingType,
             stdAmount: operationGuideData.stdAmount,
             requiredPackageQty: operationGuideData.requiredPackageQty - 1,
-            repackedInvs: [...operationGuideData.repackedInvs, repackedInv]
+            repackedInvs
           }
+
+          isCompleted = !Boolean(updatedOperationGuideData.requiredPackageQty)
 
           return {
             ...ov,
             operationGuide: JSON.stringify({
               ...operationGuide,
               data: updatedOperationGuideData,
-              completed: !Boolean(updatedOperationGuideData.requiredPackageQty)
+              completed: isCompleted
             })
           }
         })
 
       await trxMgr.getRepository(OrderVas).save(relatedOVs)
+
+      if (isCompleted) {
+        await Promise.all(relatedWSDs.map(async (wsd: WorksheetDetail) => await executeVas(trxMgr, wsd, domain, user)))
+      }
     })
   }
 }
