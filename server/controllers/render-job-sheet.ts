@@ -1,25 +1,16 @@
 import { Attachment, STORAGE } from '@things-factory/attachment-base'
 import { Bizplace, Partner } from '@things-factory/biz-base'
 import { config } from '@things-factory/env'
-import {
-  ArrivalNotice,
-  DeliveryOrder,
-  JobSheet,
-  OrderInventory,
-  OrderVas,
-  OrderProduct,
-  ORDER_PRODUCT_STATUS,
-  ORDER_TYPES
-} from '@things-factory/sales-base'
-import { DateTimeConverter } from '../utils/datetime-util'
 import { Product } from '@things-factory/product-base'
+import { ArrivalNotice, JobSheet, OrderProduct } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, InventoryHistory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
+import { Inventory, InventoryHistory } from '@things-factory/warehouse-base'
 import FormData from 'form-data'
 import fetch from 'node-fetch'
-import { getRepository, IsNull, Not, SelectQueryBuilder } from 'typeorm'
-import { TEMPLATE_TYPE, WORKSHEET_TYPE, TRANSACTION_TYPE } from '../constants'
+import { getRepository, IsNull, Not } from 'typeorm'
+import { TEMPLATE_TYPE, WORKSHEET_TYPE } from '../constants'
 import { Worksheet } from '../entities'
+import { DateTimeConverter } from '../utils/datetime-util'
 
 const REPORT_API_URL = config.get('reportApiUrl', 'http://localhost:8888/rest/report/show_html')
 
@@ -82,10 +73,6 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
 
   const products: Product[] = targetProducts.map((op: OrderProduct) => op.product)
   const prodType: any[] = products.map(prod => prod.type)
-
-  // sum up unloaded pack and pallet qty
-  const sumPackQty: any = targetProducts.map((op: OrderProduct) => op.actualPackQty).reduce((a, b) => a + b, 0)
-  const sumPalletQty: any = targetProducts.map((op: OrderProduct) => op.actualPalletQty).reduce((a, b) => a + b, 0)
 
   const subQueryInvHis = await getRepository(InventoryHistory)
     .createQueryBuilder('invHis')
@@ -160,6 +147,16 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
 
   const invItems: any[] = await query.getRawMany()
 
+  let sumPackQty = 0
+  if (foundJS?.sumPackQty) {
+    sumPackQty = foundJS.sumPackQty
+  }
+
+  let sumPalletQty = 0
+  if (foundJS?.sumPalletQty) {
+    sumPalletQty = foundJS.sumPalletQty
+  }
+
   const data = {
     logo_url: logo,
     customer_biz: partnerBiz.name,
@@ -174,7 +171,8 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
     mt_date: foundJS?.containerMtDate ? DateTimeConverter.date(foundJS.containerMtDate) : '',
     advise_mt_date: DateTimeConverter.date(foundJS.adviseMtDate),
     loose_item: foundGAN.looseItem ? 'Y' : 'N',
-    no_of_pallet: foundGAN.looseItem ? `${sumPackQty} CTN` : `${sumPalletQty} PALLETS`,
+    no_of_pallet:
+      (sumPalletQty > 1 ? `${sumPalletQty} PALLETS` : `${sumPalletQty} PALLET`) + `, ` + `${sumPackQty} CTN`,
     commodity: prodType.filter((a, b) => prodType.indexOf(a) === b).join(', '),
     created_on: DateTimeConverter.date(foundJS.createdAt),
     job_no: foundJS ? foundJS.name : null,
@@ -187,7 +185,7 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
         in_pallet: DateTimeConverter.date(item.createdAt),
         out_pallet: item?.outboundAt ? DateTimeConverter.date(item.outboundAt) : null,
         do_list: item.doName,
-        transport: item.ownTransport ? 'Y' : 'N',
+        transport: item?.doName ? (item.ownTransport ? 'Y' : 'N') : null,
         product_qty: item.unloadedQty,
         remark: item.vasName
       }
