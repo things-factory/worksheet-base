@@ -2,7 +2,7 @@ import { Attachment, STORAGE } from '@things-factory/attachment-base'
 import { Bizplace, Partner } from '@things-factory/biz-base'
 import { config } from '@things-factory/env'
 import { Product } from '@things-factory/product-base'
-import { ArrivalNotice, JobSheet, OrderProduct } from '@things-factory/sales-base'
+import { ArrivalNotice, JobSheet, OrderProduct, ORDER_STATUS } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory, InventoryHistory } from '@things-factory/warehouse-base'
 import FormData from 'form-data'
@@ -147,10 +147,7 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
 
   const invItems: any[] = await query.getRawMany()
 
-  let sumPackQty = 0
-  if (foundJS?.sumPackQty) {
-    sumPackQty = foundJS.sumPackQty
-  }
+  const sumPackQty = targetProducts.map((op: OrderProduct) => op.actualPackQty).reduce((a, b) => a + b, 0)
 
   let sumPalletQty = 0
   if (foundJS?.sumPalletQty) {
@@ -172,7 +169,9 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
     advise_mt_date: DateTimeConverter.date(foundJS.adviseMtDate),
     loose_item: foundGAN.looseItem ? 'Y' : 'N',
     no_of_pallet:
-      (sumPalletQty > 1 ? `${sumPalletQty} PALLETS` : `${sumPalletQty} PALLET`) + `, ` + `${sumPackQty} CTN`,
+      (sumPalletQty > 1 ? `${sumPalletQty} PALLETS` : `${sumPalletQty} PALLET`) +
+      `, ` +
+      (sumPackQty ? `${sumPackQty} CTN` : 0),
     commodity: prodType.filter((a, b) => prodType.indexOf(a) === b).join(', '),
     created_on: DateTimeConverter.date(foundJS.createdAt),
     job_no: foundJS ? foundJS.name : null,
