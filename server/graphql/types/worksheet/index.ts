@@ -321,7 +321,7 @@ export const Query = /* GraphQL */ `
     pagination: Pagination,
     sortings: [Sorting],
     locationSortingRules: [Sorting]
-  ): InventoryList @priviledge(category: "worksheet", priviledge: "query")
+  ): InventoryList @priviledge(category: "inventory", priviledge: "query")
 
   checkRepackablePallet (
     worksheetDetailName: String!
