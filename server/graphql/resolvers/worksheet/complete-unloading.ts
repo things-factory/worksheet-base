@@ -145,15 +145,28 @@ export const completeUnloading = {
         }
       })
 
-      const putawayWorksheet: Worksheet = await generatePutawayWorksheet(
-        domain,
-        arrivalNotice,
-        inventories,
-        user,
-        trxMgr
-      )
+      let foundPutawayWS: Worksheet = null
+      foundPutawayWS = await trxMgr.getRepository(Worksheet).findOne({
+        where: {
+          domain,
+          bizplace: customerBizplace,
+          status: WORKSHEET_STATUS.EXECUTING,
+          type: WORKSHEET_TYPE.PUTAWAY,
+          arrivalNotice
+        }
+      })
 
-      await activatePutaway(putawayWorksheet.name, putawayWorksheet.worksheetDetails, domain, user, trxMgr)
+      if (!foundPutawayWS) {
+        const putawayWorksheet: Worksheet = await generatePutawayWorksheet(
+          domain,
+          arrivalNotice,
+          inventories,
+          user,
+          trxMgr
+        )
+
+        await activatePutaway(putawayWorksheet.name, putawayWorksheet.worksheetDetails, domain, user, trxMgr)
+      }
 
       // notification logics
       // get Office Admin Users
