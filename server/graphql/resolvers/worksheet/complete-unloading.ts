@@ -1,5 +1,4 @@
 import { Role, User } from '@things-factory/auth-base'
-import { Bizplace } from '@things-factory/biz-base'
 import {
   ArrivalNotice,
   generateGoodsReceivalNote,
@@ -38,11 +37,11 @@ export const completeUnloading = {
        */
       if (arrivalNotice.orderProducts.some((op: OrderProduct) => op.status === ORDER_PRODUCT_STATUS.READY_TO_APPROVED))
         throw new Error(`There's non-approved order products`)
-      const customerBizplace: Bizplace = arrivalNotice.bizplace
+      const bizplace = arrivalNotice.bizplace
       let foundWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: {
           domain,
-          bizplace: customerBizplace,
+          bizplace,
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.UNLOADING,
           arrivalNotice
@@ -64,16 +63,13 @@ export const completeUnloading = {
         where: {
           domain,
           refOrderId: arrivalNotice.id,
-          bizplace: customerBizplace,
+          bizplace,
           status: INVENTORY_STATUS.PARTIALLY_UNLOADED
         }
       })
 
-      if (partiallyUnloadedCnt) {
-        throw new Error(
-          'There is partially unloaded pallet, generate release order worksheet before complete unloading.'
-        )
-      }
+      if (partiallyUnloadedCnt)
+        throw new Error('There is partially unloaded pallet, generate putaway worksheet before complete unloading.')
 
       /**
        * 3. Update worksheet detail status (EXECUTING => DONE) & issue note
@@ -117,18 +113,20 @@ export const completeUnloading = {
        * 6. Check whether every related worksheet is completed
        *    - if yes => Update Status of arrival notice
        *    - VAS doesn't affect to status of arrival notice
+       *    - Except putaway worksheet because putaway worksheet can be exist before complete unloading by partial unloading
        */
       const relatedWorksheets: Worksheet[] = await trxMgr.getRepository(Worksheet).find({
         where: {
           domain,
-          bizplace: customerBizplace,
+          bizplace,
           status: Not(Equal(WORKSHEET_STATUS.DONE)),
-          type: Not(In([WORKSHEET_TYPE.VAS])),
+          type: Not(In([WORKSHEET_TYPE.VAS, WORKSHEET_TYPE.PUTAWAY])),
           arrivalNotice
         }
       })
 
-      if (relatedWorksheets.length === 0) {
+      // If there's no related order && if status of arrival notice is not indicating putaway process
+      if (relatedWorksheets.length === 0 && arrivalNotice.status !== ORDER_STATUS.PUTTING_AWAY) {
         await trxMgr.getRepository(ArrivalNotice).save({
           ...arrivalNotice,
           status: ORDER_STATUS.READY_TO_PUTAWAY,
@@ -140,7 +138,7 @@ export const completeUnloading = {
         where: {
           domain,
           refOrderId: arrivalNotice.id,
-          bizplace: customerBizplace,
+          bizplace,
           status: INVENTORY_STATUS.UNLOADED
         }
       })
@@ -153,7 +151,10 @@ export const completeUnloading = {
         trxMgr
       )
 
-      await activatePutaway(putawayWorksheet.name, putawayWorksheet.worksheetDetails, domain, user, trxMgr)
+      // Activate it if putaway worksheet is deactivated
+      if (putawayWorksheet.status === WORKSHEET_STATUS.DEACTIVATED) {
+        await activatePutaway(putawayWorksheet.name, putawayWorksheet.worksheetDetails, domain, user, trxMgr)
+      }
 
       // notification logics
       // get Office Admin Users

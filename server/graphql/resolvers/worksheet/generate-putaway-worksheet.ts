@@ -50,6 +50,19 @@ export const generatePutawayWorksheetResolver = {
   }
 }
 
+/**
+ * @description Generate putaway worksheet if it doesn't exist
+ * and it will append new worksheet details and order inventoris based on passed inventories as param.
+ * The above appending case is occured when user complete unloading partially.
+ *
+ * @param {Domain} domain
+ * @param {ArrivalNotice} arrivalNotice
+ * @param {Inventory[]} inventories
+ * @param {User} user
+ * @param {EntityManager} trxMgr
+ *
+ * @returns {Promise<Worksheet>} putaway worksheet which is generated or existing
+ */
 export async function generatePutawayWorksheet(
   domain: Domain,
   arrivalNotice: ArrivalNotice,
@@ -90,9 +103,10 @@ export async function generatePutawayWorksheet(
     }
   })
 
-  let wsdStatus: string = WORKSHEET_STATUS.EXECUTING
+  let wsdStatus: string = WORKSHEET_STATUS.DEACTIVATED // Default status of worksheet is DEACTIVATED
+  let oiStatus: string = ORDER_PRODUCT_STATUS.UNLOADED // Default status of order inventories is UNLOADED
+
   if (!putawayWorksheet) {
-    wsdStatus = WORKSHEET_STATUS.DEACTIVATED
     putawayWorksheet = await worksheetRepo.save({
       domain,
       arrivalNotice,
@@ -104,6 +118,12 @@ export async function generatePutawayWorksheet(
       creator: user,
       updater: user
     })
+  } else {
+    // If there is putaway worksheet. It means unloading is completed partially.
+    // So status of newly created worksheet details and order inventories should be changed to
+    // Executing situation.
+    wsdStatus = WORKSHEET_STATUS.EXECUTING // Default status = EXECUTING
+    oiStatus = ORDER_PRODUCT_STATUS.PUTTING_AWAY // Default status = PUTTING_AWAY
   }
 
   await Promise.all(
@@ -118,7 +138,7 @@ export async function generatePutawayWorksheet(
         domain,
         bizplace,
         name: OrderNoGenerator.orderInventory(),
-        status: ORDER_PRODUCT_STATUS.UNLOADED,
+        status: oiStatus,
         type: ORDER_TYPES.ARRIVAL_NOTICE,
         arrivalNotice,
         inventory,
