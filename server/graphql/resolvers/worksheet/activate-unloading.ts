@@ -1,4 +1,5 @@
 import { Bizplace } from '@things-factory/biz-base'
+import { Product } from '@things-factory/product-base'
 import {
   ArrivalNotice,
   OrderNoGenerator,
@@ -7,7 +8,9 @@ import {
   ORDER_PRODUCT_STATUS,
   ORDER_STATUS,
   ORDER_TYPES,
-  ORDER_VAS_STATUS
+  ORDER_VAS_STATUS,
+  Vas,
+  VAS_TARGET_TYPES
 } from '@things-factory/sales-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -125,20 +128,42 @@ export const activateUnloading = {
           })
         }
 
-        let palletizingOrderVass: OrderVas[] = unloadingWorksheetDetails
-          .filter((worksheetDetail: any) => worksheetDetail.palletQty && worksheetDetail.palletizingDescription)
-          .map((worksheetDetail: any) => {
-            return {
-              domain: context.state.domain,
-              name: OrderNoGenerator.orderVas(),
-              arrivalNotice,
-              description: worksheetDetail.palletizingDescription,
-              batchId: worksheetDetail.batchId,
-              bizplace: customerBizplace,
-              type: ORDER_TYPES.ARRIVAL_NOTICE,
-              status: ORDER_VAS_STATUS.COMPLETED
-            }
+        const palletizingWSDs: WorksheetDetail[] | any[] = unloadingWorksheetDetails.filter(
+          (worksheetDetail: any) => worksheetDetail.palletQty && worksheetDetail.palletizingDescription
+        )
+
+        let palletizingOrderVass: OrderVas[] = []
+        for (let palletizingWSD of palletizingWSDs) {
+          const originWSD: WorksheetDetail = foundWSDs.find(
+            (foundWSD: WorksheetDetail) => foundWSD.name === palletizingWSD.name
+          )
+          const originOP: OrderProduct = await trxMgr.getRepository(OrderProduct).findOne({
+            where: { domain: context.state.domzin, id: originWSD.targetProduct.id },
+            relations: ['product']
           })
+          const targetBatchId: string = originOP.batchId
+          const targetProduct: Product = originOP.targetProduct
+          const packingType: string = originOP.packingType
+          const vas: Vas = await trxMgr.getRepository(Vas).findOne({
+            where: { domain: context.state.domain, id: palletizingWSD.palletizingVasId }
+          })
+
+          palletizingOrderVass.push({
+            domain: context.state.domain,
+            name: OrderNoGenerator.orderVas(),
+            arrivalNotice,
+            vas,
+            targetType: VAS_TARGET_TYPES.BATCH_AND_PRODUCT_TYPE,
+            targetBatchId,
+            targetProduct,
+            packingType,
+            description: palletizingWSD.palletizingDescription,
+            batchId: palletizingWSD.batchId,
+            bizplace: customerBizplace,
+            type: ORDER_TYPES.ARRIVAL_NOTICE,
+            status: ORDER_VAS_STATUS.COMPLETED
+          })
+        }
 
         palletizingOrderVass = await trxMgr.getRepository(OrderVas).save(palletizingOrderVass)
 
