@@ -127,20 +127,5 @@ export async function activatePutaway(
     updater: user
   })
 
-  /**
-   * @description
-   * if current status is READY_TO_PUTAWAY
-   * 5. Update Arrival Notice (status: READY_TO_PUTAWAY => PUTTING_AWAY)
-   * because of partial unloading, there's a case that unloading is not completely finished yet.
-   * so it's needed to update when status of arrival notice equals READY_TO_PUTAWAY which means unloading is completely finished.
-   */
-  const arrivalNotice: ArrivalNotice = foundWorksheet.arrivalNotice
-  if (arrivalNotice.status === ORDER_STATUS.READY_TO_PUTAWAY) {
-    await ganRepo.save({
-      ...arrivalNotice,
-      status: ORDER_STATUS.PUTTING_AWAY,
-      updater: user
-    })
-  }
   return worksheet
 }

@@ -23,7 +23,7 @@ export const completeUnloading = {
        */
       const domain: Domain = context.state.domain
       const user: User = context.state.user
-      const arrivalNotice: ArrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({
+      let arrivalNotice: ArrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({
         where: { domain, name: arrivalNoticeNo, status: ORDER_STATUS.PROCESSING },
         relations: ['bizplace', 'orderProducts']
       })
@@ -155,6 +155,12 @@ export const completeUnloading = {
       if (putawayWorksheet.status === WORKSHEET_STATUS.DEACTIVATED) {
         await activatePutaway(putawayWorksheet.name, putawayWorksheet.worksheetDetails, domain, user, trxMgr)
       }
+
+      // Update status of arrival notice to PUTTING_AWAY
+      arrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({ where: { domain, id: arrivalNotice.id } })
+      arrivalNotice.status = ORDER_STATUS.PUTTING_AWAY
+      arrivalNotice.updater = user
+      await trxMgr.getRepository(ArrivalNotice).save(arrivalNotice)
 
       // notification logics
       // get Office Admin Users
