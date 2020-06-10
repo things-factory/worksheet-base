@@ -94,6 +94,25 @@ export async function executePicking(
     updater: user
   })
 
+  // No more item for the pallet => TERMINATE inventory
+  if (leftQty === 0) {
+    inventory = await trxMgr.getRepository(Inventory).save({
+      ...inventory,
+      status: INVENTORY_STATUS.TERMINATED,
+      updater: user
+    })
+
+    await generateInventoryHistory(
+      inventory,
+      worksheetDetail.worksheet.releaseGood,
+      INVENTORY_TRANSACTION_TYPE.TERMINATED,
+      0,
+      0,
+      user,
+      trxMgr
+    )
+  }
+
   const fromLocation: Location = worksheetDetail.targetInventory.inventory.location
 
   if (locationName) {
@@ -124,29 +143,7 @@ export async function executePicking(
         trxMgr
       )
 
-      // Check fromLocation cause pallet is relocated.
-      await switchLocationStatus(domain, toLocation, user, trxMgr)
+      await switchLocationStatus(domain, fromLocation, user, trxMgr)
     }
-  } else {
-    await switchLocationStatus(domain, fromLocation, user, trxMgr)
-  }
-
-  // No more item for the pallet => TERMINATE inventory
-  if (leftQty === 0) {
-    inventory = await trxMgr.getRepository(Inventory).save({
-      ...inventory,
-      status: INVENTORY_STATUS.TERMINATED,
-      updater: user
-    })
-
-    await generateInventoryHistory(
-      inventory,
-      worksheetDetail.worksheet.releaseGood,
-      INVENTORY_TRANSACTION_TYPE.TERMINATED,
-      0,
-      0,
-      user,
-      trxMgr
-    )
   }
 }

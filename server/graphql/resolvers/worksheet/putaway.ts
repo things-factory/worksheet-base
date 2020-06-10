@@ -4,7 +4,6 @@ import {
   INVENTORY_STATUS,
   INVENTORY_TRANSACTION_TYPE,
   Location,
-  LOCATION_STATUS,
   LOCATION_TYPE
 } from '@things-factory/warehouse-base'
 import { getManager, In } from 'typeorm'
@@ -54,15 +53,6 @@ export const putaway = {
         zone: location.warehouse.zone,
         updater: context.state.user
       })
-
-      // 4. 1) Update status of location
-      if (location.status === LOCATION_STATUS.EMPTY) {
-        await trxMgr.getRepository(Location).save({
-          ...location,
-          status: LOCATION_STATUS.OCCUPIED,
-          updater: context.state.user
-        })
-      }
 
       // 5. add inventory history
       await generateInventoryHistory(
