@@ -3,7 +3,7 @@ import { Inventory, INVENTORY_STATUS, INVENTORY_TRANSACTION_TYPE, Location } fro
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { generateInventoryHistory, switchLocationStatus } from '../../../utils'
+import { generateInventoryHistory } from '../../../utils'
 
 export const returning = {
   async returning(_: any, { worksheetDetailName, palletId, toLocation }, context: any) {
@@ -86,9 +86,6 @@ export const returning = {
         context.state.user,
         trxMgr
       )
-
-      // 6. update status of location
-      await switchLocationStatus(context.state.domain, foundLocation, context.state.user, trxMgr)
 
       // 7. update status of order inventory
       await trxMgr.getRepository(OrderInventory).save({

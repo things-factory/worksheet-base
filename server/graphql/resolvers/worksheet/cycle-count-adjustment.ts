@@ -1,16 +1,15 @@
 import { InventoryCheck, OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import {
   Inventory,
-  Location,
-  Warehouse,
   INVENTORY_STATUS,
   INVENTORY_TRANSACTION_TYPE,
-  LOCATION_STATUS
+  Location,
+  Warehouse
 } from '@things-factory/warehouse-base'
 import { getManager, In } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
-import { generateInventoryHistory } from '../../../utils'
+import { generateInventoryHistory, switchLocationStatus } from '../../../utils'
 
 export const cycleCountAdjustment = {
   async cycleCountAdjustment(_: any, { cycleCountNo, cycleCountWorksheetDetails }, context: any) {
@@ -70,15 +69,6 @@ export const cycleCountAdjustment = {
           })
 
           if (foundOI.inspectedQty == 0) {
-            if (!allocatedItemCnt) {
-              // if no inventory in the location and no qty, set status to EMPTY
-              await trxMgr.getRepository(Location).save({
-                ...inventory.location,
-                status: LOCATION_STATUS.EMPTY,
-                updater: context.state.user
-              })
-            }
-
             // create inventory history
             await generateInventoryHistory(
               inventory,
@@ -116,20 +106,12 @@ export const cycleCountAdjustment = {
             if (inventory.location.name !== foundInspectedLoc.name) {
               if (!prevLocItemCnt) {
                 // if no inventory at previous location, set status to empty
-                await trxMgr.getRepository(Location).save({
-                  ...inventory.location,
-                  status: LOCATION_STATUS.EMPTY,
-                  updater: context.state.user
-                })
+                await switchLocationStatus(context.state.domain, inventory.location, context.state.user, trxMgr)
               }
 
               if (!allocatedItemCnt) {
                 // if no inventory, set status to stored
-                await trxMgr.getRepository(Location).save({
-                  ...foundInspectedLoc,
-                  status: LOCATION_STATUS.STORED,
-                  updater: context.state.user
-                })
+                await switchLocationStatus(context.state.domain, foundInspectedLoc, context.state.user, trxMgr)
               }
             }
 
