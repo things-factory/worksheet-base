@@ -4,7 +4,7 @@ import { activatePicking } from './activate-picking'
 import { activatePutawayResolver } from './activate-putaway'
 import { activateReturnResolver } from './activate-return'
 import { activateUnloading } from './activate-unloading'
-import { activateVas } from './activate-vas'
+import { activateVasResolver } from './activate-vas'
 import { assignVasInventoriesResolver } from './assign-vas-inventories'
 import { completeInspection } from './complete-inspection'
 import { completeLoading } from './complete-loading'
@@ -97,7 +97,7 @@ export const Mutation = {
   ...activatePutawayResolver,
   ...activateLoadingResolver,
   ...activateReturnResolver,
-  ...activateVas,
+  ...activateVasResolver,
   ...activatePicking,
   ...activateCycleCount,
   ...completeInspection,

@@ -16,6 +16,7 @@ import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils'
+import { activateVas } from './activate-vas'
 
 export const activateUnloading = {
   async activateUnloading(_: any, { worksheetNo, unloadingWorksheetDetails }, context: any) {
@@ -102,6 +103,27 @@ export const activateUnloading = {
        *  - 5. 2) Append new vas worksheet details
        */
 
+      let relatedVasWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+        where: { domain: context.state.domain, arrivalNotice, type: WORKSHEET_TYPE.VAS },
+        relations: ['worksheetDetails']
+      })
+
+      /**
+       * Activate VAS worksheet if it's exists
+       * It means that there are VAS which is requested from customer side.
+       *
+       * VAS should be completed within unloading step warehouse manager doesn't need to activate it manually.
+       */
+      if (relatedVasWorksheet) {
+        await activateVas(
+          trxMgr,
+          context.state.domain,
+          context.state.user,
+          relatedVasWorksheet.name,
+          relatedVasWorksheet.worksheetDetails
+        )
+      }
+
       // Check there's some pallet qty and palletizingDescription => need to create vas worksheet
       if (
         unloadingWorksheetDetails.some(
@@ -109,10 +131,6 @@ export const activateUnloading = {
         )
       ) {
         // Check if there's VAS worksheet which is related with current arrival notice order.
-        let relatedVasWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-          where: { domain: context.state.domain, arrivalNotice, type: WORKSHEET_TYPE.VAS }
-        })
-
         if (!relatedVasWorksheet) {
           relatedVasWorksheet = await trxMgr.getRepository(Worksheet).save({
             domain: context.state.domain,
@@ -138,11 +156,11 @@ export const activateUnloading = {
             (foundWSD: WorksheetDetail) => foundWSD.name === palletizingWSD.name
           )
           const originOP: OrderProduct = await trxMgr.getRepository(OrderProduct).findOne({
-            where: { domain: context.state.domzin, id: originWSD.targetProduct.id },
+            where: { domain: context.state.domain, id: originWSD.targetProduct.id },
             relations: ['product']
           })
           const targetBatchId: string = originOP.batchId
-          const targetProduct: Product = originOP.targetProduct
+          const targetProduct: Product = originOP.product
           const packingType: string = originOP.packingType
           const vas: Vas = await trxMgr.getRepository(Vas).findOne({
             where: { domain: context.state.domain, id: palletizingWSD.palletizingVasId }
@@ -186,7 +204,7 @@ export const activateUnloading = {
       }
 
       /**
-       * 5. Update Worksheet (status: DEACTIVATED => EXECUTING)
+       * 6. Update Worksheet (status: DEACTIVATED => EXECUTING)
        */
       return await trxMgr.getRepository(Worksheet).save({
         ...foundWorksheet,
