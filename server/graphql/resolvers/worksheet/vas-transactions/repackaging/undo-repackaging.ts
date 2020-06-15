@@ -6,7 +6,7 @@ import { EntityManager, getManager } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
 import { OperationGuideInterface, RepackagingGuide, RepackedInvInfo } from '../intefaces'
 
-export const undoRepackaging = {
+export const undoRepackagingResolver = {
   async undoRepackaging(_: any, { worksheetDetailName, palletId }, context: any) {
     return await getManager().transaction(async (trxMgr: EntityManager) => {
       /**

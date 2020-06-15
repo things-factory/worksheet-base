@@ -57,7 +57,7 @@ import {
   checkRepackablePalletResolver,
   repackagingResolver,
   repalletizingResolver,
-  undoRepackaging,
+  undoRepackagingResolver,
   undoRepalletizingResolver
 } from './vas-transactions'
 import { vasWorksheetResolver } from './vas-worksheet'
@@ -129,6 +129,6 @@ export const Mutation = {
   ...repalletizingResolver,
   ...undoRepalletizingResolver,
   ...repackagingResolver,
-  ...undoRepackaging,
+  ...undoRepackagingResolver,
   ...undoPickingAssigmentResolver
 }
