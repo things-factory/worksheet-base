@@ -3,7 +3,6 @@ import { Bizplace } from '@things-factory/biz-base'
 import { OrderVas } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
-import { WORKSHEET_TYPE } from '../../../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
 import { OperationGuideInterface, RepalletizedInvInfo, RepalletizingGuide } from '../intefaces'
 

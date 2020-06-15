@@ -21,15 +21,8 @@ import {
 import { EntityManager } from 'typeorm'
 import { WORKSHEET_TYPE } from '../../../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
-import { checkPalletDuplication, generateInventoryHistory, WorksheetNoGenerator } from '../../../../../utils'
-import {
-  OperationGuideInterface,
-  PackingUnits,
-  RefOrderType,
-  RepackagingGuide,
-  RepackedFrom,
-  RepackedInvInfo
-} from '../intefaces'
+import { generateInventoryHistory, WorksheetNoGenerator } from '../../../../../utils'
+import { OperationGuideInterface, RefOrderType, RepackagingGuide, RepackedFrom, RepackedInvInfo } from '../intefaces'
 
 export async function completeRepackaging(trxMgr: EntityManager, orderVas: OrderVas, user: User): Promise<void> {
   orderVas = await trxMgr.getRepository(OrderVas).findOne(orderVas.id, {
