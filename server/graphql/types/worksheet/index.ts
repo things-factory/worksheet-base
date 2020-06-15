@@ -258,7 +258,7 @@ export const Mutation = /* GraphQL */ `
     batchId: String!
     productName: String!
     packingType: String!
-  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+  ): Boolean @priviledge(category: "worksheet_control", priviledge: "mutation")
 `
 
 export const Query = /* GraphQL */ `
