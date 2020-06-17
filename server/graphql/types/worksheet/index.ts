@@ -219,14 +219,15 @@ export const Mutation = /* GraphQL */ `
 
   repackaging (
     worksheetDetailName: String!
-    fromPalletIds: [String]!
-    palletId: String!
+    fromPalletId: String!
+    toPalletId: String!
     locationName: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   undoRepackaging (
     worksheetDetailName: String!
-    palletId: String!
+    fromPalletId: String!
+    toPalletId: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   proceedExtraProducts (
@@ -323,12 +324,6 @@ export const Query = /* GraphQL */ `
     sortings: [Sorting],
     locationSortingRules: [Sorting]
   ): InventoryList @priviledge(category: "inventory", priviledge: "query")
-
-  checkRepackablePallet (
-    worksheetDetailName: String!
-    palletId: String!
-  ): Inventory @priviledge(category: "worksheet", priviledge: "query")
-
 `
 
 export const Types = /* GraphQL */ [

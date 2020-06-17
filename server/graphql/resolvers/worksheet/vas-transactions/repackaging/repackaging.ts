@@ -3,7 +3,7 @@ import { Bizplace } from '@things-factory/biz-base'
 import { OrderInventory, OrderVas, ORDER_TYPES, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory, Location, Warehouse } from '@things-factory/warehouse-base'
-import { EntityManager, getManager } from 'typeorm'
+import { EntityManager, getManager, Not, Equal } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
 import { executeVas } from '../../execute-vas'
 import {
@@ -16,7 +16,7 @@ import {
 } from '../intefaces'
 
 export const repackagingResolver = {
-  async repackaging(_: any, { worksheetDetailName, fromPalletIds, palletId, locationName }, context: any) {
+  async repackaging(_: any, { worksheetDetailName, fromPalletId, toPalletId, locationName }, context: any) {
     return await getManager().transaction(async (trxMgr: EntityManager) => {
       /**
        * Initialize required variables
@@ -50,7 +50,7 @@ export const repackagingResolver = {
       })
       const warehouse: Warehouse = location.warehouse
       // Update operation guide data for every related repalletizing vas
-      const operationGuide: OperationGuideInterface<RepackagingGuide> = JSON.parse(targetVas.operationGuide)
+      let operationGuide: OperationGuideInterface<RepackagingGuide> = JSON.parse(targetVas.operationGuide)
       let operationGuideData: RepackagingGuide = operationGuide.data
       if (!operationGuideData.repackedInvs) operationGuideData.repackedInvs = []
 
@@ -73,148 +73,174 @@ export const repackagingResolver = {
       if (!location) throw new Error(`Couldn't find location by its name (${locationName})`)
       if (!warehouse) throw new Error(`Location (name: ${locationName}) doesn't have any relation with warehouse`)
 
-      let repackedQty: number = 0
-      let repackedWeight: number = 0
+      const { reducedQty, reducedWeight } = getReducedAmountByRepack(fromPalletId, operationGuideData.repackedInvs)
+      const { remainQty, remainWeight } = await getRemainInventoryAmount(
+        trxMgr,
+        refOrder,
+        domain,
+        bizplace,
+        originInv,
+        reducedQty,
+        reducedWeight
+      )
 
-      let repackedInv: RepackedInvInfo = {
-        palletId,
-        locationName,
-        repackedPkgQty: 1,
-        repackedFrom: []
+      if (remainQty <= 0 || remainWeight <= 0) {
+        throw new Error(`There's no more remaining product on the pallet (${fromPalletId})`)
       }
+      const unitWeight: number = remainWeight / remainQty
+      let repackedInv: RepackedInvInfo = getRepackedInv(operationGuideData, toPalletId, locationName)
 
-      for (const fromPalletId of fromPalletIds) {
-        const { reducedQty, reducedWeight } = getReducedAmount(fromPalletId, operationGuideData.repackedInvs)
-        const { remainQty, remainWeight } = await getRemainInventoryAmount(
-          trxMgr,
-          refOrder,
-          domain,
-          bizplace,
-          originInv,
-          reducedQty,
-          reducedWeight
-        )
-        const unitWeight: number = await getUnitWeight(trxMgr, refOrder, domain, bizplace, originInv)
-        let repackedFrom: RepackedFrom = {
+      const packingUnit: string = operationGuideData.packingUnit
+      const stdAmount: number = operationGuideData.stdAmount
+
+      let isCompleted: boolean = false // Flag for calling executeVas function to change status of worksheet detail
+      if (packingUnit === PackingUnits.QTY) {
+        // 현재 from pallet의 유효 수량이 기준 수량을 넘어서는 경우 기준 수량이 감소 수량과 동일
+        // 현재 from pallet의 유효 수량이 기준 수량 보다 적을 경우 남은 수량이 감소 수량과 동일
+        const reducedQty: number = remainQty >= stdAmount ? stdAmount : remainQty
+        const repackedFrom: RepackedFrom = {
           fromPalletId,
-          toPalletId: palletId,
-          reducedQty: 0,
-          reducedWeight: 0
-        }
-
-        if (operationGuideData.packingUnit === PackingUnits.QTY) {
-          // 기준 수량 보다 남은 수량이 적을 경우 남은 수량 전체를 Repack하고 다음 pallet에서 잔여 수량을 차감함
-          if (remainQty < operationGuideData.stdAmount - repackedQty) {
-            repackedFrom.reducedQty = remainQty
-            repackedFrom.reducedWeight = remainQty * unitWeight
-
-            repackedQty += remainQty
-            repackedWeight += remainQty * unitWeight
-          } else {
-            // 기준 수량 보다 남은 수량이 많거나 같을 경우 기준 수량과 동일한 양의 수량으로 Repack을 수행함
-            repackedFrom.reducedQty = operationGuideData.stdAmount - repackedQty
-            repackedFrom.reducedWeight = (operationGuideData.stdAmount - repackedQty) * unitWeight
-
-            repackedQty += operationGuideData.stdAmount - repackedQty
-            repackedWeight += (operationGuideData.stdAmount - repackedQty) * unitWeight
-          }
-        } else if (operationGuideData.packingUnit === PackingUnits.WEIGHT) {
-          // 기준 중량 보다 남은 중량이 적을 경우 남은 중량 전체를 Repack하고 다음 pallet에서 잔여 수량을 차감함
-          if (remainWeight < operationGuideData.stdAmount - repackedWeight) {
-            repackedFrom.reducedWeight = remainWeight
-            repackedFrom.reducedQty = remainWeight / unitWeight
-
-            repackedWeight += remainWeight
-            repackedQty += remainWeight / unitWeight
-          } else {
-            // 기준 중량 보다 남은 중량이 많거나 같을 경우 기준 중량과 동일한 양의 수량으로 Repack을 수행함
-            repackedFrom.reducedWeight = operationGuideData.stdAmount - repackedWeight
-            repackedFrom.reducedQty = (operationGuideData.stdAmount - repackedWeight) / unitWeight
-
-            repackedWeight += operationGuideData.stdAmount - repackedWeight
-            repackedQty += (operationGuideData.stdAmount - repackedWeight) / unitWeight
-          }
+          toPalletId,
+          reducedQty,
+          reducedWeight: reducedQty * unitWeight
         }
 
         repackedInv.repackedFrom.push(repackedFrom)
+        const totalPackedQty: number = repackedInv.repackedFrom.reduce(
+          (qty: number, rf: RepackedFrom) => (qty += rf.reducedQty),
+          0
+        )
+        repackedInv.repackedPkgQty = totalPackedQty / stdAmount
+        isCompleted = remainQty <= stdAmount
+      } else if (packingUnit === PackingUnits.WEIGHT) {
+        const reducedWeight: number = remainWeight >= stdAmount ? stdAmount : remainWeight
+        const repackedFrom: RepackedFrom = {
+          fromPalletId,
+          toPalletId,
+          reducedWeight,
+          reducedQty: reducedWeight / unitWeight
+        }
+
+        repackedInv.repackedFrom.push(repackedFrom)
+        const totalPackedWeight: number = repackedInv.repackedFrom.reduce(
+          (weight: number, rf: RepackedFrom) => (weight += rf.reducedWeight),
+          0
+        )
+        repackedInv.repackedPkgQty = totalPackedWeight / stdAmount
+        isCompleted = remainWeight <= stdAmount
       }
 
-      // Update operation guide data for whole related order vas
+      const requiredPackageQty: number = await getRequiredPackageQty(
+        trxMgr,
+        domain,
+        bizplace,
+        wsd.worksheet,
+        packingUnit,
+        stdAmount
+      )
+      const repackedPackageQty: number = getRepackedPackageQty(operationGuideData.repackedInvs)
+
+      operationGuide.data = {
+        packingUnit: operationGuideData.packingUnit,
+        toPackingType: operationGuideData.toPackingType,
+        stdAmount: operationGuideData.stdAmount,
+        requiredPackageQty: requiredPackageQty - repackedPackageQty,
+        repackedInvs: operationGuideData.repackedInvs
+      }
+
+      // Update every order vas to share same operation guide
       const worksheet: Worksheet = wsd.worksheet
-      let relatedWSDs: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
+      const relatedWSDs: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
         where: { domain, bizplace, worksheet },
         relations: ['targetVas', 'targetVas.vas']
       })
-      relatedWSDs = relatedWSDs.filter(
-        (wsd: WorksheetDetail) => wsd.targetVas.set === targetVas.set && wsd.targetVas.vas.id === targetVas.vas.id
-      )
 
-      let isCompleted: boolean = false
       const relatedOVs: OrderVas[] = relatedWSDs
         .map((wsd: WorksheetDetail) => wsd.targetVas)
+        .filter((ov: OrderVas) => ov.set === targetVas.set && ov.vas.id === targetVas.vas.id)
         .map((ov: OrderVas) => {
-          let repackedInvs: RepackedInvInfo[] = []
-
-          // 이전 작업에서 생성된 pallet에 package를 추가 하는지 확인
-          const isExsistingPallet: boolean = Boolean(
-            operationGuideData.repackedInvs.find(
-              (originRepackedInv: RepackedInvInfo) => originRepackedInv.palletId === repackedInv.palletId
-            )
-          )
-
-          if (isExsistingPallet) {
-            // 이전 작업에 생성된 pallet에 package를 추가하는 경우
-            repackedInvs = operationGuideData.repackedInvs.map((originRepackedInv: RepackedInvInfo) => {
-              if (originRepackedInv.palletId === repackedInv.palletId) {
-                originRepackedInv = {
-                  ...originRepackedInv,
-                  ...repackedInv,
-                  repackedPkgQty: originRepackedInv.repackedPkgQty + repackedInv.repackedPkgQty,
-                  repackedFrom: [...originRepackedInv.repackedFrom, ...repackedInv.repackedFrom]
-                }
-              }
-              return originRepackedInv
-            })
-          } else {
-            // 현재 작업을 통해 새롭게 pallet이 추가되는 경우
-            repackedInvs = [...operationGuideData.repackedInvs, repackedInv]
-          }
-          const updatedOperationGuideData: RepackagingGuide = {
-            packingUnit: operationGuideData.packingUnit,
-            toPackingType: operationGuideData.toPackingType,
-            stdAmount: operationGuideData.stdAmount,
-            requiredPackageQty: operationGuideData.requiredPackageQty - 1,
-            repackedInvs
-          }
-
-          isCompleted = !Boolean(updatedOperationGuideData.requiredPackageQty)
-
           return {
             ...ov,
-            operationGuide: JSON.stringify({
-              ...operationGuide,
-              data: updatedOperationGuideData,
-              completed: isCompleted
-            })
+            operationGuide: JSON.stringify(operationGuide),
+            updater: user
           }
         })
 
       await trxMgr.getRepository(OrderVas).save(relatedOVs)
 
       if (isCompleted) {
-        await Promise.all(relatedWSDs.map(async (wsd: WorksheetDetail) => await executeVas(trxMgr, wsd, domain, user)))
+        await executeVas(trxMgr, wsd, domain, user)
       }
     })
   }
 }
 
+function getRepackedPackageQty(repackedInvs: RepackedInvInfo[]): number {
+  return repackedInvs.reduce((repackedPkgQty: number, ri: RepackedInvInfo) => (repackedPkgQty += ri.repackedPkgQty), 0)
+}
+
+async function getRequiredPackageQty(
+  trxMgr: EntityManager,
+  domain: Domain,
+  bizplace: Bizplace,
+  worksheet: Worksheet,
+  packingUnit: string,
+  stdAmount: number
+): Promise<number> {
+  const relatedWSDs: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
+    where: { domain, bizplace, worksheet },
+    relations: ['targetVas', 'targetVas.vas']
+  })
+
+  const orderVASs: OrderVas[] = relatedWSDs.map((wsd: WorksheetDetail) => wsd.targetVas)
+  const { qty, weight } = orderVASs.reduce(
+    (total: { qty: number; weight: number }, ov: OrderVas) => {
+      total.qty += ov.qty
+      total.weight += ov.weight
+
+      return total
+    },
+    { qty: 0, weight: 0 }
+  )
+
+  if (packingUnit === PackingUnits.QTY) {
+    return qty / stdAmount
+  } else if (packingUnit === PackingUnits.WEIGHT) {
+    return weight / stdAmount
+  }
+}
+
 /**
- * @description Loop through whole repacked to return reduced sum of qty and weight
- * from information which is describing any changes about qty and weight of inventory ord order inventories (for R.O case)
+ * @description 전달받은 pallet 아이디와 동일한 repacked 된 pallet을 찾아 return
+ * 이미 처리된 pallet이 없을 경우 새로운 object를 생성하고 return 함
+ *
+ * @param operationGuideData
+ * @param palletId
+ */
+function getRepackedInv(operationGuideData: RepackagingGuide, palletId: string, locationName: string): RepackedInvInfo {
+  let repackedInv: RepackedInvInfo = operationGuideData.repackedInvs.find(
+    (ri: RepackedInvInfo) => ri.palletId === palletId
+  )
+  if (!repackedInv) {
+    repackedInv = {
+      palletId,
+      locationName,
+      repackedPkgQty: 0,
+      repackedFrom: []
+    }
+    operationGuideData.repackedInvs.push(repackedInv)
+  }
+
+  return repackedInv
+}
+
+/**
+ * @description Loop through whole repacked to return total reduced amount
+ * from information which is describing any changes about qty and weight of inventory or order inventories (for R.O case)
  * @param palletId
  * @param repackedInvs
  */
-function getReducedAmount(
+function getReducedAmountByRepack(
   palletId: string,
   repackedInvs: RepackedInvInfo[]
 ): { reducedQty: number; reducedWeight: number } {
@@ -259,25 +285,4 @@ async function getRemainInventoryAmount(
     remainWeight = originInv.weight - reducedWeight
   }
   return { remainQty, remainWeight }
-}
-
-async function getUnitWeight(
-  trxMgr: EntityManager,
-  refOrder: RefOrderType,
-  domain: Domain,
-  bizplace: Bizplace,
-  originInv: Inventory
-): Promise<number> {
-  let unitWeight: number
-
-  if (refOrder instanceof ReleaseGood) {
-    // Find loading order inventory to figure out unit weight
-    const orderInv: OrderInventory = await trxMgr.getRepository(OrderInventory).findOne({
-      where: { domain, bizplace, inventory: originInv, releaseGood: refOrder, type: ORDER_TYPES.RELEASE_OF_GOODS }
-    })
-    unitWeight = orderInv.releaseWeight / orderInv.releaseQty
-  } else {
-    unitWeight = originInv.weight / originInv.qty
-  }
-  return unitWeight
 }

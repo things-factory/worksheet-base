@@ -4,10 +4,10 @@ import { OrderVas } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
-import { OperationGuideInterface, RepackagingGuide, RepackedInvInfo } from '../intefaces'
+import { OperationGuideInterface, PackingUnits, RepackagingGuide, RepackedFrom, RepackedInvInfo } from '../intefaces'
 
 export const undoRepackagingResolver = {
-  async undoRepackaging(_: any, { worksheetDetailName, palletId }, context: any) {
+  async undoRepackaging(_: any, { worksheetDetailName, fromPalletId, toPalletId }, context: any) {
     return await getManager().transaction(async (trxMgr: EntityManager) => {
       /**
        * Initialize required variables
@@ -37,71 +37,111 @@ export const undoRepackagingResolver = {
       let operationGuide: OperationGuideInterface<RepackagingGuide> = JSON.parse(targetVas.operationGuide)
       let operationGuideData: RepackagingGuide = operationGuide.data
       let repackedInvs: RepackedInvInfo[] = operationGuideData.repackedInvs
-      const undoInventory: RepackedInvInfo = repackedInvs.find((inv: RepackedInvInfo) => inv.palletId === palletId)
-      if (!undoInventory) throw new Error(`Couldn't find pallet, using pallet id (${palletId})`)
+      let undoInventory: RepackedInvInfo = repackedInvs.find((ri: RepackedInvInfo) => ri.palletId === toPalletId)
+      if (!undoInventory) throw new Error(`Couldn't find pallet, using pallet id (${toPalletId})`)
       // Filter out pallet which has same pallet ID with parameter
-      repackedInvs = repackedInvs.filter((inv: RepackedInvInfo) => inv.palletId !== palletId)
 
+      const packingUnit: string = operationGuideData.packingUnit
+      const stdAmount: number = operationGuideData.stdAmount
+
+      undoInventory.repackedFrom = undoInventory.repackedFrom.filter(
+        (rf: RepackedFrom) => rf.fromPalletId !== fromPalletId
+      )
+
+      // 완전히 Repacked 상태인 pallet count
+      const repackedPkgQty: number = undoInventory.repackedFrom.filter((rf: RepackedFrom) => {
+        const amount: number = packingUnit === PackingUnits.QTY ? rf.reducedQty : rf.reducedWeight
+        return amount === stdAmount
+      }).length
+
+      // Undo를 발생한 수량 차이를 계산
+      undoInventory.repackedPkgQty = repackedPkgQty
+
+      // Pallet 전체가 취소된 경우
+      let updatedRepackedInvs: RepackedInvInfo[]
+      if (!undoInventory.repackedPkgQty) {
+        updatedRepackedInvs = repackedInvs.filter((ri: RepackedInvInfo) => ri.palletId !== toPalletId)
+      } else {
+        updatedRepackedInvs = repackedInvs.map((ri: RepackedInvInfo) => {
+          if (ri.palletId === toPalletId) {
+            ri = undoInventory
+          }
+          return ri
+        })
+      }
+
+      const requiredPackageQty: number = await getRequiredPackageQty(
+        trxMgr,
+        domain,
+        bizplace,
+        wsd.worksheet,
+        packingUnit,
+        stdAmount
+      )
+      const repackedPackageQty: number = getRepackedPackageQty(updatedRepackedInvs)
+
+      operationGuide.data = {
+        packingUnit: operationGuideData.packingUnit,
+        toPackingType: operationGuideData.toPackingType,
+        stdAmount: operationGuideData.stdAmount,
+        requiredPackageQty: requiredPackageQty - repackedPackageQty,
+        repackedInvs: updatedRepackedInvs
+      }
+
+      // Update every order vas to share same operation guide
       const worksheet: Worksheet = wsd.worksheet
       const relatedWSDs: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
         where: { domain, bizplace, worksheet },
         relations: ['targetVas', 'targetVas.vas']
       })
 
-      const requiredPackageQty: number = operationGuideData.requiredPackageQty + undoInventory.repackedPkgQty
-
-      // Update related order vas
-      const relatedOrderVass: OrderVas[] = relatedWSDs
+      const relatedOVs: OrderVas[] = relatedWSDs
         .map((wsd: WorksheetDetail) => wsd.targetVas)
-        .filter((ov: OrderVas) => ov.id !== targetVas.id && ov.set === targetVas.set && ov.vas.id === targetVas.vas.id)
+        .filter((ov: OrderVas) => ov.set === targetVas.set && ov.vas.id === targetVas.vas.id)
         .map((ov: OrderVas) => {
-          ov.operationGuide = JSON.parse(ov.operationGuide)
-          const refOperationGuideData: RepackagingGuide = {
-            packingUnit: ov.operationGuide.data.packingUnit,
-            toPackingType: ov.operationGuide.data.toPackingType,
-            stdAmount: ov.operationGuide.data.stdAmount,
-            repackedInvs: ov.operationGuide.data.repackedInvs,
-            requiredPackageQty
-          }
-
-          delete ov.operationGuide.data
-
-          const refOperationGuide: OperationGuideInterface<RepackagingGuide> = {
-            ...ov.operationGuide,
-            data: refOperationGuideData,
-            completed: !Boolean(requiredPackageQty)
-          }
-
           return {
             ...ov,
-            operationGuide: JSON.stringify(refOperationGuide),
+            operationGuide: JSON.stringify(operationGuide),
             updater: user
           }
         })
 
-      await trxMgr.getRepository(OrderVas).save(relatedOrderVass)
-
-      // Update current order vas
-      const currentOperationGuideData: RepackagingGuide = {
-        packingUnit: operationGuideData.packingUnit,
-        toPackingType: operationGuideData.toPackingType,
-        stdAmount: operationGuideData.stdAmount,
-        requiredPackageQty,
-        repackedInvs
-      }
-      delete operationGuide.data
-
-      const currentOperationGuide: OperationGuideInterface<RepackagingGuide> = {
-        ...operationGuide,
-        data: currentOperationGuideData,
-        completed: !Boolean(requiredPackageQty)
-      }
-
-      await trxMgr.getRepository(OrderVas).save({
-        ...targetVas,
-        operationGuide: JSON.stringify(currentOperationGuide),
-        updater: user
-      })
+      await trxMgr.getRepository(OrderVas).save(relatedOVs)
     })
+  }
+}
+
+function getRepackedPackageQty(repackedInvs: RepackedInvInfo[]): number {
+  return repackedInvs.reduce((repackedPkgQty: number, ri: RepackedInvInfo) => (repackedPkgQty += ri.repackedPkgQty), 0)
+}
+
+async function getRequiredPackageQty(
+  trxMgr: EntityManager,
+  domain: Domain,
+  bizplace: Bizplace,
+  worksheet: Worksheet,
+  packingUnit: string,
+  stdAmount: number
+): Promise<number> {
+  const relatedWSDs: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
+    where: { domain, bizplace, worksheet },
+    relations: ['targetVas', 'targetVas.vas']
+  })
+
+  const orderVASs: OrderVas[] = relatedWSDs.map((wsd: WorksheetDetail) => wsd.targetVas)
+  const { qty, weight } = orderVASs.reduce(
+    (total: { qty: number; weight: number }, ov: OrderVas) => {
+      total.qty += ov.qty
+      total.weight += ov.weight
+
+      return total
+    },
+    { qty: 0, weight: 0 }
+  )
+
+  if (packingUnit === PackingUnits.QTY) {
+    return qty / stdAmount
+  } else if (packingUnit === PackingUnits.WEIGHT) {
+    return weight / stdAmount
   }
 }
