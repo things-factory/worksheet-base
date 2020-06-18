@@ -1,10 +1,18 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { OrderInventory, OrderVas, ORDER_TYPES, ReleaseGood } from '@things-factory/sales-base'
+import {
+  ArrivalNotice,
+  OrderInventory,
+  OrderNoGenerator,
+  OrderVas,
+  ORDER_TYPES,
+  ReleaseGood
+} from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory, Location, Warehouse } from '@things-factory/warehouse-base'
-import { EntityManager, getManager, Not, Equal } from 'typeorm'
+import { EntityManager, getManager } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
+import { WorksheetNoGenerator } from '../../../../../utils'
 import { executeVas } from '../../execute-vas'
 import {
   OperationGuideInterface,
@@ -37,22 +45,13 @@ export const repackagingResolver = {
           'targetVas.releaseGood',
           'targetVas.shippingOrder',
           'targetVas.vasOrder',
+          'targetVas.targetProduct',
           'worksheet'
         ]
       })
 
       const bizplace: Bizplace = wsd.bizplace
-      const targetVas: OrderVas = wsd.targetVas
-      let originInv: Inventory = targetVas.inventory
-      const location: Location = await trxMgr.getRepository(Location).findOne({
-        where: { domain, name: locationName },
-        relations: ['warehouse']
-      })
-      const warehouse: Warehouse = location.warehouse
-      // Update operation guide data for every related repalletizing vas
-      let operationGuide: OperationGuideInterface<RepackagingGuide> = JSON.parse(targetVas.operationGuide)
-      let operationGuideData: RepackagingGuide = operationGuide.data
-      if (!operationGuideData.repackedInvs) operationGuideData.repackedInvs = []
+      let targetVas: OrderVas = wsd.targetVas
 
       let refOrder: RefOrderType
       if (targetVas?.arrivalNotice?.id) {
@@ -64,6 +63,68 @@ export const repackagingResolver = {
       } else if (targetVas?.vasOrder?.id) {
         refOrder = targetVas.vasOrder
       }
+
+      // Assign inventory
+      if (refOrder instanceof ArrivalNotice && !targetVas.inventory) {
+        const inventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
+          where: { domain, bizplace, palletId: fromPalletId }
+        })
+        if (!inventory) throw new Error(`Counldn't find inventory by pallet ID: (${fromPalletId})`)
+
+        targetVas.inventory = inventory
+        // 대상 inventory를 통해 현재 작업을 모두 처리 할 수 있는지 확인
+        if (targetVas.qty > inventory.qty) {
+          // 처리 불가한 경우
+          targetVas.qty = inventory.qty
+
+          // 새로운 order vas와 worksheet detail 생성
+          const copiedTargetVas: OrderVas = Object.assign({}, targetVas)
+          delete copiedTargetVas.id
+          delete copiedTargetVas.inventory
+
+          let newTargetVas: OrderVas = {
+            ...copiedTargetVas,
+            domain,
+            bizplace,
+            name: OrderNoGenerator.orderVas(),
+            qty: targetVas.qty - inventory.qty,
+            creator: user,
+            updater: user
+          }
+          newTargetVas = await trxMgr.getRepository(OrderVas).save(newTargetVas)
+
+          const copiedWSD: WorksheetDetail = Object.assign({}, wsd)
+          delete copiedWSD.id
+
+          const newWSD: WorksheetDetail = {
+            ...copiedWSD,
+            domain,
+            bizplace,
+            name: WorksheetNoGenerator.vasDetail(),
+            seq: wsd.seq++,
+            targetVas: newTargetVas,
+            creator: user,
+            updater: user
+          }
+          await trxMgr.getRepository(WorksheetDetail).save(newWSD)
+        }
+
+        targetVas = await trxMgr.getRepository(OrderVas).save(targetVas)
+      } else if (refOrder instanceof ReleaseGood) {
+        throw new Error('TODO: Assign inventory for Repackaging VAS')
+      }
+
+      let originInv: Inventory = targetVas.inventory
+      const location: Location = await trxMgr.getRepository(Location).findOne({
+        where: { domain, name: locationName },
+        relations: ['warehouse']
+      })
+      const warehouse: Warehouse = location.warehouse
+
+      // Update operation guide data for every related repalletizing vas
+      let operationGuide: OperationGuideInterface<RepackagingGuide> = JSON.parse(targetVas.operationGuide)
+      let operationGuideData: RepackagingGuide = operationGuide.data
+      if (!operationGuideData.repackedInvs) operationGuideData.repackedInvs = []
 
       // Validity checking
       if (!wsd) throw new Error(`Couldn't find target worksheet detail`)

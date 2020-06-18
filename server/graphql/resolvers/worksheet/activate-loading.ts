@@ -10,7 +10,7 @@ export const activateLoadingResolver = {
   async activateLoading(_: any, { worksheetNo, loadingWorksheetDetails }, context: any) {
     return getManager().transaction(async (trxMgr: EntityManager) => {
       const domain: Domain = context.state.domain
-      const foundWorksheet: Worksheet = await trxMgr.getTreeRepository(Worksheet).findOne({
+      const foundWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: {
           domain,
           name: worksheetNo,
