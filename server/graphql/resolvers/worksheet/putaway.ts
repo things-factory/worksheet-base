@@ -49,6 +49,7 @@ export const putaway = {
         ...inventory,
         location,
         status: INVENTORY_STATUS.STORED,
+        lockedQty: inventory.qty,
         warehouse: location.warehouse,
         zone: location.warehouse.zone,
         updater: context.state.user

@@ -49,7 +49,12 @@ export const completePutaway = {
           type: WORKSHEET_TYPE.PUTAWAY,
           arrivalNotice
         },
-        relations: ['worksheetDetails', 'worksheetDetails.targetInventory', 'bufferLocation']
+        relations: [
+          'worksheetDetails',
+          'worksheetDetails.targetInventory',
+          'worksheetDetails.targetInventory.inventory',
+          'bufferLocation'
+        ]
       })
 
       if (!foundPutawayWorksheet) throw new Error(`Worksheet doesn't exists.`)
@@ -57,6 +62,7 @@ export const completePutaway = {
       const relatedInventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
         where: { domain: context.state.domain, location: bufferLocation }
       })
+
       if (!relatedInventory) {
         trxMgr.getRepository(Location).save({
           ...bufferLocation,
@@ -93,6 +99,18 @@ export const completePutaway = {
           updater: context.state.user
         }
       })
+
+      let inventories: Inventory[] = worksheetDetails.map(
+        (worksheetDetail: WorksheetDetail) => worksheetDetail.targetInventory.inventory
+      )
+      inventories = inventories.map((inventory: Inventory) => {
+        return {
+          ...inventory,
+          lockedQty: 0,
+          updater: context.state.user
+        }
+      })
+      await trxMgr.getRepository(Inventory).save(inventories)
 
       // 2. If there's no more worksheet related with current arrival notice
       // update status of arrival notice
