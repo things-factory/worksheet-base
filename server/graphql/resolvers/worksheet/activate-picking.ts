@@ -3,6 +3,7 @@ import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } fro
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
+import { activateVas } from './activate-vas'
 
 export const activatePicking = {
   async activatePicking(_: any, { worksheetNo }, context: any) {
@@ -61,6 +62,27 @@ export const activatePicking = {
         status: ORDER_STATUS.PICKING,
         updater: context.state.user
       })
+
+      let relatedVasWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+        where: { domain: context.state.domain, releaseGood, type: WORKSHEET_TYPE.VAS },
+        relations: ['worksheetDetails']
+      })
+
+      /**
+       * Activate VAS worksheet if it's exists
+       * It means that there are VAS which is requested from customer side.
+       *
+       * VAS should be completed within picking step warehouse manager doesn't need to activate it manually.
+       */
+      if (relatedVasWorksheet) {
+        await activateVas(
+          trxMgr,
+          context.state.domain,
+          context.state.user,
+          relatedVasWorksheet.name,
+          relatedVasWorksheet.worksheetDetails
+        )
+      }
 
       /**
        * 6. Update PENDING_SPLIT order products (status: PENDING_SPLIT => TERMINATED)

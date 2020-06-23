@@ -5,11 +5,12 @@ import {
   OrderInventory,
   OrderNoGenerator,
   OrderVas,
+  ORDER_INVENTORY_STATUS,
   ORDER_TYPES,
   ReleaseGood
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, Location, Warehouse } from '@things-factory/warehouse-base'
+import { Inventory, INVENTORY_STATUS, Location, Warehouse } from '@things-factory/warehouse-base'
 import { EntityManager, getManager } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
 import { WorksheetNoGenerator } from '../../../../../utils'
@@ -67,51 +68,40 @@ export const repackagingResolver = {
       // Assign inventory
       if (refOrder instanceof ArrivalNotice && !targetVas.inventory) {
         const inventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
-          where: { domain, bizplace, palletId: fromPalletId }
+          where: {
+            domain,
+            bizplace,
+            palletId: fromPalletId,
+            status: INVENTORY_STATUS.UNLOADED,
+            refOrderId: refOrder.id
+          }
         })
-        if (!inventory) throw new Error(`Counldn't find inventory by pallet ID: (${fromPalletId})`)
+        if (!inventory) throw new Error(`Counldn't find unloaded inventory by pallet ID: (${fromPalletId})`)
 
         targetVas.inventory = inventory
         // 대상 inventory를 통해 현재 작업을 모두 처리 할 수 있는지 확인
         if (targetVas.qty > inventory.qty) {
           // 처리 불가한 경우
-          targetVas.qty = inventory.qty
-
-          // 새로운 order vas와 worksheet detail 생성
-          const copiedTargetVas: OrderVas = Object.assign({}, targetVas)
-          delete copiedTargetVas.id
-          delete copiedTargetVas.inventory
-
-          let newTargetVas: OrderVas = {
-            ...copiedTargetVas,
-            domain,
-            bizplace,
-            name: OrderNoGenerator.orderVas(),
-            qty: targetVas.qty - inventory.qty,
-            creator: user,
-            updater: user
-          }
-          newTargetVas = await trxMgr.getRepository(OrderVas).save(newTargetVas)
-
-          const copiedWSD: WorksheetDetail = Object.assign({}, wsd)
-          delete copiedWSD.id
-
-          const newWSD: WorksheetDetail = {
-            ...copiedWSD,
-            domain,
-            bizplace,
-            name: WorksheetNoGenerator.vasDetail(),
-            seq: wsd.seq++,
-            targetVas: newTargetVas,
-            creator: user,
-            updater: user
-          }
-          await trxMgr.getRepository(WorksheetDetail).save(newWSD)
+          targetVas = await addPutawayWorksheet(targetVas, inventory, domain, bizplace, user, trxMgr, wsd)
         }
 
         targetVas = await trxMgr.getRepository(OrderVas).save(targetVas)
       } else if (refOrder instanceof ReleaseGood) {
-        throw new Error('TODO: Assign inventory for Repackaging VAS')
+        let pickedOrdInv: OrderInventory = await trxMgr.getRepository(OrderInventory).find({
+          where: { domain, bizplace, releaseGood: refOrder, status: ORDER_INVENTORY_STATUS.PICKED },
+          relations: ['inventory']
+        })
+        pickedOrdInv = pickedOrdInv.find((oi: OrderInventory) => oi.inventory.palletId === fromPalletId)
+        const inventory: Inventory = pickedOrdInv?.inventory
+        if (!inventory) throw new Error(`Couldn't find picked inventory by pallet ID: ${fromPalletId}`)
+
+        targetVas.inventory = inventory
+
+        if (targetVas.qty > pickedOrdInv.releaseQty) {
+          targetVas = await addLoadingWorksheet(targetVas, pickedOrdInv, domain, bizplace, user, trxMgr, wsd)
+        }
+
+        targetVas = await trxMgr.getRepository(OrderVas).save(targetVas)
       }
 
       let originInv: Inventory = targetVas.inventory
@@ -234,6 +224,94 @@ export const repackagingResolver = {
       }
     })
   }
+}
+
+async function addLoadingWorksheet(
+  targetVas: OrderVas,
+  pickedOrdInv: OrderInventory,
+  domain: Domain,
+  bizplace: Bizplace,
+  user: User,
+  trxMgr: EntityManager,
+  wsd: WorksheetDetail
+): Promise<OrderVas> {
+  targetVas.qty = pickedOrdInv.releaseQty
+
+  const copiedTargetVas: OrderVas = Object.assign({}, targetVas)
+  delete copiedTargetVas.id
+  delete copiedTargetVas.inventory
+
+  let newTargetVas: OrderVas = {
+    ...copiedTargetVas,
+    domain,
+    bizplace,
+    name: OrderNoGenerator.orderVas(),
+    qty: targetVas.qty - pickedOrdInv.releaseQty,
+    creator: user,
+    updater: user
+  }
+  newTargetVas = await trxMgr.getRepository(OrderVas).save(newTargetVas)
+
+  const copiedWSD: WorksheetDetail = Object.assign({}, wsd)
+  delete copiedWSD.id
+
+  const newWSD: WorksheetDetail = {
+    ...copiedWSD,
+    domain,
+    bizplace,
+    name: WorksheetNoGenerator.vasDetail(),
+    seq: wsd.seq++,
+    targetVas: newTargetVas,
+    creator: user,
+    updater: user
+  }
+  await trxMgr.getRepository(WorksheetDetail).save(newWSD)
+  return targetVas
+}
+
+async function addPutawayWorksheet(
+  targetVas: OrderVas,
+  inventory: Inventory,
+  domain: Domain,
+  bizplace: Bizplace,
+  user: User,
+  trxMgr: EntityManager,
+  wsd: WorksheetDetail
+): Promise<OrderVas> {
+  targetVas.qty = inventory.qty
+
+  // 새로운 order vas와 worksheet detail 생성
+  const copiedTargetVas: OrderVas = Object.assign({}, targetVas)
+  delete copiedTargetVas.id
+  delete copiedTargetVas.inventory
+
+  let newTargetVas: OrderVas = {
+    ...copiedTargetVas,
+    domain,
+    bizplace,
+    name: OrderNoGenerator.orderVas(),
+    qty: targetVas.qty - inventory.qty,
+    creator: user,
+    updater: user
+  }
+  newTargetVas = await trxMgr.getRepository(OrderVas).save(newTargetVas)
+
+  const copiedWSD: WorksheetDetail = Object.assign({}, wsd)
+  delete copiedWSD.id
+
+  const newWSD: WorksheetDetail = {
+    ...copiedWSD,
+    domain,
+    bizplace,
+    name: WorksheetNoGenerator.vasDetail(),
+    seq: wsd.seq++,
+    targetVas: newTargetVas,
+    creator: user,
+    updater: user
+  }
+  await trxMgr.getRepository(WorksheetDetail).save(newWSD)
+
+  return targetVas
 }
 
 function getRepackedPackageQty(repackedInvs: RepackedInvInfo[]): number {

@@ -94,15 +94,6 @@ export const activateUnloading = {
         updater: context.state.user
       })
 
-      /**
-       * 5. Is VAS worksheet creating needed? (If there's some palletQty and palletizingDescription)
-       *  - For loosen product case. (Without vas relation but description from palletizingDescription)
-       *  - 5. 1) Check if there's VAS worksheet which is related with current arrival notice
-       *          - YES => Append more VAS worksheet
-       *          - NO => create additional VAS worksheet
-       *  - 5. 2) Append new vas worksheet details
-       */
-
       let relatedVasWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: { domain: context.state.domain, arrivalNotice, type: WORKSHEET_TYPE.VAS },
         relations: ['worksheetDetails']
@@ -124,6 +115,14 @@ export const activateUnloading = {
         )
       }
 
+      /**
+       * 5. Is VAS worksheet creating needed? (If there's some palletQty and palletizingDescription)
+       *  - For loosen product case. (Without vas relation but description from palletizingDescription)
+       *  - 5. 1) Check if there's VAS worksheet which is related with current arrival notice
+       *          - YES => Append more VAS worksheet
+       *          - NO => create additional VAS worksheet
+       *  - 5. 2) Append new vas worksheet details
+       */
       // Check there's some pallet qty and palletizingDescription => need to create vas worksheet
       if (
         unloadingWorksheetDetails.some(

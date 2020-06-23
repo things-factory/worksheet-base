@@ -85,7 +85,32 @@ export async function completeRepackaging(trxMgr: EntityManager, orderVas: Order
 
     // Deduct amount of product on original pallet or order inventory (Case for release order)
     if (refOrder instanceof ReleaseGood) {
-      throw new Error('TODO: Deduction amount of product for Release Goods Case')
+      const loadingWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+        where: { domain, bizplace, releaseGood: refOrder, type: WORKSHEET_TYPE.LOADING },
+        relations: [
+          'worksheetDetails',
+          'worksheetDetails.targetInventory',
+          'worksheetDetails.targetInventory.inventory'
+        ]
+      })
+
+      if (!loadingWS)
+        throw new Error(
+          `Picking process is not finished yet. Please complete picking first before complete Repalletizing`
+        )
+
+      const orderInv: OrderInventory = loadingWS.worksheetDetails
+        .map((wsd: WorksheetDetail) => wsd.targetInventory)
+        .find((oi: OrderInventory) => oi.inventory.id === originInv.id)
+      if (!orderInv) {
+        throw new Error(`Failed to find order inventory (Pallet ID: ${originInv.palletId})`)
+      }
+
+      orderInv.releaseQty -= reducedQty
+      orderInv.releaseWeight -= reducedWeight
+      orderInv.updater = user
+
+      await trxMgr.getRepository(OrderInventory).save(orderInv)
     } else {
       originInv.qty -= reducedQty
       originInv.weight -= reducedWeight
@@ -228,7 +253,7 @@ async function createPutawayWorksheet(
   user: User
 ): Promise<void> {
   const originWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-    where: { domain, bizplace, arrivalNotice: refOrder, type: WORKSHEET_TYPE.PUTAWAY },
+    where: { domain, bizplace, arrivalNotice: refOrder, type: WORKSHEET_TYPE.LOADING },
     relations: ['worksheetDetails', 'worksheetDetails.targetInventory', 'worksheetDetails.targetInventory.inventory']
   })
 
@@ -342,12 +367,6 @@ async function createLoadingWorksheet(
     updater: user
   })
 
-  // Deduct qty of loading order inventory
-  loadingOrdInv.releaseQty = loadingOrdInv.releaseQty - changedQty
-  loadingOrdInv.releaseWeight = loadingOrdInv.releaseWeight - changedWeight
-  loadingOrdInv.updater = user
-  loadingOrdInv = await trxMgr.getRepository(OrderInventory).save(loadingOrdInv)
-
   // Update inventory to PICKED inventory
   inv = await trxMgr.getRepository(Inventory).save({
     ...inv,
@@ -374,168 +393,8 @@ async function createLoadingWorksheet(
   // If order inventory doesn't have release qty any more
   if (loadingOrdInv.releaseQty <= 0) {
     await trxMgr.getRepository(WorksheetDetail).delete(loadingWSD.id)
-    await trxMgr.getRepository(OrderInventory).save({
-      ...loadingOrdInv,
-      status: ORDER_INVENTORY_STATUS.DONE,
-      updater: user
-    })
+    originInv.status = ORDER_INVENTORY_STATUS.DONE
+    originInv.updater = user
+    await trxMgr.getRepository(OrderInventory).save(originInv)
   }
-}
-
-async function terminateEmptyInventory(
-  trxMgr: EntityManager,
-  refOrder: RefOrderType,
-  inventory: Inventory,
-  user: User
-): Promise<void> {
-  if (refOrder instanceof ReleaseGood) {
-    console.log('Terminate empty inventory')
-  } else {
-    inventory = await trxMgr.getRepository(Inventory).save({
-      ...inventory,
-      status: INVENTORY_STATUS.TERMINATED,
-      updater: user
-    })
-
-    await generateInventoryHistory(inventory, refOrder, INVENTORY_TRANSACTION_TYPE.REPACKAGING, 0, 0, user, trxMgr)
-  }
-}
-
-async function deductInventoryQty(
-  trxMgr: EntityManager,
-  refOrder: RefOrderType,
-  originInv: Inventory,
-  reducedQty: number,
-  reducedWeight: number,
-  user: User
-): Promise<Inventory> {
-  if (refOrder instanceof ReleaseGood) {
-    return originInv
-  } else {
-    originInv = await trxMgr.getRepository(Inventory).save({
-      ...originInv,
-      qty: originInv.qty - reducedQty,
-      weight: originInv.weight - reducedWeight,
-      updater: user
-    })
-
-    await generateInventoryHistory(
-      originInv,
-      refOrder,
-      INVENTORY_TRANSACTION_TYPE.REPACKAGING,
-      -reducedQty,
-      -reducedWeight,
-      user,
-      trxMgr
-    )
-  }
-
-  return originInv
-}
-
-async function updateInv(
-  refOrder: RefOrderType,
-  trxMgr: EntityManager,
-  domain: Domain,
-  inv: Inventory,
-  addedQty: number,
-  addedWeight: number,
-  locationName: string,
-  user: User
-): Promise<Inventory> {
-  const location: Location = await trxMgr.getRepository(Location).findOne({
-    where: { domain, name: locationName },
-    relations: ['warehouse']
-  })
-  const warehouse: Warehouse = location.warehouse
-  const zone: string = location.zone
-
-  if (!(refOrder instanceof ReleaseGood)) {
-    // Add qty and weight
-    inv = await trxMgr.getRepository(Inventory).save({
-      ...inv,
-      qty: inv.qty + addedQty,
-      weight: inv.weight + addedWeight,
-      location,
-      warehouse,
-      zone,
-      updater: user
-    })
-  }
-
-  return inv
-}
-
-async function createInv(
-  refOrder: RefOrderType,
-  trxMgr: EntityManager,
-  domain: Domain,
-  bizplace: Bizplace,
-  palletId: string,
-  originInv: Inventory,
-  addedQty: number,
-  addedWeight: number,
-  locationName: Location,
-  user: User
-): Promise<Inventory> {
-  const location: Location = await trxMgr.getRepository(Location).findOne({
-    where: { domain, name: locationName },
-    relations: ['warehouse']
-  })
-  const warehouse: Warehouse = location.warehouse
-  const zone: string = location.zone
-
-  const newInv: Inventory = await trxMgr.getRepository(Inventory).save({
-    domain,
-    bizplace,
-    palletId,
-    batchId: originInv.batchId,
-    name: InventoryNoGenerator.inventoryName(),
-    product: originInv.product,
-    packingType: originInv.packingType,
-    qty: addedQty,
-    weight: addedWeight,
-    refOrderId: originInv.refOrderId,
-    warehouse,
-    location,
-    zone,
-    status: originInv.status,
-    orderProductId: originInv.orderProductId,
-    creator: user,
-    updater: user
-  })
-
-  // Create inventory history
-  await generateInventoryHistory(
-    newInv,
-    refOrder,
-    INVENTORY_TRANSACTION_TYPE.REPACKAGING,
-    addedQty,
-    addedWeight,
-    user,
-    trxMgr
-  )
-
-  return newInv
-}
-
-async function getUnitWeight(
-  refOrder: RefOrderType,
-  trxMgr: EntityManager,
-  domain: Domain,
-  bizplace: Bizplace,
-  originInv: Inventory
-): Promise<number> {
-  let unitWeight: number
-
-  if (refOrder instanceof ReleaseGood) {
-    // Find loading order inventory to figure out unit weight
-    const orderInv: OrderInventory = await trxMgr.getRepository(OrderInventory).findOne({
-      where: { domain, bizplace, inventory: originInv, releaseGood: refOrder, type: ORDER_TYPES.RELEASE_OF_GOODS }
-    })
-    unitWeight = orderInv.releaseWeight / orderInv.releaseQty
-  } else {
-    unitWeight = originInv.weight / originInv.qty
-  }
-  return unitWeight
 }
