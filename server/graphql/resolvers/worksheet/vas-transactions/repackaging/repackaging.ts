@@ -95,7 +95,7 @@ export const repackagingResolver = {
         if (targetVas.qty > inventory.qty) {
           // 처리 불가한 경우 inventory가 할당되지 않은 새로운 worksheet을 생성하여
           // 남은 주문을 처리할 수 있도록해야함
-          targetVas = await addNewVasOrder(targetVas, inventory.qty, domain, bizplace, user, trxMgr, wsd)
+          targetVas = await addNewVasTask(targetVas, inventory.qty, domain, bizplace, user, trxMgr, wsd)
         }
 
         targetVas = await trxMgr.getRepository(OrderVas).save(targetVas)
@@ -112,7 +112,7 @@ export const repackagingResolver = {
         targetVas.updater = user
 
         if (targetVas.qty > pickedOrdInv.releaseQty) {
-          targetVas = await addNewVasOrder(targetVas, pickedOrdInv.releaseQty, domain, bizplace, user, trxMgr, wsd)
+          targetVas = await addNewVasTask(targetVas, pickedOrdInv.releaseQty, domain, bizplace, user, trxMgr, wsd)
         }
 
         targetVas = await trxMgr.getRepository(OrderVas).save(targetVas)
@@ -228,7 +228,7 @@ export const repackagingResolver = {
   }
 }
 
-async function addNewVasOrder(
+async function addNewVasTask(
   targetVas: OrderVas,
   currentOrderQty: number,
   domain: Domain,

@@ -230,6 +230,10 @@ export const Mutation = /* GraphQL */ `
     toPalletId: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
+  assignRelabelInventories (
+    worksheetDetailName: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
   proceedExtraProducts (
     ganNo: String!
     approvedProducts: [ObjectRef]!

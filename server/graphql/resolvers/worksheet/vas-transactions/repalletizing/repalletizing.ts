@@ -173,7 +173,7 @@ export const repalletizingResolver = {
       const isNoMoreProduct: boolean = availableQty - newlyRepalletizedQty === 0
       if (requiredPalletQty && isNoMoreProduct) {
         if (refOrder instanceof ArrivalNotice || refOrder instanceof ReleaseGood) {
-          await addNewVasOrder(targetVas, targetVas.qty - stdQty, domain, bizplace, user, trxMgr, wsd)
+          await addNewVasTask(targetVas, targetVas.qty - stdQty, domain, bizplace, user, trxMgr, wsd)
         }
       }
 
@@ -290,7 +290,7 @@ function getRepalletizedQty(repalletizedInvs: RepalletizedInvInfo[], toPalletId:
     .reduce((reducedQty: number, rf: PalletChangesInterface) => (reducedQty += rf.reducedQty), 0)
 }
 
-async function addNewVasOrder(
+async function addNewVasTask(
   targetVas: OrderVas,
   currentOrderQty: number,
   domain: Domain,
