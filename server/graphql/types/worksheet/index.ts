@@ -207,14 +207,14 @@ export const Mutation = /* GraphQL */ `
 
   repalletizing (
     worksheetDetailName: String!
-    fromPalletIds: [String]!
-    palletId: String!
+    fromPalletId: String!
+    toPalletId: String!
     locationName: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   undoRepalletizing (
     worksheetDetailName: String!
-    palletId: String!
+    toPalletId: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   repackaging (

@@ -25,9 +25,9 @@ import { generateInventoryHistory, WorksheetNoGenerator } from '../../../../../u
 import {
   OperationGuideInterface,
   PackingUnits,
+  PalletChangesInterface,
   RefOrderType,
   RepackagingGuide,
-  RepackedFrom,
   RepackedInvInfo
 } from '../intefaces'
 
@@ -67,7 +67,9 @@ export async function completeRepackaging(trxMgr: EntityManager, orderVas: Order
 
   // create repacked inventories based on repackedInvs
   for (const ri of repackedInvs) {
-    const repackedFromList: RepackedFrom[] = ri.repackedFrom.filter((rf: RepackedFrom) => rf.toPalletId === ri.palletId)
+    const repackedFromList: PalletChangesInterface[] = ri.repackedFrom.filter(
+      (rf: PalletChangesInterface) => rf.toPalletId === ri.palletId
+    )
     const { reducedQty, reducedWeight } = getReducedAmount(repackedFromList)
     const repackedPkgQty: number = packingUnit === PackingUnits.QTY ? reducedQty / stdAmount : reducedWeight / stdAmount
     const changedInv: Inventory = await upsertInventory(
@@ -217,9 +219,9 @@ async function upsertInventory(
   return inv
 }
 
-function getReducedAmount(repackedFromList: RepackedFrom[]): { reducedQty: number; reducedWeight: number } {
+function getReducedAmount(repackedFromList: PalletChangesInterface[]): { reducedQty: number; reducedWeight: number } {
   return repackedFromList.reduce(
-    (reducedAmount: { reducedQty: number; reducedWeight: number }, rf: RepackedFrom) => {
+    (reducedAmount: { reducedQty: number; reducedWeight: number }, rf: PalletChangesInterface) => {
       return {
         reducedQty: reducedAmount.reducedQty + rf.reducedQty,
         reducedWeight: reducedAmount.reducedWeight + rf.reducedWeight
@@ -231,14 +233,14 @@ function getReducedAmount(repackedFromList: RepackedFrom[]): { reducedQty: numbe
 
 function extractRepackedInvs(operationGuideData: RepackagingGuide, originInv: Inventory): RepackedInvInfo[] {
   return operationGuideData.repackedInvs
-    .filter((repackedInv: RepackedInvInfo) => {
+    .filter((ri: RepackedInvInfo) => {
       const isPalletIncluded: boolean = Boolean(
-        repackedInv.repackedFrom.find((rf: RepackedFrom) => rf.fromPalletId === originInv.palletId)
+        ri.repackedFrom.find((rf: PalletChangesInterface) => rf.fromPalletId === originInv.palletId)
       )
-      if (isPalletIncluded) return repackedInv
+      if (isPalletIncluded) return ri
     })
     .map((ri: RepackedInvInfo) => {
-      ri.repackedFrom = ri.repackedFrom.filter((rf: RepackedFrom) => rf.fromPalletId === originInv.palletId)
+      ri.repackedFrom = ri.repackedFrom.filter((rf: PalletChangesInterface) => rf.fromPalletId === originInv.palletId)
       return ri
     })
 }
@@ -252,21 +254,21 @@ async function createPutawayWorksheet(
   changedInv: Inventory,
   user: User
 ): Promise<void> {
-  const originWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-    where: { domain, bizplace, arrivalNotice: refOrder, type: WORKSHEET_TYPE.LOADING },
+  const originPutawayWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+    where: { domain, bizplace, arrivalNotice: refOrder, type: WORKSHEET_TYPE.PUTAWAY },
     relations: ['worksheetDetails', 'worksheetDetails.targetInventory', 'worksheetDetails.targetInventory.inventory']
   })
 
-  if (!originWS) {
+  if (!originPutawayWS) {
     throw new Error(
       `Unloading process is not finished yet. Please complete unloading first before complete Repalletizing`
     )
   }
 
-  const originWSD: WorksheetDetail = originWS.worksheetDetails.find(
+  const originPutawayWSD: WorksheetDetail = originPutawayWS.worksheetDetails.find(
     (wsd: WorksheetDetail) => wsd.targetInventory.inventory.id === originInv.id
   )
-  const originOrdInv: OrderInventory = originWSD.targetInventory
+  const originOrdInv: OrderInventory = originPutawayWSD.targetInventory
 
   // Create new order inventory
   const copiedOrdInv: OrderInventory = Object.assign({}, originOrdInv)
@@ -285,14 +287,14 @@ async function createPutawayWorksheet(
   }
   newOrdInv = await trxMgr.getRepository(OrderInventory).save(newOrdInv)
 
-  const copiedWSD: WorksheetDetail = Object.assign({}, originWSD)
+  const copiedWSD: WorksheetDetail = Object.assign({}, originPutawayWSD)
   delete copiedWSD.id
 
   let newWSD: WorksheetDetail = {
     ...copiedWSD,
     domain,
     bizplace,
-    worksheet: originWS,
+    worksheet: originPutawayWS,
     name: WorksheetNoGenerator.putawayDetail(),
     targetInventory: newOrdInv,
     type: WORKSHEET_TYPE.PUTAWAY,
@@ -303,7 +305,7 @@ async function createPutawayWorksheet(
 
   // Update origin order inventory
   if (originInv.status === INVENTORY_STATUS.TERMINATED) {
-    await trxMgr.getRepository(WorksheetDetail).delete(originWSD.id)
+    await trxMgr.getRepository(WorksheetDetail).delete(originPutawayWSD.id)
 
     originOrdInv.status = ORDER_INVENTORY_STATUS.DONE
     originOrdInv.updater = user

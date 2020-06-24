@@ -10,3 +10,10 @@ export interface OperationGuideInterface<T> {
   transactions?: [any]
   completed: boolean
 }
+
+export interface PalletChangesInterface {
+  fromPalletId: string
+  toPalletId: string
+  reducedQty: number
+  reducedWeight: number
+}

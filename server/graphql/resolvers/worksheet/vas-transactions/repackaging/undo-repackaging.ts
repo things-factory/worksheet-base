@@ -4,7 +4,13 @@ import { OrderVas } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
-import { OperationGuideInterface, PackingUnits, RepackagingGuide, RepackedFrom, RepackedInvInfo } from '../intefaces'
+import {
+  OperationGuideInterface,
+  PackingUnits,
+  PalletChangesInterface,
+  RepackagingGuide,
+  RepackedInvInfo
+} from '../intefaces'
 
 export const undoRepackagingResolver = {
   async undoRepackaging(_: any, { worksheetDetailName, fromPalletId, toPalletId }, context: any) {
@@ -45,11 +51,11 @@ export const undoRepackagingResolver = {
       const stdAmount: number = operationGuideData.stdAmount
 
       undoInventory.repackedFrom = undoInventory.repackedFrom.filter(
-        (rf: RepackedFrom) => rf.fromPalletId !== fromPalletId
+        (rf: PalletChangesInterface) => rf.fromPalletId !== fromPalletId
       )
 
       // 완전히 Repacked 상태인 pallet count
-      const repackedPkgQty: number = undoInventory.repackedFrom.filter((rf: RepackedFrom) => {
+      const repackedPkgQty: number = undoInventory.repackedFrom.filter((rf: PalletChangesInterface) => {
         const amount: number = packingUnit === PackingUnits.QTY ? rf.reducedQty : rf.reducedWeight
         return amount === stdAmount
       }).length
