@@ -29,7 +29,7 @@ import {
   RefOrderType,
   RepackagingGuide,
   RepackedInvInfo
-} from '../intefaces'
+} from '../interfaces'
 
 export async function completeRepackaging(trxMgr: EntityManager, orderVas: OrderVas, user: User): Promise<void> {
   orderVas = await trxMgr.getRepository(OrderVas).findOne(orderVas.id, {

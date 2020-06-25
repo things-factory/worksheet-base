@@ -4,7 +4,7 @@ import { OrderVas } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
-import { OperationGuideInterface, PalletChangesInterface, RepalletizedInvInfo, RepalletizingGuide } from '../intefaces'
+import { OperationGuideInterface, PalletChangesInterface, RepalletizedInvInfo, RepalletizingGuide } from '../interfaces'
 
 export const undoRepalletizingResolver = {
   async undoRepalletizing(_: any, { worksheetDetailName, toPalletId }, context: any) {

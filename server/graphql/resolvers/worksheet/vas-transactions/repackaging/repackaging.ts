@@ -15,6 +15,7 @@ import { EntityManager, getManager, In } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
 import { WorksheetNoGenerator } from '../../../../../utils'
 import { executeVas } from '../../execute-vas'
+import { getWorksheetDetailByName, updateRelatedOrderVas, getReducedAmount } from '../common-utils'
 import {
   OperationGuideInterface,
   PackingUnits,
@@ -22,17 +23,13 @@ import {
   RefOrderType,
   RepackagingGuide,
   RepackedInvInfo
-} from '../intefaces'
+} from '../interfaces'
 
 export const repackagingResolver = {
-  async repackaging(_: any, { worksheetDetailName, fromPalletId, toPalletId, locationName }, context: any) {
+  async repackaging(_: any, { worksheetDetailName, fromPalletId, toPalletId, locationName, times = 1 }, context: any) {
     return await getManager().transaction(async (trxMgr: EntityManager) => {
-      /**
-       * Initialize required variables
-       */
       const domain: Domain = context.state.domain
       const user: User = context.state.user
-
       const location: Location = await trxMgr.getRepository(Location).findOne({
         where: { domain, name: locationName },
         relations: ['warehouse']
@@ -41,114 +38,48 @@ export const repackagingResolver = {
       const warehouse: Warehouse = location.warehouse
       if (!warehouse) throw new Error(`Location (name: ${locationName}) doesn't have any relation with warehouse`)
 
-      // Find target worksheet detail & target order vas
-      const wsd: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
-        where: { domain, name: worksheetDetailName },
-        relations: [
-          'bizplace',
-          'targetVas',
-          'targetVas.inventory',
-          'targetVas.inventory.product',
-          'targetVas.vas',
-          'targetVas.arrivalNotice',
-          'targetVas.releaseGood',
-          'targetVas.shippingOrder',
-          'targetVas.vasOrder',
-          'targetVas.targetProduct',
-          'worksheet'
-        ]
-      })
-      if (!wsd) throw new Error(`Couldn't find target worksheet detail`)
+      // Find target worksheet detail & target order vas & bizplace
+      const wsd: WorksheetDetail = await getWorksheetDetailByName(trxMgr, domain, worksheetDetailName)
+      let { bizplace, targetVas }: { bizplace: Bizplace; targetVas: OrderVas } = wsd
 
-      const bizplace: Bizplace = wsd.bizplace
-      let targetVas: OrderVas = wsd.targetVas
-      if (!targetVas) throw new Error(`Couldn't find target vas`)
-
-      let refOrder: RefOrderType
-      if (targetVas?.arrivalNotice?.id) {
-        refOrder = targetVas.arrivalNotice
-      } else if (targetVas?.releaseGood?.id) {
-        refOrder = targetVas.releaseGood
-      } else if (targetVas?.shippingOrder?.id) {
-        refOrder = targetVas.shippingOrder
-      } else if (targetVas?.vasOrder?.id) {
-        refOrder = targetVas.vasOrder
-      }
+      // Init refOrder
+      const { arrivalNotice, releaseGood, vasOrder }: { [key: string]: RefOrderType } = targetVas
+      const refOrder = arrivalNotice || releaseGood || vasOrder || null
       if (!refOrder) throw new Error(`Couldn't find reference order with current order vas`)
 
-      // Assign inventory
-      if (refOrder instanceof ArrivalNotice && !targetVas.inventory) {
-        const inventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
-          where: {
-            domain,
-            bizplace,
-            palletId: fromPalletId,
-            status: In([INVENTORY_STATUS.UNLOADED, INVENTORY_STATUS.PUTTING_AWAY]),
-            refOrderId: refOrder.id
-          }
-        })
-        if (!inventory) throw new Error(`Counldn't find unloaded inventory by pallet ID: (${fromPalletId})`)
-
-        targetVas.inventory = inventory
-        targetVas.updater = user
-        // 대상 inventory를 통해 현재 작업을 모두 처리 할 수 있는지 확인
-        if (targetVas.qty > inventory.qty) {
-          // 처리 불가한 경우 inventory가 할당되지 않은 새로운 worksheet을 생성하여
-          // 남은 주문을 처리할 수 있도록해야함
-          targetVas = await addNewVasTask(targetVas, inventory.qty, domain, bizplace, user, trxMgr, wsd)
-        }
-
-        targetVas = await trxMgr.getRepository(OrderVas).save(targetVas)
-      } else if (refOrder instanceof ReleaseGood && !targetVas.inventory) {
-        let pickedOrdInv: OrderInventory = await trxMgr.getRepository(OrderInventory).find({
-          where: { domain, bizplace, releaseGood: refOrder, status: ORDER_INVENTORY_STATUS.PICKED },
-          relations: ['inventory']
-        })
-        pickedOrdInv = pickedOrdInv.find((oi: OrderInventory) => oi.inventory.palletId === fromPalletId)
-        const inventory: Inventory = pickedOrdInv?.inventory
-        if (!inventory) throw new Error(`Couldn't find picked inventory by pallet ID: ${fromPalletId}`)
-
-        targetVas.inventory = inventory
-        targetVas.updater = user
-
-        if (targetVas.qty > pickedOrdInv.releaseQty) {
-          targetVas = await addNewVasTask(targetVas, pickedOrdInv.releaseQty, domain, bizplace, user, trxMgr, wsd)
-        }
-
-        targetVas = await trxMgr.getRepository(OrderVas).save(targetVas)
+      // Assign inventory if specific inventory isn't assigned yet.
+      // This case is occured when the VAS order comes with Arrival Notice or Release Good
+      if (!targetVas.inventory) {
+        targetVas = await assignInventory(trxMgr, domain, bizplace, wsd, refOrder, targetVas, times, fromPalletId, user)
       }
 
       let originInv: Inventory = targetVas.inventory
-      if (!originInv) throw new Error(`Inventory wasn't assigned to target vas`)
       let operationGuide: OperationGuideInterface<RepackagingGuide> = JSON.parse(targetVas.operationGuide)
       let operationGuideData: RepackagingGuide = operationGuide.data
       if (!operationGuideData.repackedInvs) operationGuideData.repackedInvs = []
-
-      const { reducedQty, reducedWeight } = getReducedAmountByRepack(fromPalletId, operationGuideData.repackedInvs)
+      const palletChanges: PalletChangesInterface[] = operationGuideData.repackedInvs
+        .map((ri: RepackedInvInfo) => ri.repackedFrom)
+        .flat()
       const { remainQty, remainWeight } = await getRemainInventoryAmount(
         trxMgr,
         refOrder,
         domain,
         bizplace,
         originInv,
-        reducedQty,
-        reducedWeight
+        palletChanges,
+        fromPalletId
       )
 
-      if (remainQty <= 0 || remainWeight <= 0) {
-        throw new Error(`There's no more remaining product on the pallet (${fromPalletId})`)
-      }
       const unitWeight: number = remainWeight / remainQty
-      let repackedInv: RepackedInvInfo = getRepackedInv(operationGuideData, toPalletId, locationName)
-
       const packingUnit: string = operationGuideData.packingUnit
       const stdAmount: number = operationGuideData.stdAmount
+      let repackedInv: RepackedInvInfo = getRepackedInv(operationGuideData, toPalletId, locationName)
 
       let isCompleted: boolean = false // Flag for calling executeVas function to change status of worksheet detail
       if (packingUnit === PackingUnits.QTY) {
         // 현재 from pallet의 유효 수량이 기준 수량을 넘어서는 경우 기준 수량이 감소
         // 현재 from pallet의 유효 수량이 기준 수량 보다 적을 경우 남은 수량이 감소
-        const reducedQty: number = remainQty >= stdAmount ? stdAmount : remainQty
+        const reducedQty: number = remainQty >= stdAmount * times ? stdAmount * times : remainQty
         const repackedFrom: PalletChangesInterface = {
           fromPalletId,
           toPalletId,
@@ -164,7 +95,7 @@ export const repackagingResolver = {
         repackedInv.repackedPkgQty = totalPackedQty / stdAmount
         isCompleted = remainQty <= stdAmount
       } else if (packingUnit === PackingUnits.WEIGHT) {
-        const reducedWeight: number = remainWeight >= stdAmount ? stdAmount : remainWeight
+        const reducedWeight: number = remainWeight >= stdAmount * times ? stdAmount * times : remainWeight
         const repackedFrom: PalletChangesInterface = {
           fromPalletId,
           toPalletId,
@@ -199,27 +130,8 @@ export const repackagingResolver = {
         repackedInvs: operationGuideData.repackedInvs
       }
 
-      operationGuide.completed = operationGuide.data.requiredPackageQty === 0
-
       // Update every order vas to share same operation guide
-      const worksheet: Worksheet = wsd.worksheet
-      const relatedWSDs: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
-        where: { domain, bizplace, worksheet },
-        relations: ['targetVas', 'targetVas.vas']
-      })
-
-      const relatedOVs: OrderVas[] = relatedWSDs
-        .map((wsd: WorksheetDetail) => wsd.targetVas)
-        .filter((ov: OrderVas) => ov.set === targetVas.set && ov.vas.id === targetVas.vas.id)
-        .map((ov: OrderVas) => {
-          return {
-            ...ov,
-            operationGuide: JSON.stringify(operationGuide),
-            updater: user
-          }
-        })
-
-      await trxMgr.getRepository(OrderVas).save(relatedOVs)
+      await updateRelatedOrderVas<RepackagingGuide>(trxMgr, domain, bizplace, wsd, targetVas, operationGuide, user)
 
       if (isCompleted) {
         await executeVas(trxMgr, wsd, domain, user)
@@ -228,6 +140,76 @@ export const repackagingResolver = {
   }
 }
 
+/**
+ * @description Assign inventory to targetVas
+ * When Vas order comes together with Arrival Notice or Release Good
+ * The vas worksheet is activated automatically by to complete unloading/picking worksheet.
+ * As a result user can't activate it manually, which means no assignment for every specific vas tasks.
+ * For this case inventory should be assigned while processing the VAS Order.
+ */
+async function assignInventory(
+  trxMgr: EntityManager,
+  domain: Domain,
+  bizplace: Bizplace,
+  wsd: WorksheetDetail,
+  refOrder: ArrivalNotice | ReleaseGood,
+  targetVas: OrderVas,
+  times: number,
+  fromPalletId: string,
+  user: User
+): Promise<OrderVas> {
+  let inventory: Inventory
+  if (refOrder instanceof ArrivalNotice) {
+    // Case 1. When the VAS Order comes with Arrival Notice
+    inventory = await trxMgr.getRepository(Inventory).findOne({
+      where: {
+        domain,
+        bizplace,
+        palletId: fromPalletId,
+        status: In([INVENTORY_STATUS.UNLOADED, INVENTORY_STATUS.PUTTING_AWAY]),
+        refOrderId: refOrder.id
+      }
+    })
+    if (!inventory) throw new Error(`Counldn't find unloaded inventory by pallet ID: (${fromPalletId})`)
+
+    // Check current inventory has enough qty of product to complete this target vas.
+    if (targetVas.qty * times > inventory.qty) {
+      // If it doesn't have enough, Need to create new worksheet detail and target vas without inventory assignment
+      // So the user can proceed it with another inventory
+      targetVas = await addNewVasTask(targetVas, inventory.qty, domain, bizplace, user, trxMgr, wsd)
+    }
+  } else if (refOrder instanceof ReleaseGood) {
+    // Case 2. When the VAS Order comes with Release Good
+    // In this case, every available inventories are picked by picking worksheet.
+    // So target inventories should be found by relation with order inventory which has PICKED status
+    let pickedOrdInv: OrderInventory = await trxMgr.getRepository(OrderInventory).find({
+      where: { domain, bizplace, releaseGood: refOrder, status: ORDER_INVENTORY_STATUS.PICKED },
+      relations: ['inventory']
+    })
+    pickedOrdInv = pickedOrdInv.find((oi: OrderInventory) => oi.inventory.palletId === fromPalletId)
+    inventory = pickedOrdInv?.inventory
+    if (!inventory) throw new Error(`Couldn't find picked inventory by pallet ID: ${fromPalletId}`)
+
+    // Check current target inventory (picked inventory) has enough qty of product to complete this target vas.
+    // And available qty of products also restriced by picking. (Because customer requests do some vas for Release Order)
+    if (targetVas.qty * times > pickedOrdInv.releaseQty) {
+      // If it doesn't have enough, Need to create new worksheet detail and target vas without inventory assignment
+      // So the user can proceed it with another inventory
+      targetVas = await addNewVasTask(targetVas, pickedOrdInv.releaseQty, domain, bizplace, user, trxMgr, wsd)
+    }
+
+    targetVas.inventory = inventory
+    targetVas.updater = user
+    targetVas = await trxMgr.getRepository(OrderVas).save(targetVas)
+  }
+
+  return targetVas
+}
+
+/**
+ * @description Create nw VAS Worksheet Detail & Order Vas
+ * Without inventory assignment
+ */
 async function addNewVasTask(
   targetVas: OrderVas,
   currentOrderQty: number,
@@ -240,7 +222,6 @@ async function addNewVasTask(
   // 새로운 order vas와 worksheet detail 생성
   const copiedTargetVas: OrderVas = Object.assign({}, targetVas)
   delete copiedTargetVas.id
-  delete copiedTargetVas.inventory
 
   let newTargetVas: OrderVas = {
     ...copiedTargetVas,
@@ -331,43 +312,19 @@ function getRepackedInv(operationGuideData: RepackagingGuide, palletId: string, 
   return repackedInv
 }
 
-/**
- * @description Loop through whole repacked to return total reduced amount
- * from information which is describing any changes about qty and weight of inventory or order inventories (for R.O case)
- * @param palletId
- * @param repackedInvs
- */
-function getReducedAmountByRepack(
-  palletId: string,
-  repackedInvs: RepackedInvInfo[]
-): { reducedQty: number; reducedWeight: number } {
-  const repackedFromList: PalletChangesInterface[] = repackedInvs
-    .map((repackedInv: RepackedInvInfo) => repackedInv.repackedFrom)
-    .flat()
-  return repackedFromList
-    .filter((repackedFrom: PalletChangesInterface) => repackedFrom.fromPalletId === palletId)
-    .reduce(
-      (reducedAmount: { reducedQty: number; reducedWeight: number }, rf: PalletChangesInterface) => {
-        return {
-          reducedQty: reducedAmount.reducedQty + rf.reducedQty,
-          reducedWeight: reducedAmount.reducedWeight + rf.reducedWeight
-        }
-      },
-      { reducedQty: 0, reducedWeight: 0 }
-    )
-}
-
 async function getRemainInventoryAmount(
   trxMgr: EntityManager,
   refOrder: RefOrderType,
   domain: Domain,
   bizplace: Bizplace,
   originInv: Inventory,
-  reducedQty: number,
-  reducedWeight: number
+  palletChanges: PalletChangesInterface[],
+  fromPalletId: string
 ): Promise<{ remainQty: number; remainWeight: number }> {
   let remainQty: number = 0
   let remainWeight: number = 0
+
+  const { reducedQty, reducedWeight } = getReducedAmount(palletChanges, fromPalletId)
 
   if (refOrder instanceof ReleaseGood) {
     // Find loading order inventory to figure out unit weight
@@ -381,5 +338,7 @@ async function getRemainInventoryAmount(
     remainQty = originInv.qty - reducedQty
     remainWeight = originInv.weight - reducedWeight
   }
+
+  if (remainQty <= 0 || remainWeight <= 0) throw new Error(`There's no more remaining product on the pallet`)
   return { remainQty, remainWeight }
 }

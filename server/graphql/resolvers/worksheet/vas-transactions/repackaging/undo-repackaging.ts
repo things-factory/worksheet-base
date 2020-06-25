@@ -10,7 +10,7 @@ import {
   PalletChangesInterface,
   RepackagingGuide,
   RepackedInvInfo
-} from '../intefaces'
+} from '../interfaces'
 
 export const undoRepackagingResolver = {
   async undoRepackaging(_: any, { worksheetDetailName, fromPalletId, toPalletId }, context: any) {

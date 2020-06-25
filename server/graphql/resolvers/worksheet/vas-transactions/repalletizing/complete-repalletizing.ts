@@ -28,7 +28,7 @@ import {
   RefOrderType,
   RepalletizedInvInfo,
   RepalletizingGuide
-} from '../intefaces'
+} from '../interfaces'
 
 export async function completeRepalletizing(trxMgr: EntityManager, orderVas: OrderVas, user: User): Promise<void> {
   orderVas = await trxMgr.getRepository(OrderVas).findOne(orderVas.id, {

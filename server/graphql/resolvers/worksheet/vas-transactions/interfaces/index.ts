@@ -2,13 +2,13 @@ import { ArrivalNotice, ReleaseGood, ShippingOrder, VasOrder } from '@things-fac
 
 export * from './repalletizing'
 export * from './repackaging'
+export * from './relabeling'
 
 export declare type RefOrderType = ArrivalNotice | ReleaseGood | VasOrder | ShippingOrder
 
 export interface OperationGuideInterface<T> {
   data: T
   transactions?: [any]
-  completed: boolean
 }
 
 export interface PalletChangesInterface {

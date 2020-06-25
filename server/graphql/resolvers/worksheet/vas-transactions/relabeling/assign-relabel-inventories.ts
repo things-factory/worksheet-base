@@ -14,7 +14,7 @@ import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { EntityManager, FindManyOptions, getManager, In } from 'typeorm'
 import { WorksheetDetail } from '../../../../../entities'
 import { WorksheetNoGenerator } from '../../../../../utils'
-import { RefOrderType } from '../intefaces'
+import { RefOrderType } from '../interfaces'
 
 export const assignRelabelInventoriesResolver = {
   async assignRelabelInventories(_: any, { worksheetDetailName }, context: any): Promise<void> {

@@ -21,7 +21,7 @@ import {
   RefOrderType,
   RepalletizedInvInfo,
   RepalletizingGuide
-} from '../intefaces'
+} from '../interfaces'
 
 export const repalletizingResolver = {
   async repalletizing(_: any, { worksheetDetailName, fromPalletId, toPalletId, locationName }, context: any) {
@@ -183,8 +183,6 @@ export const repalletizingResolver = {
         requiredPalletQty,
         repalletizedInvs
       }
-      // 더 이상 Repalletizing 할 필요 없을 경우 completed를 true로 수정
-      operationGuide.completed = requiredPalletQty === 0
 
       await updateRelatedOrderVas(trxMgr, domain, bizplace, wsd, targetVas, operationGuide, user)
 

@@ -5,8 +5,7 @@ import { Domain } from '@things-factory/shell'
 import { Inventory, INVENTORY_TRANSACTION_TYPE } from '@things-factory/warehouse-base'
 import { EntityManager } from 'typeorm'
 import { generateInventoryHistory } from '../../../../..//utils'
-import { OperationGuideInterface, RefOrderType } from '../intefaces'
-import { RelabelingGuide } from '../intefaces/relabeling'
+import { OperationGuideInterface, RefOrderType, RelabelingGuide } from '../interfaces'
 
 export async function completeRelabeling(trxMgr: EntityManager, orderVas: OrderVas, user: User) {
   orderVas = await trxMgr.getRepository(OrderVas).findOne(orderVas.id, {
