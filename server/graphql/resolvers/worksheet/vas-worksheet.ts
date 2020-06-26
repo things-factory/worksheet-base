@@ -71,6 +71,7 @@ export const vasWorksheetResolver = {
       where: worksheetCondition,
       relations: commonRelations
     })
+    if (!worksheet) throw new Error(`Couldn't find Executing Worksheet`)
 
     if (orderType === ORDER_TYPES.RELEASE_OF_GOODS) {
       for (let wsd of worksheet.worksheetDetails) {

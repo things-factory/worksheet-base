@@ -222,6 +222,7 @@ export const Mutation = /* GraphQL */ `
     fromPalletId: String!
     toPalletId: String!
     locationName: String!
+    packageQty: Int!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   undoRepackaging (

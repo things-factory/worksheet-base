@@ -151,6 +151,7 @@ export const repalletizingResolver = {
         newlyRepalletizedQty = availableQty >= remainQty ? remainQty : availableQty
       }
 
+      // Initialize newly created pallet information
       const repalletizedFrom: PalletChangesInterface = {
         fromPalletId,
         toPalletId,
@@ -235,11 +236,12 @@ async function updateRelatedOrderVas(
 }
 
 /**
- * @description 전달받은 pallet 아이디와 동일한 repalletized 된 pallet을 찾아 return
- * 이미 처리된 pallet이 없을 경우 새로운 object를 생성하고 return 함
+ * @description Find repalletized pallet which has same pallet id with passed pallet id as param
+ * If there's no repalletized pallet init new RepalletizedInvInfo object and return it
  *
- * @param operationGuideData
- * @param palletId
+ * @param {RepalletizedInvInfo} operationGuideData
+ * @param {String} palletId
+ * @param {String} locationName
  */
 function getRepalletizedInv(
   operationGuideData: RepalletizingGuide,

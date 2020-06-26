@@ -15,7 +15,7 @@ import { EntityManager, getManager, In } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
 import { WorksheetNoGenerator } from '../../../../../utils'
 import { executeVas } from '../../execute-vas'
-import { getWorksheetDetailByName, updateRelatedOrderVas, getReducedAmount } from '../common-utils'
+import { getReducedAmount, getWorksheetDetailByName, updateRelatedOrderVas } from '../common-utils'
 import {
   OperationGuideInterface,
   PackingUnits,
@@ -26,7 +26,7 @@ import {
 } from '../interfaces'
 
 export const repackagingResolver = {
-  async repackaging(_: any, { worksheetDetailName, fromPalletId, toPalletId, locationName, times = 1 }, context: any) {
+  async repackaging(_: any, { worksheetDetailName, fromPalletId, toPalletId, locationName, packageQty }, context: any) {
     return await getManager().transaction(async (trxMgr: EntityManager) => {
       const domain: Domain = context.state.domain
       const user: User = context.state.user
@@ -50,23 +50,20 @@ export const repackagingResolver = {
       // Assign inventory if specific inventory isn't assigned yet.
       // This case is occured when the VAS order comes with Arrival Notice or Release Good
       if (!targetVas.inventory) {
-        targetVas = await assignInventory(trxMgr, domain, bizplace, wsd, refOrder, targetVas, times, fromPalletId, user)
+        targetVas = await assignInventory(trxMgr, domain, bizplace, wsd, refOrder, targetVas, fromPalletId, user)
       }
 
       let originInv: Inventory = targetVas.inventory
       let operationGuide: OperationGuideInterface<RepackagingGuide> = JSON.parse(targetVas.operationGuide)
       let operationGuideData: RepackagingGuide = operationGuide.data
       if (!operationGuideData.repackedInvs) operationGuideData.repackedInvs = []
-      const palletChanges: PalletChangesInterface[] = operationGuideData.repackedInvs
-        .map((ri: RepackedInvInfo) => ri.repackedFrom)
-        .flat()
       const { remainQty, remainWeight } = await getRemainInventoryAmount(
         trxMgr,
         refOrder,
         domain,
         bizplace,
         originInv,
-        palletChanges,
+        operationGuideData.repackedInvs,
         fromPalletId
       )
 
@@ -77,9 +74,7 @@ export const repackagingResolver = {
 
       let isCompleted: boolean = false // Flag for calling executeVas function to change status of worksheet detail
       if (packingUnit === PackingUnits.QTY) {
-        // 현재 from pallet의 유효 수량이 기준 수량을 넘어서는 경우 기준 수량이 감소
-        // 현재 from pallet의 유효 수량이 기준 수량 보다 적을 경우 남은 수량이 감소
-        const reducedQty: number = remainQty >= stdAmount * times ? stdAmount * times : remainQty
+        const reducedQty: number = remainQty >= stdAmount * packageQty ? stdAmount * packageQty : remainQty
         const repackedFrom: PalletChangesInterface = {
           fromPalletId,
           toPalletId,
@@ -93,9 +88,12 @@ export const repackagingResolver = {
           0
         )
         repackedInv.repackedPkgQty = totalPackedQty / stdAmount
-        isCompleted = remainQty <= stdAmount
+        isCompleted = remainQty <= stdAmount * packageQty
       } else if (packingUnit === PackingUnits.WEIGHT) {
-        const reducedWeight: number = remainWeight >= stdAmount * times ? stdAmount * times : remainWeight
+        // Case 1. When batchProcess is true => Reduce as much as remainWeight to complete this repackaging task
+        // Case 2. When from pallet has more products than std amount => Reduce as much as stdAmount
+        // Case 3. When from pallet has less products than std amount => Reduce as much as remainWeight
+        const reducedWeight: number = remainWeight >= stdAmount * packageQty ? stdAmount * packageQty : remainWeight
         const repackedFrom: PalletChangesInterface = {
           fromPalletId,
           toPalletId,
@@ -109,9 +107,10 @@ export const repackagingResolver = {
           0
         )
         repackedInv.repackedPkgQty = totalPackedWeight / stdAmount
-        isCompleted = remainWeight <= stdAmount
+        isCompleted = remainWeight <= stdAmount * packageQty
       }
 
+      // Get total required package qty to complete this VAS Task
       const requiredPackageQty: number = await getRequiredPackageQty(
         trxMgr,
         domain,
@@ -120,20 +119,22 @@ export const repackagingResolver = {
         packingUnit,
         stdAmount
       )
+      // Get total repacked package qty until this transaction
       const repackedPackageQty: number = getRepackedPackageQty(operationGuideData.repackedInvs)
+      const remainRequiredPackageQty: number = requiredPackageQty - repackedPackageQty
 
       operationGuide.data = {
         packingUnit: operationGuideData.packingUnit,
         toPackingType: operationGuideData.toPackingType,
         stdAmount: operationGuideData.stdAmount,
-        requiredPackageQty: requiredPackageQty - repackedPackageQty,
+        requiredPackageQty: remainRequiredPackageQty,
         repackedInvs: operationGuideData.repackedInvs
       }
 
       // Update every order vas to share same operation guide
       await updateRelatedOrderVas<RepackagingGuide>(trxMgr, domain, bizplace, wsd, targetVas, operationGuide, user)
 
-      if (isCompleted) {
+      if (isCompleted || remainRequiredPackageQty === 0) {
         await executeVas(trxMgr, wsd, domain, user)
       }
     })
@@ -154,7 +155,6 @@ async function assignInventory(
   wsd: WorksheetDetail,
   refOrder: ArrivalNotice | ReleaseGood,
   targetVas: OrderVas,
-  times: number,
   fromPalletId: string,
   user: User
 ): Promise<OrderVas> {
@@ -173,7 +173,7 @@ async function assignInventory(
     if (!inventory) throw new Error(`Counldn't find unloaded inventory by pallet ID: (${fromPalletId})`)
 
     // Check current inventory has enough qty of product to complete this target vas.
-    if (targetVas.qty * times > inventory.qty) {
+    if (targetVas.qty > inventory.qty) {
       // If it doesn't have enough, Need to create new worksheet detail and target vas without inventory assignment
       // So the user can proceed it with another inventory
       targetVas = await addNewVasTask(targetVas, inventory.qty, domain, bizplace, user, trxMgr, wsd)
@@ -192,16 +192,16 @@ async function assignInventory(
 
     // Check current target inventory (picked inventory) has enough qty of product to complete this target vas.
     // And available qty of products also restriced by picking. (Because customer requests do some vas for Release Order)
-    if (targetVas.qty * times > pickedOrdInv.releaseQty) {
+    if (targetVas.qty > pickedOrdInv.releaseQty) {
       // If it doesn't have enough, Need to create new worksheet detail and target vas without inventory assignment
       // So the user can proceed it with another inventory
       targetVas = await addNewVasTask(targetVas, pickedOrdInv.releaseQty, domain, bizplace, user, trxMgr, wsd)
     }
-
-    targetVas.inventory = inventory
-    targetVas.updater = user
-    targetVas = await trxMgr.getRepository(OrderVas).save(targetVas)
   }
+
+  targetVas.inventory = inventory
+  targetVas.updater = user
+  targetVas = await trxMgr.getRepository(OrderVas).save(targetVas)
 
   return targetVas
 }
@@ -253,10 +253,25 @@ async function addNewVasTask(
   return targetVas
 }
 
+/**
+ * @description Get total qty of repacked.
+ *
+ * @param {RepackedInvInfo[]} repackedInvs
+ */
 function getRepackedPackageQty(repackedInvs: RepackedInvInfo[]): number {
   return repackedInvs.reduce((repackedPkgQty: number, ri: RepackedInvInfo) => (repackedPkgQty += ri.repackedPkgQty), 0)
 }
 
+/**
+ * @description Get total required package qty to complete this Repackagine VAS Task.
+ *
+ * @param {EntityManager} trxMgr
+ * @param {Domain} domain
+ * @param {Bizplace} bizplace
+ * @param {Worksheet} worksheet
+ * @param {String} packingUnit
+ * @param {Number} stdAmount
+ */
 async function getRequiredPackageQty(
   trxMgr: EntityManager,
   domain: Domain,
@@ -289,11 +304,12 @@ async function getRequiredPackageQty(
 }
 
 /**
- * @description 전달받은 pallet 아이디와 동일한 repacked 된 pallet을 찾아 return
- * 이미 처리된 pallet이 없을 경우 새로운 object를 생성하고 return 함
+ * @description Find repacked pallet which has same pallet id with passed pallet id as param
+ * If there's no repacked pallet init new RepackedInvInfo object and return it
  *
- * @param operationGuideData
- * @param palletId
+ * @param {RepackagingGuide} operationGuideData
+ * @param {String} palletId
+ * @param {String} locationName
  */
 function getRepackedInv(operationGuideData: RepackagingGuide, palletId: string, locationName: string): RepackedInvInfo {
   let repackedInv: RepackedInvInfo = operationGuideData.repackedInvs.find(
@@ -312,18 +328,29 @@ function getRepackedInv(operationGuideData: RepackagingGuide, palletId: string, 
   return repackedInv
 }
 
+/**
+ * @description Get remain qty of inventory or order inventory (For release good case)
+ *
+ * @param {EntityManager} trxMgr
+ * @param {ArrivalNotice | ReleaseGood | VasOrder} refOrder
+ * @param {Domain} domain
+ * @param {Bizplace} bizplace
+ * @param {Inventory} originInv
+ * @param {RepackedInvInfo[]} repackedInvs
+ * @param {String} fromPalletId
+ */
 async function getRemainInventoryAmount(
   trxMgr: EntityManager,
   refOrder: RefOrderType,
   domain: Domain,
   bizplace: Bizplace,
   originInv: Inventory,
-  palletChanges: PalletChangesInterface[],
+  repackedInvs: RepackedInvInfo[],
   fromPalletId: string
 ): Promise<{ remainQty: number; remainWeight: number }> {
   let remainQty: number = 0
   let remainWeight: number = 0
-
+  const palletChanges: PalletChangesInterface[] = repackedInvs.map((ri: RepackedInvInfo) => ri.repackedFrom).flat()
   const { reducedQty, reducedWeight } = getReducedAmount(palletChanges, fromPalletId)
 
   if (refOrder instanceof ReleaseGood) {

@@ -10,6 +10,7 @@ export const pickingWorksheetResolver = {
       where: { domain: context.state.domain, name: releaseGoodNo, status: ORDER_STATUS.PICKING },
       relations: ['bizplace']
     })
+    if (!releaseGood) throw new Error(`Couldn't find picking worksheet by order no (${releaseGoodNo})`)
 
     const worksheet: Worksheet = await getRepository(Worksheet).findOne({
       where: {

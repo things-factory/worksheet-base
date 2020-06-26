@@ -30,6 +30,7 @@ export const returnWorksheetResolver = {
         'worksheetDetails.targetInventory.inventory.product'
       ]
     })
+    if (!worksheet) throw new Error(`Couldn't find Reutnring Worksheet by order no (${releaseGoodNo})`)
 
     return {
       worksheetInfo: {

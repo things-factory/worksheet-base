@@ -254,58 +254,64 @@ async function createPutawayWorksheet(
   changedInv: Inventory,
   user: User
 ): Promise<void> {
-  const originPutawayWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+  const putawayWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
     where: { domain, bizplace, arrivalNotice: refOrder, type: WORKSHEET_TYPE.PUTAWAY },
     relations: ['worksheetDetails', 'worksheetDetails.targetInventory', 'worksheetDetails.targetInventory.inventory']
   })
 
-  if (!originPutawayWS) {
+  if (!putawayWS) {
     throw new Error(
       `Unloading process is not finished yet. Please complete unloading first before complete Repalletizing`
     )
   }
+  const putawayWSDs: WorksheetDetail[] = putawayWS.worksheetDetails
 
-  const originPutawayWSD: WorksheetDetail = originPutawayWS.worksheetDetails.find(
+  const originalWSD: WorksheetDetail = putawayWSDs.find(
     (wsd: WorksheetDetail) => wsd.targetInventory.inventory.id === originInv.id
   )
-  const originOrdInv: OrderInventory = originPutawayWSD.targetInventory
+  const originOrdInv: OrderInventory = originalWSD.targetInventory
+  const sameTargetWSD: WorksheetDetail = putawayWSDs.find(
+    (wsd: WorksheetDetail) => wsd.targetInventory.inventory.id === changedInv.id
+  )
 
-  // Create new order inventory
-  const copiedOrdInv: OrderInventory = Object.assign({}, originOrdInv)
-  delete copiedOrdInv.id
+  if (!sameTargetWSD) {
+    // Create new order inventory
+    const copiedOrdInv: OrderInventory = Object.assign({}, originOrdInv)
+    delete copiedOrdInv.id
 
-  let newOrdInv: OrderInventory = {
-    ...copiedOrdInv,
-    domain,
-    bizplace,
-    name: OrderNoGenerator.orderInventory(),
-    type: ORDER_TYPES.ARRIVAL_NOTICE,
-    arrivalNotice: refOrder,
-    inventory: changedInv,
-    creator: user,
-    updater: user
+    let newOrdInv: OrderInventory = {
+      ...copiedOrdInv,
+      domain,
+      bizplace,
+      name: OrderNoGenerator.orderInventory(),
+      type: ORDER_TYPES.ARRIVAL_NOTICE,
+      arrivalNotice: refOrder,
+      inventory: changedInv,
+      creator: user,
+      updater: user
+    }
+    newOrdInv = await trxMgr.getRepository(OrderInventory).save(newOrdInv)
+
+    const copiedWSD: WorksheetDetail = Object.assign({}, originalWSD)
+    delete copiedWSD.id
+
+    let newWSD: WorksheetDetail = {
+      ...copiedWSD,
+      domain,
+      bizplace,
+      worksheet: putawayWS,
+      name: WorksheetNoGenerator.putawayDetail(),
+      targetInventory: newOrdInv,
+      type: WORKSHEET_TYPE.PUTAWAY,
+      creator: user,
+      updater: user
+    }
+    newWSD = await trxMgr.getRepository(WorksheetDetail).save(newWSD)
   }
-  newOrdInv = await trxMgr.getRepository(OrderInventory).save(newOrdInv)
-
-  const copiedWSD: WorksheetDetail = Object.assign({}, originPutawayWSD)
-  delete copiedWSD.id
-
-  let newWSD: WorksheetDetail = {
-    ...copiedWSD,
-    domain,
-    bizplace,
-    worksheet: originPutawayWS,
-    name: WorksheetNoGenerator.putawayDetail(),
-    targetInventory: newOrdInv,
-    type: WORKSHEET_TYPE.PUTAWAY,
-    creator: user,
-    updater: user
-  }
-  newWSD = await trxMgr.getRepository(WorksheetDetail).save(newWSD)
 
   // Update origin order inventory
   if (originInv.status === INVENTORY_STATUS.TERMINATED) {
-    await trxMgr.getRepository(WorksheetDetail).delete(originPutawayWSD.id)
+    await trxMgr.getRepository(WorksheetDetail).delete(originalWSD.id)
 
     originOrdInv.status = ORDER_INVENTORY_STATUS.DONE
     originOrdInv.updater = user
@@ -319,11 +325,11 @@ async function createLoadingWorksheet(
   bizplace: Bizplace,
   refOrder: ReleaseGood,
   originInv: OrderInventory,
-  inv: Inventory,
+  changedInv: Inventory,
   user: User
 ): Promise<void> {
-  const changedQty: number = inv.qty
-  const changedWeight: number = inv.weight
+  const changedQty: number = changedInv.qty
+  const changedWeight: number = changedInv.weight
   const loadingWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
     where: { domain, bizplace, releaseGood: refOrder, type: WORKSHEET_TYPE.LOADING },
     relations: ['worksheetDetails', 'worksheetDetails.targetInventory', 'worksheetDetails.targetInventory.inventory']
@@ -335,51 +341,61 @@ async function createLoadingWorksheet(
   const loadingWSD: WorksheetDetail = loadingWS.worksheetDetails.find(
     (wsd: WorksheetDetail) => wsd.targetInventory.inventory.id === originInv.id
   )
+  const loadingOrdInv: OrderInventory = loadingWSD.targetInventory
+  const sameTargetInv: OrderInventory = loadingWS.worksheetDetails.find(
+    (wsd: WorksheetDetail) => wsd.targetInventory.inventory.id === changedInv.id
+  )
 
-  let loadingOrdInv: OrderInventory = loadingWSD.targetInventory
-  // Create new order inventory
-  const copiedOrderInv: OrderInventory = Object.assign({}, loadingOrdInv)
-  delete copiedOrderInv.id
+  if (sameTargetInv) {
+    sameTargetInv.releaseQty += changedQty
+    sameTargetInv.releaseWeight += changedWeight
+    sameTargetInv.updater = user
+    await trxMgr.getRepository(OrderInventory).save(sameTargetInv)
+  } else {
+    // Create new order inventory
+    const copiedOrderInv: OrderInventory = Object.assign({}, loadingOrdInv)
+    delete copiedOrderInv.id
 
-  const newOrderInv: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
-    ...copiedOrderInv,
-    domain,
-    bizplace,
-    releaseQty: changedQty,
-    releaseWeight: changedWeight,
-    name: OrderNoGenerator.orderInventory(),
-    type: ORDER_TYPES.RELEASE_OF_GOODS,
-    releaseGood: refOrder,
-    inventory: inv,
-    creator: user,
-    updater: user
-  })
+    const newOrderInv: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
+      ...copiedOrderInv,
+      domain,
+      bizplace,
+      releaseQty: changedQty,
+      releaseWeight: changedWeight,
+      name: OrderNoGenerator.orderInventory(),
+      type: ORDER_TYPES.RELEASE_OF_GOODS,
+      releaseGood: refOrder,
+      inventory: changedInv,
+      creator: user,
+      updater: user
+    })
 
-  const copiedWSD: WorksheetDetail = Object.assign({}, loadingWSD)
-  delete copiedWSD.id
-  await trxMgr.getRepository(WorksheetDetail).save({
-    ...copiedWSD,
-    domain,
-    bizplace,
-    worksheet: loadingWS,
-    name: WorksheetNoGenerator.loadingDetail(),
-    targetInventory: newOrderInv,
-    type: WORKSHEET_TYPE.LOADING,
-    creator: user,
-    updater: user
-  })
+    const copiedWSD: WorksheetDetail = Object.assign({}, loadingWSD)
+    delete copiedWSD.id
+    await trxMgr.getRepository(WorksheetDetail).save({
+      ...copiedWSD,
+      domain,
+      bizplace,
+      worksheet: loadingWS,
+      name: WorksheetNoGenerator.loadingDetail(),
+      targetInventory: newOrderInv,
+      type: WORKSHEET_TYPE.LOADING,
+      creator: user,
+      updater: user
+    })
+  }
 
   // Update inventory to PICKED inventory
-  inv = await trxMgr.getRepository(Inventory).save({
-    ...inv,
-    qty: 0,
-    weight: 0,
+  changedInv = await trxMgr.getRepository(Inventory).save({
+    ...changedInv,
+    qty: changedInv.qty - changedQty,
+    weight: changedInv.weight - changedWeight,
     updater: user
   })
 
   // Generate PICKING inventory history
   await generateInventoryHistory(
-    inv,
+    changedInv,
     refOrder,
     INVENTORY_TRANSACTION_TYPE.PICKING,
     -changedQty,
@@ -389,7 +405,7 @@ async function createLoadingWorksheet(
   )
 
   // Generate TERMINATED inventory history
-  await generateInventoryHistory(inv, refOrder, INVENTORY_TRANSACTION_TYPE.TERMINATED, 0, 0, user, trxMgr)
+  await generateInventoryHistory(changedInv, refOrder, INVENTORY_TRANSACTION_TYPE.TERMINATED, 0, 0, user, trxMgr)
 
   // Delete worksheet detail & order inventory
   // If order inventory doesn't have release qty any more
