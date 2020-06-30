@@ -4,7 +4,7 @@ import { OrderVas } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS, Location, Warehouse } from '@things-factory/warehouse-base'
 import { EntityManager, Equal, getManager, Not } from 'typeorm'
-import { Worksheet, WorksheetDetail } from '../../../../../entities'
+import { WorksheetDetail } from '../../../../../entities'
 import { executeVas } from '../../execute-vas'
 import {
   assignInventory,
@@ -104,7 +104,7 @@ export const repalletizingResolver = {
 
       // If pallet is created completely
       // If there's no more products on from pallet
-      if (isCompleted || remainQty - reducedQty === 0) {
+      if (remainQty - reducedQty === 0 || requiredPalletQty === 0) {
         await executeVas(trxMgr, wsd, domain, user)
       }
     })

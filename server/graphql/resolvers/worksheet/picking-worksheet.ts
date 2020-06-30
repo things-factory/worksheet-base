@@ -1,27 +1,24 @@
 import { OrderInventory, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
-import { getRepository, createQueryBuilder, SelectQueryBuilder } from 'typeorm'
+import { createQueryBuilder, getRepository, SelectQueryBuilder } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { Worksheet, WorksheetDetail } from '../../../entities'
+import { WorksheetDetail } from '../../../entities'
+import { fetchExecutingWorksheet } from '../../../utils'
 
 export const pickingWorksheetResolver = {
   async pickingWorksheet(_: any, { releaseGoodNo, locationSortingRules }, context: any) {
     const releaseGood: ReleaseGood = await getRepository(ReleaseGood).findOne({
-      where: { domain: context.state.domain, name: releaseGoodNo, status: ORDER_STATUS.PICKING },
+      where: { domain: context.state.domain, name: releaseGoodNo /*status: ORDER_STATUS.PICKING*/ },
       relations: ['bizplace']
     })
     if (!releaseGood) throw new Error(`Couldn't find picking worksheet by order no (${releaseGoodNo})`)
-
-    const worksheet: Worksheet = await getRepository(Worksheet).findOne({
-      where: {
-        domain: context.state.domain,
-        releaseGood,
-        bizplace: releaseGood.bizplace,
-        type: WORKSHEET_TYPE.PICKING,
-        status: WORKSHEET_STATUS.EXECUTING
-      },
-      relations: ['bizplace']
-    })
+    const worksheet = await fetchExecutingWorksheet(
+      context.state.domain,
+      releaseGood.bizplace,
+      ['bizplace'],
+      WORKSHEET_TYPE.PICKING,
+      releaseGood
+    )
 
     const qb: SelectQueryBuilder<WorksheetDetail> = createQueryBuilder(WorksheetDetail, 'WSD')
     qb.leftJoinAndSelect('WSD.targetInventory', 'T_INV')
