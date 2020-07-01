@@ -21,6 +21,7 @@ import { cycleCountWorksheetResolver } from './cycle-count-worksheet'
 import { deleteWorksheet } from './delete-worksheet'
 import { deliveryOrderByWorksheetResolver } from './delivery-order-by-worksheet'
 import { executeVasResolver } from './execute-vas'
+import { editBatchNo } from './edit-batch-no'
 import { generateArrivalNoticeWorksheet } from './generate-arrival-notice-worksheet'
 import { generateCycleCountWorksheet } from './generate-cycle-count-worksheet'
 import { generatePartialPutawayWorksheetResolver } from './generate-partial-putaway-worksheet'
@@ -36,6 +37,8 @@ import { pendingCancellationReleaseOrder } from './pending-cancellation-release-
 import { picking } from './picking'
 import { pickingWorksheetResolver } from './picking-worksheet'
 import { proceedExtraProductsResolver } from './proceed-extra-products'
+import { proceedEditedBatchResolver } from './proceed-edited-batch'
+import { submitAdjustmentForApprovalResolver } from './submit-adjustment-for-approval'
 import { putaway } from './putaway'
 import { putawayWorksheetResolver } from './putaway-worksheet'
 import { replacePickingPalletsResolver } from './replace-picking-pallets'
@@ -101,6 +104,8 @@ export const Mutation = {
   ...activatePicking,
   ...activateCycleCount,
   ...completeInspection,
+  ...editBatchNo,
+  ...proceedEditedBatchResolver,
   ...unload,
   ...returning,
   ...undoUnloading,
@@ -125,6 +130,7 @@ export const Mutation = {
   ...replacePickingPalletsResolver,
   ...pendingCancellationReleaseOrder,
   ...confirmCancellationReleaseOrder,
+  ...submitAdjustmentForApprovalResolver,
   ...assignVasInventoriesResolver,
   ...repalletizingResolver,
   ...undoRepalletizingResolver,

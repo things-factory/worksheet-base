@@ -8,6 +8,8 @@ export const WorksheetDetailPatch = gql`
     type: String
     worksheet: ObjectRef
     worker: ObjectRef
+    initialBatchId: String
+    hasBatchChanges: Boolean
     targetProduct: OrderProductPatch
     targetVas: OrderVasPatch
     targetInventory: OrderInventoryPatch

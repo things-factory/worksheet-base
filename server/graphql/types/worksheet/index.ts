@@ -63,6 +63,11 @@ export const Mutation = /* GraphQL */ `
     unloadingWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
+  editBatchNo (
+    worksheetNo: String!
+    unloadingWorksheetDetails: [WorksheetDetailPatch]
+  ): Worksheet @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
   activateCycleCount (
     worksheetNo: String!
     cycleCountWorksheetDetails: [WorksheetDetailPatch]
@@ -232,6 +237,16 @@ export const Mutation = /* GraphQL */ `
     ganNo: String!
     approvedProducts: [ObjectRef]!
     rejectedProducts: [ObjectRef]!
+  ): Boolean @priviledge(category: "worksheet", priviledge: "mutation")
+
+  proceedEditedBatch (
+    ganNo: String!
+    approvedProducts: [ObjectRef]!
+    rejectedProducts: [ObjectRef]!
+  ): Boolean @priviledge(category: "worksheet", priviledge: "mutation")
+
+  submitAdjustmentForApproval (
+    name: String!
   ): Boolean @priviledge(category: "worksheet", priviledge: "mutation")
 
   replacePickingPallets (
