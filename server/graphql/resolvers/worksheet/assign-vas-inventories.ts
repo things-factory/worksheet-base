@@ -40,6 +40,8 @@ export const assignVasInventoriesResolver = {
           let targetVas: OrderVas = { ...orderVas }
           delete targetVas.id
 
+          const inventory: Inventory = await trxMgr.getRepository(Inventory).findOne(inv.id)
+          const unitWeight: number = inventory.weight / inventory.qty
           // Create new order vas
           targetVas = await trxMgr.getRepository(OrderVas).save({
             ...targetVas,
@@ -47,7 +49,8 @@ export const assignVasInventoriesResolver = {
             bizplace,
             name: OrderNoGenerator.orderVas(),
             qty: inv.qty,
-            inventory: await trxMgr.getRepository(Inventory).findOne(inv.id),
+            weight: inv.qty * unitWeight,
+            inventory,
             creator: context.state.user,
             updater: context.state.user
           })

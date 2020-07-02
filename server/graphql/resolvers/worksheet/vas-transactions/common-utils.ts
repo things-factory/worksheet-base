@@ -16,10 +16,11 @@ import {
   INVENTORY_STATUS,
   INVENTORY_TRANSACTION_TYPE,
   Location,
+  Pallet,
   Warehouse
 } from '@things-factory/warehouse-base'
-import { EntityManager, In, Not } from 'typeorm'
-import { WORKSHEET_TYPE } from '../../../../constants'
+import { EntityManager, In, IsNull, Not } from 'typeorm'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../../entities'
 import { generateInventoryHistory, WorksheetNoGenerator } from '../../../../utils'
 import { OperationGuideInterface, PalletChangesInterface, RefOrderType } from './interfaces'
@@ -218,7 +219,7 @@ export async function assignInventory(
     if (targetVas.qty > inventory.qty) {
       // If it doesn't have enough, Need to create new worksheet detail and target vas without inventory assignment
       // So the user can proceed it with another inventory
-      targetVas = await addNewVasTask(targetVas, inventory.qty, domain, bizplace, user, trxMgr, wsd)
+      targetVas = await addNewVasTask(targetVas, inventory.qty, inventory.weight, domain, bizplace, user, trxMgr, wsd)
     }
   } else if (refOrder instanceof ReleaseGood) {
     // Case 2. When the VAS Order comes with Release Good
@@ -237,16 +238,77 @@ export async function assignInventory(
     if (targetVas.qty > pickedOrdInv.releaseQty) {
       // If it doesn't have enough, Need to create new worksheet detail and target vas without inventory assignment
       // So the user can proceed it with another inventory
-      targetVas = await addNewVasTask(targetVas, pickedOrdInv.releaseQty, domain, bizplace, user, trxMgr, wsd)
+      targetVas = await addNewVasTask(
+        targetVas,
+        pickedOrdInv.releaseQty,
+        pickedOrdInv.releaseWeight,
+        domain,
+        bizplace,
+        user,
+        trxMgr,
+        wsd
+      )
     }
-
-    targetVas.inventory = inventory
-    targetVas.updater = user
-    targetVas = await trxMgr.getRepository(OrderVas).save(targetVas)
-
-    return targetVas
   } else {
     throw new Error(`Reference Order (${refOrder.name}) is not expected.`)
+  }
+
+  targetVas.inventory = inventory
+  targetVas.updater = user
+  return await trxMgr.getRepository(OrderVas).save(targetVas)
+}
+
+/**
+ * Dismiss assigne inventory when user click undo to remove
+ * proceed pallet for relabel, repack, repack
+ *
+ * @param {EntityManager} trxMgr
+ * @param {WorksheetDetail} wsd
+ * @param {OrderVas} targetVas
+ * @param {PalletChangesInterface[]} palletChanges
+ * @param {String} palletId
+ */
+export async function dismissInventory(
+  trxMgr: EntityManager,
+  wsd: WorksheetDetail,
+  targetVas: OrderVas,
+  palletChanges: PalletChangesInterface[],
+  palletId: string
+) {
+  // If there's no more item assigned with current from pallet id
+  if (!palletChanges.find((rf: PalletChangesInterface) => rf.fromPalletId === palletId)) {
+    targetVas.inventory = null
+    const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne(wsd.worksheet.id, {
+      relations: [
+        'worksheetDetails',
+        'worksheetDetails.targetVas',
+        'worksheetDetails.targetVas.vas',
+        'worksheetDetails.targetVas.inventory'
+      ]
+    })
+
+    const nonFinishedWSD: WorksheetDetail = worksheet.worksheetDetails.find(
+      (otherWSD: WorksheetDetail) =>
+        otherWSD.id !== wsd.id &&
+        otherWSD.targetVas.set === wsd.targetVas.set &&
+        otherWSD.targetVas.vas.id === wsd.targetVas.vas.id &&
+        otherWSD.status !== WORKSHEET_STATUS.DONE
+    )
+
+    if (nonFinishedWSD) {
+      // If there non finished same VAS, delete undo target record (worksheet detail & order vas)
+      // Add qty and weight for non finished vas task
+      await trxMgr.getRepository(WorksheetDetail).delete(wsd.id)
+      await trxMgr.getRepository(OrderVas).delete(targetVas.id)
+
+      nonFinishedWSD.targetVas.qty += targetVas.qty
+      nonFinishedWSD.targetVas.weight += targetVas.weight
+      await trxMgr.getRepository(OrderVas).save(nonFinishedWSD.targetVas)
+    } else {
+      // If there no non finished same VAS, dismiss inventory for the record
+      targetVas.inventory = null
+      await trxMgr.getRepository(OrderVas).save(wsd.targetVas)
+    }
   }
 }
 
@@ -257,6 +319,7 @@ export async function assignInventory(
 export async function addNewVasTask(
   targetVas: OrderVas,
   currentOrderQty: number,
+  currentOrderWeight: number,
   domain: Domain,
   bizplace: Bizplace,
   user: User,
@@ -273,6 +336,7 @@ export async function addNewVasTask(
     bizplace,
     name: OrderNoGenerator.orderVas(),
     qty: targetVas.qty - currentOrderQty,
+    weight: targetVas.weight - currentOrderWeight,
     creator: user,
     updater: user
   }
@@ -294,21 +358,23 @@ export async function addNewVasTask(
   await trxMgr.getRepository(WorksheetDetail).save(newWSD)
 
   targetVas.qty = currentOrderQty
+  targetVas.weight = currentOrderWeight
   return targetVas
 }
 
 export async function upsertInventory(
   trxMgr: EntityManager,
   domain: Domain,
-  bizplace: any,
-  user: any,
-  originInv: any,
-  refOrder: any,
+  bizplace: Bizplace,
+  user: User,
+  originInv: Inventory,
+  refOrder: RefOrderType,
   palletId: string,
   locationName: string,
   packingType: string,
   addedQty: number,
-  addedWeight: number
+  addedWeight: number,
+  transactionType: string
 ): Promise<Inventory> {
   const location: Location = await trxMgr.getRepository(Location).findOne({
     where: { domain, name: locationName },
@@ -327,29 +393,42 @@ export async function upsertInventory(
       product: originInv.product,
       packingType: packingType,
       status: Not(INVENTORY_STATUS.TERMINATED)
-    }
+    },
+    relations: ['product', 'refInventory']
   })
 
   // Create new inventory
+  const copiedInv: Inventory = Object.assign({}, originInv)
+  delete copiedInv.id
   if (!inv) {
     inv = {
+      ...copiedInv,
       domain,
       bizplace,
       palletId,
-      batchId: originInv.batchId,
       name: InventoryNoGenerator.inventoryName(),
-      product: originInv.product,
-      packingType: packingType,
+      packingType,
       qty: addedQty,
       weight: addedWeight,
-      refOrderId: originInv.refOrderId,
       warehouse,
       location,
       zone,
-      status: originInv.status,
-      orderProductId: originInv.orderProductId,
       creator: user,
       updater: user
+    }
+
+    // Save changed inventory
+    inv = await trxMgr.getRepository(Inventory).save(inv)
+
+    // Check whether the pallet is resuable or not
+    const pallet: Pallet = await trxMgr.getRepository(Pallet).findOne({
+      where: { domain, name: palletId, inventory: IsNull() }
+    })
+    // If it's exists => it's reusable pallet and need to update it's inventory field
+    if (pallet) {
+      pallet.inventory = inv
+      pallet.updater = user
+      await trxMgr.getRepository(Pallet).save(pallet)
     }
   } else {
     // Update inventory
@@ -359,20 +438,13 @@ export async function upsertInventory(
     inv.location = location
     inv.zone = location.zone
     inv.updater = user
+
+    // Save changed inventory
+    inv = await trxMgr.getRepository(Inventory).save(inv)
   }
 
-  // Save changed inventory
-  inv = await trxMgr.getRepository(Inventory).save(inv)
   // Create inventory history
-  await generateInventoryHistory(
-    inv,
-    refOrder,
-    INVENTORY_TRANSACTION_TYPE.REPACKAGING,
-    addedQty,
-    addedWeight,
-    user,
-    trxMgr
-  )
+  await generateInventoryHistory(inv, refOrder, transactionType, addedQty, addedWeight, user, trxMgr)
 
   return inv
 }
@@ -385,7 +457,8 @@ export async function deductProductAmount(
   refOrder: RefOrderType,
   originInv: Inventory,
   reducedQty: number,
-  reducedWeight: number
+  reducedWeight: number,
+  transactionType: string
 ) {
   if (refOrder instanceof ReleaseGood) {
     const loadingWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
@@ -417,15 +490,7 @@ export async function deductProductAmount(
     originInv.status = originInv.qty <= 0 || originInv.weight <= 0 ? INVENTORY_STATUS.TERMINATED : originInv.status
 
     originInv = await trxMgr.getRepository(Inventory).save(originInv)
-    await generateInventoryHistory(
-      originInv,
-      refOrder,
-      INVENTORY_TRANSACTION_TYPE.REPACKAGING,
-      -reducedQty,
-      -reducedWeight,
-      user,
-      trxMgr
-    )
+    await generateInventoryHistory(originInv, refOrder, transactionType, -reducedQty, -reducedWeight, user, trxMgr)
   }
   return originInv
 }

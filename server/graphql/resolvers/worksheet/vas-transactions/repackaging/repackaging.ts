@@ -65,7 +65,6 @@ export const repackagingResolver = {
         palletChanges,
         fromPalletId
       )
-
       const unitWeight: number = remainWeight / remainQty
       const packingUnit: string = operationGuideData.packingUnit
       const stdAmount: number = operationGuideData.stdAmount
@@ -122,13 +121,8 @@ export const repackagingResolver = {
       const repackedPackageQty: number = getRepackedPackageQty(operationGuideData.repackedInvs)
       const remainRequiredPackageQty: number = requiredPackageQty - repackedPackageQty
 
-      operationGuide.data = {
-        packingUnit: operationGuideData.packingUnit,
-        toPackingType: operationGuideData.toPackingType,
-        stdAmount: operationGuideData.stdAmount,
-        requiredPackageQty: remainRequiredPackageQty,
-        repackedInvs: operationGuideData.repackedInvs
-      }
+      operationGuide.data.requiredPackageQty = remainRequiredPackageQty
+      operationGuide.data.repackedInvs = operationGuideData.repackedInvs
 
       // Update every order vas to share same operation guide
       await updateRelatedOrderVas<RepackagingGuide>(trxMgr, domain, bizplace, wsd, targetVas, operationGuide, user)

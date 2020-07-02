@@ -2,8 +2,16 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderVas } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, INVENTORY_STATUS, Location, Warehouse } from '@things-factory/warehouse-base'
-import { EntityManager, Equal, getManager, Not } from 'typeorm'
+import {
+  Inventory,
+  INVENTORY_STATUS,
+  Location,
+  Warehouse,
+  Pallet,
+  PALLET_TYPES,
+  PALLET_STATUS
+} from '@things-factory/warehouse-base'
+import { EntityManager, Equal, getManager, Not, IsNull } from 'typeorm'
 import { WorksheetDetail } from '../../../../../entities'
 import { executeVas } from '../../execute-vas'
 import {
@@ -41,7 +49,7 @@ export const repalletizingResolver = {
       const isInvExisting: number = await trxMgr.getRepository(Inventory).count({
         where: { domain, bizplace, palletId: toPalletId, status: Not(Equal(INVENTORY_STATUS.TERMINATED)) }
       })
-      if (isInvExisting) throw new Error(`The Pallet (${toPalletId}) is alread exsits.`)
+      if (isInvExisting) throw new Error(`The Pallet (${toPalletId}) is already exsits.`)
 
       // Init refOrder
       const { arrivalNotice, releaseGood, vasOrder }: { [key: string]: RefOrderType } = targetVas
@@ -57,6 +65,18 @@ export const repalletizingResolver = {
       let originInv: Inventory = targetVas.inventory
       let operationGuide: OperationGuideInterface<RepalletizingGuide> = JSON.parse(targetVas.operationGuide)
       let operationGuideData: RepalletizingGuide = operationGuide.data
+
+      const palletType: string = operationGuideData.palletType
+      if (palletType === PALLET_TYPES.REUSABLE_PALLET) {
+        // Check whether the pallet is available
+        const pallet: Pallet = await trxMgr.getRepository(Pallet).findOne({
+          where: { domain, name: toPalletId },
+          relatoins: ['inventory']
+        })
+        if (!pallet) throw new Error(`Couldn't find reusable pallet by its ID (${toPalletId})`)
+        if (pallet.inventory) throw new Error(`The pallet (${toPalletId}) is located already.`)
+      }
+
       if (!operationGuideData.repalletizedInvs) operationGuideData.repalletizedInvs = []
       const repalletizedInvs: RepalletizedInvInfo[] = operationGuideData.repalletizedInvs
       const palletChanges: PalletChangesInterface[] = repalletizedInvs

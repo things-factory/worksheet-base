@@ -1,2 +1,3 @@
 export * from './complete-relabeling'
-export * from './assign-relabel-inventories'
+export * from './relabeling'
+export * from './undo-relabeling'

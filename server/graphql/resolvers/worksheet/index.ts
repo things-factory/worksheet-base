@@ -54,9 +54,10 @@ import { unloadingWorksheetResolver } from './unloading-worksheet'
 import { updateWorksheet } from './update-worksheet'
 import { vasCandidatesResolver } from './vas-candidates'
 import {
-  assignRelabelInventoriesResolver,
+  relabelingResolver,
   repackagingResolver,
   repalletizingResolver,
+  undoRelabelingResolver,
   undoRepackagingResolver,
   undoRepalletizingResolver
 } from './vas-transactions'
@@ -129,6 +130,7 @@ export const Mutation = {
   ...undoRepalletizingResolver,
   ...repackagingResolver,
   ...undoRepackagingResolver,
-  ...undoPickingAssigmentResolver,
-  ...assignRelabelInventoriesResolver
+  ...relabelingResolver,
+  ...undoRelabelingResolver,
+  ...undoPickingAssigmentResolver
 }

@@ -1,10 +1,17 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { OrderVas } from '@things-factory/sales-base'
+import { OrderVas, VasOrder } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
-import { OperationGuideInterface, PalletChangesInterface, RepalletizedInvInfo, RepalletizingGuide } from '../interfaces'
+import { dismissInventory } from '../common-utils'
+import {
+  OperationGuideInterface,
+  PalletChangesInterface,
+  RefOrderType,
+  RepalletizedInvInfo,
+  RepalletizingGuide
+} from '../interfaces'
 
 export const undoRepalletizingResolver = {
   async undoRepalletizing(_: any, { worksheetDetailName, toPalletId }, context: any) {
@@ -33,6 +40,8 @@ export const undoRepalletizingResolver = {
 
       if (!wsd) throw new Error(`Couldn't find worksheet detail with name: ${worksheetDetailName}`)
       if (!targetVas) throw new Error(`Couldn't find any related target vas, using current worksheet detail`)
+      const { arrivalNotice, releaseGood, vasOrder } = targetVas
+      const refOrder: RefOrderType = arrivalNotice || releaseGood || vasOrder
 
       let operationGuide: OperationGuideInterface<RepalletizingGuide> = JSON.parse(targetVas.operationGuide)
       let operationGuideData: RepalletizingGuide = operationGuide.data
@@ -53,6 +62,13 @@ export const undoRepalletizingResolver = {
       )
       if (totalQty === stdQty) {
         operationGuideData.requiredPalletQty++
+      }
+
+      if (!(refOrder instanceof VasOrder)) {
+        const palletChanges: PalletChangesInterface[] = operationGuide.data.repalletizedInvs
+          .map((ri: RepalletizedInvInfo) => ri.repalletizedFrom)
+          .flat()
+        await dismissInventory(trxMgr, wsd, targetVas, palletChanges, toPalletId)
       }
 
       // Update every order vas to share same operation guide

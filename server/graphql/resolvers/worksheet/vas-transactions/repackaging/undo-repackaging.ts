@@ -1,13 +1,15 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { OrderVas } from '@things-factory/sales-base'
+import { OrderVas, VasOrder } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
+import { dismissInventory, getWorksheetDetailByName, updateRelatedOrderVas } from '../common-utils'
 import {
   OperationGuideInterface,
   PackingUnits,
   PalletChangesInterface,
+  RefOrderType,
   RepackagingGuide,
   RepackedInvInfo
 } from '../interfaces'
@@ -20,25 +22,12 @@ export const undoRepackagingResolver = {
        */
       const domain: Domain = context.state.domain
       const user: User = context.state.user
-      const wsd: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
-        where: { domain, name: worksheetDetailName },
-        relations: [
-          'bizplace',
-          'worksheet',
-          'targetVas',
-          'targetVas.inventory',
-          'targetVas.arrivalNotice',
-          'targetVas.releaseGood',
-          'targetVas.shippingOrder',
-          'targetVas.vasOrder',
-          'targetVas.vas'
-        ]
-      })
+      const wsd: WorksheetDetail = await getWorksheetDetailByName(trxMgr, domain, worksheetDetailName)
       const bizplace: Bizplace = wsd.bizplace
       const targetVas: OrderVas = wsd.targetVas
-
-      if (!wsd) throw new Error(`Couldn't find worksheet detail with name: ${worksheetDetailName}`)
       if (!targetVas) throw new Error(`Couldn't find any related target vas, using current worksheet detail`)
+      const { arrivalNotice, releaseGood, vasOrder } = targetVas
+      const refOrder: RefOrderType = arrivalNotice || releaseGood || vasOrder
 
       let operationGuide: OperationGuideInterface<RepackagingGuide> = JSON.parse(targetVas.operationGuide)
       let operationGuideData: RepackagingGuide = operationGuide.data
@@ -86,33 +75,18 @@ export const undoRepackagingResolver = {
       )
       const repackedPackageQty: number = getRepackedPackageQty(updatedRepackedInvs)
 
-      operationGuide.data = {
-        packingUnit: operationGuideData.packingUnit,
-        toPackingType: operationGuideData.toPackingType,
-        stdAmount: operationGuideData.stdAmount,
-        requiredPackageQty: requiredPackageQty - repackedPackageQty,
-        repackedInvs: updatedRepackedInvs
+      operationGuide.data.requiredPackageQty = requiredPackageQty - repackedPackageQty
+      operationGuide.data.repackedInvs = updatedRepackedInvs
+
+      if (!(refOrder instanceof VasOrder)) {
+        const palletChanges: PalletChangesInterface[] = operationGuide.data.repackedInvs
+          .map((ri: RepackedInvInfo) => ri.repackedFrom)
+          .flat()
+        await dismissInventory(trxMgr, wsd, targetVas, palletChanges, fromPalletId)
       }
 
       // Update every order vas to share same operation guide
-      const worksheet: Worksheet = wsd.worksheet
-      const relatedWSDs: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
-        where: { domain, bizplace, worksheet },
-        relations: ['targetVas', 'targetVas.vas']
-      })
-
-      const relatedOVs: OrderVas[] = relatedWSDs
-        .map((wsd: WorksheetDetail) => wsd.targetVas)
-        .filter((ov: OrderVas) => ov.set === targetVas.set && ov.vas.id === targetVas.vas.id)
-        .map((ov: OrderVas) => {
-          return {
-            ...ov,
-            operationGuide: JSON.stringify(operationGuide),
-            updater: user
-          }
-        })
-
-      await trxMgr.getRepository(OrderVas).save(relatedOVs)
+      await updateRelatedOrderVas(trxMgr, domain, bizplace, wsd, targetVas, operationGuide, user)
     })
   }
 }

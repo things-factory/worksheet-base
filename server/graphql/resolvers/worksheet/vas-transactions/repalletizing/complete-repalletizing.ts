@@ -2,7 +2,7 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderVas, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory } from '@things-factory/warehouse-base'
+import { Inventory, INVENTORY_TRANSACTION_TYPE } from '@things-factory/warehouse-base'
 import { EntityManager } from 'typeorm'
 import {
   createLoadingWorksheet,
@@ -21,16 +21,7 @@ import {
 
 export async function completeRepalletizing(trxMgr: EntityManager, orderVas: OrderVas, user: User): Promise<void> {
   orderVas = await trxMgr.getRepository(OrderVas).findOne(orderVas.id, {
-    relations: [
-      'domain',
-      'bizplace',
-      'inventory',
-      'inventory.product',
-      'arrivalNotice',
-      'releaseGood',
-      'shippingOrder',
-      'vasOrder'
-    ]
+    relations: ['domain', 'bizplace', 'inventory', 'inventory.product', 'arrivalNotice', 'releaseGood', 'vasOrder']
   })
   const domain: Domain = orderVas.domain
   const bizplace: Bizplace = orderVas.bizplace
@@ -58,11 +49,22 @@ export async function completeRepalletizing(trxMgr: EntityManager, orderVas: Ord
       ri.locationName,
       originInv.packingType,
       qty,
-      weight
+      weight,
+      INVENTORY_TRANSACTION_TYPE.REPALLETIZING
     )
 
     // Deduct amount of product on original pallet or order inventory (Case for release order)
-    originInv = await deductProductAmount(trxMgr, domain, bizplace, user, refOrder, originInv, qty, weight)
+    originInv = await deductProductAmount(
+      trxMgr,
+      domain,
+      bizplace,
+      user,
+      refOrder,
+      originInv,
+      qty,
+      weight,
+      INVENTORY_TRANSACTION_TYPE.REPALLETIZING
+    )
 
     // Create worksheet if it's related with Arrival Notice or Release Order
     if (refOrder instanceof ArrivalNotice) {
