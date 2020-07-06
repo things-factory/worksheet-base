@@ -13,7 +13,7 @@ export const WorksheetDetailInfo = gql`
     actualPackQty: Int
     qty: Int
     weight: Float
-    releaseQty: Int
+    releaseQty: Float
     releaseWeight: Float
     operationGuide: String
     set: Int

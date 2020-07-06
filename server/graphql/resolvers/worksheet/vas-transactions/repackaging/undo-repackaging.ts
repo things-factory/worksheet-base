@@ -44,17 +44,19 @@ export const undoRepackagingResolver = {
       )
 
       // 완전히 Repacked 상태인 pallet count
-      const repackedPkgQty: number = undoInventory.repackedFrom.filter((rf: PalletChangesInterface) => {
-        const amount: number = packingUnit === PackingUnits.QTY ? rf.reducedQty : rf.reducedWeight
-        return amount === stdAmount
-      }).length
+      const repackedPkgQty: number =
+        undoInventory.repackedFrom.reduce((totalAmount: number, rf: PalletChangesInterface) => {
+          const amount: number = packingUnit === PackingUnits.QTY ? rf.reducedQty : rf.reducedWeight
+          totalAmount += amount
+          return totalAmount
+        }, 0) / stdAmount
 
       // Undo를 발생한 수량 차이를 계산
       undoInventory.repackedPkgQty = repackedPkgQty
 
       // Pallet 전체가 취소된 경우
       let updatedRepackedInvs: RepackedInvInfo[]
-      if (!undoInventory.repackedPkgQty) {
+      if (!undoInventory.repackedFrom?.length) {
         updatedRepackedInvs = repackedInvs.filter((ri: RepackedInvInfo) => ri.palletId !== toPalletId)
       } else {
         updatedRepackedInvs = repackedInvs.map((ri: RepackedInvInfo) => {

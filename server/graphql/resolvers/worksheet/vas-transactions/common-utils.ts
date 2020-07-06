@@ -391,8 +391,8 @@ export async function upsertInventory(
       palletId,
       batchId: originInv.batchId,
       product: originInv.product,
-      packingType: packingType,
-      status: Not(INVENTORY_STATUS.TERMINATED)
+      packingType,
+      refOrderId: originInv.refOrderId
     },
     relations: ['product', 'refInventory']
   })
@@ -588,13 +588,16 @@ export async function createLoadingWorksheet(
   if (!loadingWS)
     throw new Error(`Picking process is not finished yet. Please complete picking first before complete Repalletizing`)
 
-  const loadingWSD: WorksheetDetail = loadingWS.worksheetDetails.find(
+  const loadingWSDs: WorksheetDetail[] = loadingWS.worksheetDetails
+  const loadingWSD: WorksheetDetail = loadingWSDs.find(
     (wsd: WorksheetDetail) => wsd.targetInventory.inventory.id === originInv.id
   )
   const loadingOrdInv: OrderInventory = loadingWSD.targetInventory
-  const sameTargetInv: OrderInventory = loadingWS.worksheetDetails.find(
+
+  const sameTargetWSD: WorksheetDetail = loadingWSDs.find(
     (wsd: WorksheetDetail) => wsd.targetInventory.inventory.id === changedInv.id
   )
+  const sameTargetInv: OrderInventory = sameTargetWSD?.targetInventory
 
   if (sameTargetInv) {
     sameTargetInv.releaseQty += changedQty
