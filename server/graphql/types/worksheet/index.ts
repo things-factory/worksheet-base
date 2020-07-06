@@ -15,6 +15,7 @@ import { WorksheetDetailInfo } from './worksheet-detail-info'
 import { WorksheetInfo } from './worksheet-info'
 import { WorksheetList } from './worksheet-list'
 import { WorksheetPatch } from './worksheet-patch'
+import { ProductApproval } from './product-approval'
 
 export const Mutation = /* GraphQL */ `
   createWorksheet (
@@ -241,13 +242,13 @@ export const Mutation = /* GraphQL */ `
 
   proceedEditedBatch (
     ganNo: String!
-    approvedProducts: [ObjectRef]!
-    rejectedProducts: [ObjectRef]!
-  ): Boolean @priviledge(category: "worksheet", priviledge: "mutation")
+    approvedProducts: [ProductApproval]!
+    rejectedProducts: [ProductApproval]!
+  ): Boolean @priviledge(category: "worksheet_customer", priviledge: "mutation")
 
   submitAdjustmentForApproval (
     name: String!
-  ): Boolean @priviledge(category: "worksheet", priviledge: "mutation")
+  ): Boolean @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   replacePickingPallets (
     worksheetDetailName: String!
@@ -362,5 +363,6 @@ export const Types = /* GraphQL */ [
   DeliveryWorksheet,
   WorksheetDetailInfo,
   ExecutingWorksheet,
-  LoadedWorksheetDetail
+  LoadedWorksheetDetail,
+  ProductApproval
 ]

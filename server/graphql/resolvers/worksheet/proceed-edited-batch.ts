@@ -1,9 +1,9 @@
 import { Role } from '@things-factory/auth-base'
 import { Bizplace, getMyBizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, OrderProduct, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
+import { ArrivalNotice, OrderProduct, OrderVas, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { sendNotification } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE, TARGET_TYPE } from '../../../constants'
 import { Worksheet } from '../../../entities'
 
 export const proceedEditedBatchResolver = {
@@ -18,8 +18,11 @@ export const proceedEditedBatchResolver = {
           bizplace: customerBizplace,
           name: ganNo
         },
-        relations: ['orderProducts']
+        relations: ['orderProducts', 'orderProducts.product', 'orderVass', 'orderVass.targetProduct']
       })
+
+      let foundOVs: OrderVas[] = arrivalNotice.orderVass
+      let foundOPs: OrderProduct[] = arrivalNotice.orderProducts
 
       if (arrivalNotice.status !== ORDER_STATUS.PENDING_APPROVAL)
         throw new Error(`Status (${arrivalNotice.status}) of GAN is not available to proceed extra products.`)
@@ -31,7 +34,7 @@ export const proceedEditedBatchResolver = {
         (op: OrderProduct) => op.status === ORDER_PRODUCT_STATUS.PENDING_APPROVAL
       ).length
       if (approvedProducts.length + rejectedProducts.length != targetProdCnt)
-        throw new Error(`Invalid numbers of extra products`)
+        throw new Error(`Invalid numbers of approved batch no`)
 
       // Create worksheet details with approved order products
       let unloadingWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
@@ -45,27 +48,58 @@ export const proceedEditedBatchResolver = {
       })
 
       if (approvedProducts?.length) {
-        approvedProducts = approvedProducts.map((approvedProd: OrderProduct) => {
-          return {
-            ...approvedProd,
-            status: ORDER_PRODUCT_STATUS.READY_TO_UNLOAD,
-            updater: context.state.user
-          }
-        })
+        approvedProducts = await Promise.all(
+          approvedProducts.map(async (approvedProd: OrderProduct) => {
+            return {
+              ...approvedProd,
+              remark: `Previous Batch No - ${approvedProd.batchId}, has been adjusted into ${approvedProd.adjustedBatchId}`,
+              batchId: approvedProd.adjustedBatchId,
+              status: ORDER_PRODUCT_STATUS.READY_TO_UNLOAD,
+              updater: context.state.user
+            }
+          })
+        )
+        await trxMgr.getRepository(OrderProduct).save(approvedProducts)
+      }
 
-        approvedProducts = await trxMgr.getRepository(OrderProduct).save(approvedProducts)
+      if (foundOVs?.length) {
+        foundOVs = await Promise.all(
+          foundOVs.map(async (ov: OrderVas) => {
+            if (ov.targetType === TARGET_TYPE.BATCH_NO) {
+              const foundOP: OrderProduct = foundOPs.find((op: OrderProduct) => op.batchId === ov.targetBatchId)
+              return {
+                ...ov,
+                targetBatchId: foundOP.adjustedBatchId,
+                updater: context.state.user
+              }
+            } else if (ov.targetType === TARGET_TYPE.BATCH_AND_PRODUCT_TYPE) {
+              const foundOP: OrderProduct = foundOPs.find(
+                (op: OrderProduct) => op.batchId === ov.targetBatchId && op.product.name === ov.targetProduct.name
+              )
+
+              return {
+                ...ov,
+                targetBatchId: foundOP.adjustedBatchId,
+                updater: context.state.user
+              }
+            }
+          })
+        )
+
+        await trxMgr.getRepository(OrderVas).save(foundOVs)
       }
 
       if (rejectedProducts?.length) {
-        rejectedProducts.map((rejectedProd: OrderProduct) => {
-          return {
-            ...rejectedProd,
-            batchId: rejectedProd.remark,
-            initialBatchId: null,
-            status: ORDER_PRODUCT_STATUS.READY_TO_UNLOAD,
-            updater: context.state.user
-          }
-        })
+        rejectedProducts = await Promise.all(
+          rejectedProducts.map(async (rejectedProd: OrderProduct) => {
+            return {
+              ...rejectedProd,
+              remark: `New adjustment batch no - ${rejectedProd.adjustedBatchId}, has been rejected`,
+              status: ORDER_PRODUCT_STATUS.READY_TO_UNLOAD,
+              updater: context.state.user
+            }
+          })
+        )
         await trxMgr.getRepository(OrderProduct).save(rejectedProducts)
       }
 
@@ -77,7 +111,7 @@ export const proceedEditedBatchResolver = {
 
       await trxMgr.getRepository(ArrivalNotice).save({
         ...arrivalNotice,
-        status: ORDER_STATUS.PROCESSING,
+        status: ORDER_STATUS.READY_TO_UNLOAD,
         updater: context.state.user
       })
 

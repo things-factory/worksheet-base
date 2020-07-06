@@ -3,6 +3,7 @@ import { sendNotification } from '@things-factory/shell'
 import { getManager } from 'typeorm'
 import { ArrivalNotice, ORDER_STATUS } from '@things-factory/sales-base'
 import { Worksheet } from '../../../entities'
+import { WORKSHEET_TYPE } from '../../../constants'
 
 export const submitAdjustmentForApprovalResolver = {
   async submitAdjustmentForApproval(_: any, { name }, context: any) {
@@ -24,7 +25,12 @@ export const submitAdjustmentForApprovalResolver = {
       if (!foundArrivalNotice) throw new Error(`Arrival notice doesn't exists.`)
 
       const foundWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-        where: { domain: context.state.domain, arrivalNotice: foundArrivalNotice, bizplace: customerBizplace }
+        where: {
+          domain: context.state.domain,
+          arrivalNotice: foundArrivalNotice,
+          type: WORKSHEET_TYPE.UNLOADING,
+          bizplace: customerBizplace
+        }
       })
       if (!foundWS) throw new Error(`Worksheet doesn't exists.`)
 

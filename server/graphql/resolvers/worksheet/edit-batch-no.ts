@@ -34,10 +34,7 @@ export const editBatchNo = {
             : unloadingWorksheetDetails.find(
                 (worksheetDetail: WorksheetDetail) => worksheetDetail.name === foundWSD.name
               ).palletQty,
-          remark: unloadingWorksheetDetails.find(
-            (worksheetDetail: WorksheetDetail) => worksheetDetail.name === foundWSD.name
-          ).initialBatchId,
-          batchId: unloadingWorksheetDetails.find(
+          adjustedBatchId: unloadingWorksheetDetails.find(
             (worksheetDetail: WorksheetDetail) => worksheetDetail.name === foundWSD.name
           ).batchId,
           status:
