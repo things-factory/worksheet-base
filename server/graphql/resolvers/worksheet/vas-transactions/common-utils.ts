@@ -19,7 +19,7 @@ import {
   Pallet,
   Warehouse
 } from '@things-factory/warehouse-base'
-import { EntityManager, In, IsNull, Not } from 'typeorm'
+import { EntityManager, Equal, In, IsNull, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../../entities'
 import { generateInventoryHistory, WorksheetNoGenerator } from '../../../../utils'
@@ -55,7 +55,8 @@ export async function getWorksheetDetailByName(
     ]
   })
   if (!worksheetDetail) throw new Error(`Couldn't find target worksheet detail`)
-  if (!worksheetDetail.targetVas) throw new Error(`Couldn't find target vas`)
+  if (!worksheetDetail.targetVas)
+    throw new Error(`Couldn't find any related target vas, using current worksheet detail`)
   return worksheetDetail
 }
 
@@ -380,7 +381,7 @@ export async function upsertInventory(
     where: { domain, name: locationName },
     relations: ['warehouse']
   })
-  if (!location) throw new Error(`Location not found by (${locationName})`)
+  if (!location) throw new Error(`Location is not found by (${locationName})`)
   const warehouse: Warehouse = location.warehouse
   const zone: string = location.zone
 
@@ -392,15 +393,17 @@ export async function upsertInventory(
       batchId: originInv.batchId,
       product: originInv.product,
       packingType,
-      refOrderId: originInv.refOrderId
+      refOrderId: originInv.refOrderId,
+      status: Not(Equal(INVENTORY_STATUS.TERMINATED))
     },
     relations: ['product', 'refInventory']
   })
 
   // Create new inventory
-  const copiedInv: Inventory = Object.assign({}, originInv)
-  delete copiedInv.id
   if (!inv) {
+    const copiedInv: Inventory = Object.assign({}, originInv)
+    delete copiedInv.id
+
     inv = {
       ...copiedInv,
       domain,
@@ -585,31 +588,38 @@ export async function createLoadingWorksheet(
     relations: ['worksheetDetails', 'worksheetDetails.targetInventory', 'worksheetDetails.targetInventory.inventory']
   })
 
-  if (!loadingWS)
+  if (!loadingWS) {
     throw new Error(`Picking process is not finished yet. Please complete picking first before complete Repalletizing`)
+  }
 
   const loadingWSDs: WorksheetDetail[] = loadingWS.worksheetDetails
-  const loadingWSD: WorksheetDetail = loadingWSDs.find(
+
+  const originalWSD: WorksheetDetail = loadingWSDs.find(
     (wsd: WorksheetDetail) => wsd.targetInventory.inventory.id === originInv.id
   )
-  const loadingOrdInv: OrderInventory = loadingWSD.targetInventory
+  const originOrdInv: OrderInventory = originalWSD.targetInventory
+  const sameTargetWSD: WorksheetDetail = loadingWSDs.find((wsd: WorksheetDetail) => {
+    const targetOI: OrderInventory = wsd.targetInventory
+    const targetInv: Inventory = targetOI.inventory
+    const targetUnitWeight: number = targetOI.releaseWeight / targetOI.releaseQty
+    const changeUnitWeight: number = changedWeight / changedQty
 
-  const sameTargetWSD: WorksheetDetail = loadingWSDs.find(
-    (wsd: WorksheetDetail) => wsd.targetInventory.inventory.id === changedInv.id
-  )
-  const sameTargetInv: OrderInventory = sameTargetWSD?.targetInventory
+    if (
+      targetInv.palletId === changedInv.palletId &&
+      targetInv.batchId === changedInv.batchId &&
+      targetInv.packingType === changedInv.packingType &&
+      targetUnitWeight === changeUnitWeight
+    ) {
+      return wsd
+    }
+  })
 
-  if (sameTargetInv) {
-    sameTargetInv.releaseQty += changedQty
-    sameTargetInv.releaseWeight += changedWeight
-    sameTargetInv.updater = user
-    await trxMgr.getRepository(OrderInventory).save(sameTargetInv)
-  } else {
+  if (!sameTargetWSD) {
     // Create new order inventory
-    const copiedOrderInv: OrderInventory = Object.assign({}, loadingOrdInv)
+    const copiedOrderInv: OrderInventory = Object.assign({}, originOrdInv)
     delete copiedOrderInv.id
 
-    const newOrderInv: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
+    let newOrdInv: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
       ...copiedOrderInv,
       domain,
       bizplace,
@@ -622,20 +632,29 @@ export async function createLoadingWorksheet(
       creator: user,
       updater: user
     })
+    newOrdInv = await trxMgr.getRepository(OrderInventory).save(newOrdInv)
 
-    const copiedWSD: WorksheetDetail = Object.assign({}, loadingWSD)
+    const copiedWSD: WorksheetDetail = Object.assign({}, originalWSD)
     delete copiedWSD.id
-    await trxMgr.getRepository(WorksheetDetail).save({
+
+    let newWSD: WorksheetDetail = {
       ...copiedWSD,
       domain,
       bizplace,
       worksheet: loadingWS,
       name: WorksheetNoGenerator.loadingDetail(),
-      targetInventory: newOrderInv,
+      targetInventory: newOrdInv,
       type: WORKSHEET_TYPE.LOADING,
       creator: user,
       updater: user
-    })
+    }
+    await trxMgr.getRepository(WorksheetDetail).save(newWSD)
+  } else {
+    let sameTargetInv: OrderInventory = sameTargetWSD.targetInventory
+    sameTargetInv.releaseQty += changedQty
+    sameTargetInv.releaseWeight += changedWeight
+    sameTargetInv.updater = user
+    await trxMgr.getRepository(OrderInventory).save(sameTargetInv)
   }
 
   // Update inventory to PICKED inventory
@@ -662,8 +681,8 @@ export async function createLoadingWorksheet(
 
   // Delete worksheet detail & order inventory
   // If order inventory doesn't have release qty any more
-  if (loadingOrdInv.releaseQty <= 0) {
-    await trxMgr.getRepository(WorksheetDetail).delete(loadingWSD.id)
+  if (originOrdInv.releaseQty <= 0) {
+    await trxMgr.getRepository(WorksheetDetail).delete(originalWSD.id)
     originInv.status = ORDER_INVENTORY_STATUS.DONE
     originInv.updater = user
     await trxMgr.getRepository(OrderInventory).save(originInv)

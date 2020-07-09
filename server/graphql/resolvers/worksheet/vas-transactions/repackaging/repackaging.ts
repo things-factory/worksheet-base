@@ -114,6 +114,7 @@ export const repackagingResolver = {
         domain,
         bizplace,
         wsd.worksheet,
+        targetVas,
         packingUnit,
         stdAmount
       )
@@ -158,6 +159,7 @@ async function getRequiredPackageQty(
   domain: Domain,
   bizplace: Bizplace,
   worksheet: Worksheet,
+  currentOV: OrderVas,
   packingUnit: string,
   stdAmount: number
 ): Promise<number> {
@@ -167,15 +169,17 @@ async function getRequiredPackageQty(
   })
 
   const orderVASs: OrderVas[] = relatedWSDs.map((wsd: WorksheetDetail) => wsd.targetVas)
-  const { qty, weight } = orderVASs.reduce(
-    (total: { qty: number; weight: number }, ov: OrderVas) => {
-      total.qty += ov.qty
-      total.weight += ov.weight
+  const { qty, weight } = orderVASs
+    .filter((ov: OrderVas) => ov.set === currentOV.set && ov.vas.id === currentOV.vas.id)
+    .reduce(
+      (total: { qty: number; weight: number }, ov: OrderVas) => {
+        total.qty += ov.qty
+        total.weight += ov.weight
 
-      return total
-    },
-    { qty: 0, weight: 0 }
-  )
+        return total
+      },
+      { qty: 0, weight: 0 }
+    )
 
   if (packingUnit === PackingUnits.QTY) {
     return qty / stdAmount

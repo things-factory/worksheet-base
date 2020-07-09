@@ -2,16 +2,8 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderVas } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import {
-  Inventory,
-  INVENTORY_STATUS,
-  Location,
-  Warehouse,
-  Pallet,
-  PALLET_TYPES,
-  PALLET_STATUS
-} from '@things-factory/warehouse-base'
-import { EntityManager, Equal, getManager, Not, IsNull } from 'typeorm'
+import { Inventory, INVENTORY_STATUS, Location, Pallet, PALLET_TYPES, Warehouse } from '@things-factory/warehouse-base'
+import { EntityManager, Equal, getManager, Not } from 'typeorm'
 import { WorksheetDetail } from '../../../../../entities'
 import { executeVas } from '../../execute-vas'
 import {

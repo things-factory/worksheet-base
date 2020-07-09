@@ -214,6 +214,7 @@ export const Mutation = /* GraphQL */ `
 
   undoRepalletizing (
     worksheetDetailName: String!
+    fromPalletId: String!
     toPalletId: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
@@ -337,6 +338,13 @@ export const Query = /* GraphQL */ `
     sortings: [Sorting],
     locationSortingRules: [Sorting]
   ): InventoryList @priviledge(category: "inventory", priviledge: "query")
+
+  checkRelabelable (
+    batchId: String!,
+    productId: String!,
+    packingType: String!,
+    unitWeight: Int!
+  ): Boolean @priviledge(category: "inventory", priviledge: "query")
 `
 
 export const Types = /* GraphQL */ [

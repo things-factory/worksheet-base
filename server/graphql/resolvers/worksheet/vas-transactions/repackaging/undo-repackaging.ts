@@ -25,7 +25,6 @@ export const undoRepackagingResolver = {
       const wsd: WorksheetDetail = await getWorksheetDetailByName(trxMgr, domain, worksheetDetailName)
       const bizplace: Bizplace = wsd.bizplace
       const targetVas: OrderVas = wsd.targetVas
-      if (!targetVas) throw new Error(`Couldn't find any related target vas, using current worksheet detail`)
       const { arrivalNotice, releaseGood, vasOrder } = targetVas
       const refOrder: RefOrderType = arrivalNotice || releaseGood || vasOrder
 
@@ -34,7 +33,6 @@ export const undoRepackagingResolver = {
       let repackedInvs: RepackedInvInfo[] = operationGuideData.repackedInvs
       let undoInventory: RepackedInvInfo = repackedInvs.find((ri: RepackedInvInfo) => ri.palletId === toPalletId)
       if (!undoInventory) throw new Error(`Couldn't find pallet, using pallet id (${toPalletId})`)
-      // Filter out pallet which has same pallet ID with parameter
 
       const packingUnit: string = operationGuideData.packingUnit
       const stdAmount: number = operationGuideData.stdAmount
@@ -60,9 +58,7 @@ export const undoRepackagingResolver = {
         updatedRepackedInvs = repackedInvs.filter((ri: RepackedInvInfo) => ri.palletId !== toPalletId)
       } else {
         updatedRepackedInvs = repackedInvs.map((ri: RepackedInvInfo) => {
-          if (ri.palletId === toPalletId) {
-            ri = undoInventory
-          }
+          if (ri.palletId === toPalletId) ri = undoInventory
           return ri
         })
       }
@@ -72,6 +68,7 @@ export const undoRepackagingResolver = {
         domain,
         bizplace,
         wsd.worksheet,
+        targetVas,
         packingUnit,
         stdAmount
       )
@@ -97,11 +94,22 @@ function getRepackedPackageQty(repackedInvs: RepackedInvInfo[]): number {
   return repackedInvs.reduce((repackedPkgQty: number, ri: RepackedInvInfo) => (repackedPkgQty += ri.repackedPkgQty), 0)
 }
 
+/**
+ * @description Get total required package qty to complete this Repackagine VAS Task.
+ *
+ * @param {EntityManager} trxMgr
+ * @param {Domain} domain
+ * @param {Bizplace} bizplace
+ * @param {Worksheet} worksheet
+ * @param {String} packingUnit
+ * @param {Number} stdAmount
+ */
 async function getRequiredPackageQty(
   trxMgr: EntityManager,
   domain: Domain,
   bizplace: Bizplace,
   worksheet: Worksheet,
+  currentOV: OrderVas,
   packingUnit: string,
   stdAmount: number
 ): Promise<number> {
@@ -111,15 +119,17 @@ async function getRequiredPackageQty(
   })
 
   const orderVASs: OrderVas[] = relatedWSDs.map((wsd: WorksheetDetail) => wsd.targetVas)
-  const { qty, weight } = orderVASs.reduce(
-    (total: { qty: number; weight: number }, ov: OrderVas) => {
-      total.qty += ov.qty
-      total.weight += ov.weight
+  const { qty, weight } = orderVASs
+    .filter((ov: OrderVas) => ov.set === currentOV.set && ov.vas.id === currentOV.vas.id)
+    .reduce(
+      (total: { qty: number; weight: number }, ov: OrderVas) => {
+        total.qty += ov.qty
+        total.weight += ov.weight
 
-      return total
-    },
-    { qty: 0, weight: 0 }
-  )
+        return total
+      },
+      { qty: 0, weight: 0 }
+    )
 
   if (packingUnit === PackingUnits.QTY) {
     return qty / stdAmount

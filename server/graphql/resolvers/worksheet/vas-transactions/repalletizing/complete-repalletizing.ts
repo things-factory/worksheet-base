@@ -31,6 +31,11 @@ export async function completeRepalletizing(trxMgr: EntityManager, orderVas: Ord
   const { arrivalNotice, releaseGood, vasOrder } = orderVas
   const refOrder: RefOrderType = arrivalNotice || releaseGood || vasOrder
 
+  // Check completion of new pallets
+  if (!checkCompletion(operationGuideData)) {
+    throw new Error(`There's repalletized pallet which doesn't have as many as standard qty`)
+  }
+
   // create repalletized inventories based on repalletizedInvs
   const repalletizedInvs: RepalletizedInvInfo[] = extractRepackedInvs(operationGuideData, originInv)
   for (const ri of repalletizedInvs) {
@@ -73,6 +78,21 @@ export async function completeRepalletizing(trxMgr: EntityManager, orderVas: Ord
       await createLoadingWorksheet(trxMgr, domain, bizplace, user, refOrder, originInv, changedInv)
     }
   }
+}
+
+/**
+ * @description Check whether every repalletized pallet has products as many as standard qty.
+ * @param operationGuideData
+ */
+function checkCompletion(operationGuideData: RepalletizingGuide): boolean {
+  const stdQty: number = operationGuideData.stdQty
+  return operationGuideData.repalletizedInvs.every((ri: RepalletizedInvInfo) => {
+    const totalQty: number = ri.repalletizedFrom.reduce(
+      (totalQty: number, rf: PalletChangesInterface) => (totalQty += rf.reducedQty),
+      0
+    )
+    return totalQty === stdQty
+  })
 }
 
 function extractRepackedInvs(operationGuideData: RepalletizingGuide, originInv: Inventory): RepalletizedInvInfo[] {

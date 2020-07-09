@@ -33,6 +33,8 @@ export const vasWorksheetResolver = {
       })
     }
 
+    if (!refOrder) throw new Error(`Couldn't find VAS worksheet by order no (${orderNo})`)
+
     const worksheet: Worksheet = await fetchExecutingWorksheet(
       context.state.domain,
       refOrder.bizplace,

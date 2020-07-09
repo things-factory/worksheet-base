@@ -33,9 +33,14 @@ export async function fetchExecutingWorksheet(
 
   const worksheet: Worksheet = await wsRepo.findOne(findOneOption)
   if (!worksheet) throw new Error(`Couldn't find worksheet by order no (${refOrder.name})`)
-  if (worksheet.status !== WORKSHEET_STATUS.EXECUTING) {
-    throw new Error(`Worksheet is not activated yet`)
-  }
 
-  return worksheet
+  if (worksheet.status === WORKSHEET_STATUS.EXECUTING) {
+    return worksheet
+  } else if (worksheet.status === WORKSHEET_STATUS.DONE) {
+    throw new Error(`Worksheet is completed already`)
+  } else if (worksheet.status === WORKSHEET_STATUS.DEACTIVATED) {
+    throw new Error(`Worksheet is not activated yet`)
+  } else {
+    throw new Error(`Current worksheet status (${worksheet.status}) is not proper to execute it.`)
+  }
 }
