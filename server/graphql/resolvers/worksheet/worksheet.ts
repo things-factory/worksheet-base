@@ -72,7 +72,7 @@ export const worksheetResolver = {
           bizplace: worksheet.bizplace,
           releaseGood: worksheet.releaseGood
         },
-        relations: ['inventory', 'inventory.location']
+        relations: ['product', 'inventory', 'inventory.location']
       })
 
       worksheet.orderVass = await getRepository(OrderVas).find({
@@ -92,7 +92,7 @@ export const worksheetResolver = {
           bizplace: worksheet.bizplace,
           inventoryCheck: worksheet.inventoryCheck
         },
-        relations: ['inventory', 'inventory.location']
+        relations: ['product', 'inventory', 'inventory.location']
       })
     }
 
