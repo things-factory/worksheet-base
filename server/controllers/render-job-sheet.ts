@@ -163,7 +163,7 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
     container_no: foundGAN?.containerNo ? foundGAN.containerNo : null,
     container_size: foundJS ? foundJS.containerSize : null,
     eta: DateTimeConverter.date(foundGAN.etaDate),
-    ata: DateTimeConverter.date(foundGAN.ata),
+    ata: DateTimeConverter.date(foundJS.ata),
     unloading_date: foundWS?.startedAt ? DateTimeConverter.date(foundWS.startedAt) : '',
     mt_date: foundJS?.containerMtDate ? DateTimeConverter.date(foundJS.containerMtDate) : '',
     advise_mt_date: DateTimeConverter.date(foundJS.adviseMtDate),
