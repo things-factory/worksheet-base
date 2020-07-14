@@ -163,7 +163,7 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
     container_no: foundGAN?.containerNo ? foundGAN.containerNo : null,
     container_size: foundJS ? foundJS.containerSize : null,
     eta: DateTimeConverter.date(foundGAN.etaDate),
-    ata: DateTimeConverter.date(foundGAN.ata),
+    ata: foundGAN?.ata ? DateTimeConverter.date(foundGAN.ata) : null,
     unloading_date: foundWS?.startedAt ? DateTimeConverter.date(foundWS.startedAt) : '',
     mt_date: foundJS?.containerMtDate ? DateTimeConverter.date(foundJS.containerMtDate) : '',
     advise_mt_date: DateTimeConverter.date(foundJS.adviseMtDate),
@@ -186,7 +186,7 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
         do_list: item.doName,
         transport: item?.doName ? (item.ownTransport ? 'Y' : 'N') : null,
         product_qty: item.unloadedQty,
-        remark: foundGAN.looseItem ? '' : 'STRETCH FILM'
+        remark: foundGAN.looseItem ? null : 'STRETCH FILM'
       }
     })
   }
