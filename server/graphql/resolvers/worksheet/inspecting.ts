@@ -18,7 +18,6 @@ export const inspecting = {
         palletId,
         locationName,
         inspectedQty,
-        inspectedWeight,
         context.state.domain,
         context.state.user,
         trxMgr
