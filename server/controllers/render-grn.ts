@@ -1,21 +1,15 @@
 import { Attachment, STORAGE } from '@things-factory/attachment-base'
-import { Bizplace, Partner, ContactPoint } from '@things-factory/biz-base'
+import { Bizplace, ContactPoint, Partner } from '@things-factory/biz-base'
 import { config } from '@things-factory/env'
-import { Product } from '@things-factory/product-base'
-import {
-  ArrivalNotice,
-  GoodsReceivalNote,
-  OrderProduct,
-  ORDER_PRODUCT_STATUS,
-  ORDER_STATUS
-} from '@things-factory/sales-base'
-import { DateTimeConverter } from '../utils/datetime-util'
+import { ArrivalNotice, GoodsReceivalNote, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
+import { LOCATION_TYPE } from '@things-factory/warehouse-base'
 import { Domain } from '@things-factory/shell'
 import FormData from 'form-data'
 import fetch from 'node-fetch'
-import { getRepository, Not, IsNull } from 'typeorm'
-import { TEMPLATE_TYPE } from '../constants'
+import { EntityManager, getManager, getRepository } from 'typeorm'
+import { TEMPLATE_TYPE, TRANSACTION_TYPE } from '../constants'
 import { Worksheet } from '../entities'
+import { DateTimeConverter } from '../utils/datetime-util'
 
 const REPORT_API_URL = config.get('reportApiUrl', 'http://localhost:8888/rest/report/show_html')
 
@@ -60,10 +54,10 @@ export async function renderGRN({ domain: domainName, grnNo }) {
     relations: ['worksheetDetails']
   })
 
-  const targetProducts: OrderProduct[] = await getRepository(OrderProduct).find({
-    where: { domain, arrivalNotice: foundGAN, actualPalletQty: Not(IsNull()), actualPackQty: Not(IsNull()) },
-    relations: ['product']
-  })
+  // const targetProducts: OrderProduct[] = await getRepository(OrderProduct).find({
+  //   where: { domain, arrivalNotice: foundGAN, actualPalletQty: Not(IsNull()), actualPackQty: Not(IsNull()) },
+  //   relations: ['product']
+  // })
 
   // 9. find grn template based on category
   const foundTemplate: Attachment = await getRepository(Attachment).findOne({
@@ -110,6 +104,44 @@ export async function renderGRN({ domain: domainName, grnNo }) {
     cop = 'data:' + foundSignature.mimetype + ';base64,' + (await STORAGE.readFile(foundCop.path, 'base64'))
   }
 
+  let invItems: any
+
+  await getManager().transaction(async (trxMgr: EntityManager) => {
+    await trxMgr.query(
+      `
+      create temp table tmp as(
+        select invh.* from (
+          select invh.domain_id, invh.pallet_id, max(seq) as seq from order_inventories oi
+          inner join inventories inv on inv.id = oi.inventory_id
+          left join inventory_histories invh on invh.domain_id = inv.domain_id and invh.pallet_id = inv.pallet_id 
+          where oi.arrival_notice_id = $1 and invh.transaction_type = $2
+          group by invh.domain_id, invh.pallet_id
+        ) src
+        inner join inventory_histories invh on invh.domain_id = src.domain_id and invh.pallet_id = src.pallet_id and invh.seq = src.seq
+      )   
+    `,
+      [foundGAN.id, TRANSACTION_TYPE.PUTAWAY]
+    )
+
+    invItems = await trxMgr.query(
+      `          
+      select main.product_id, main.batch_id, main.packing_type, sum(main.opening_qty) as total_qty, sum(main.opening_weight) as total_weight ,p2.name as product_name, p2.description as product_description,
+      sum(case when (l2.type = $1 or l2.type = $2) then 1 else case when sec.location_id is null then 1 else 0 end end) as pallet_count,
+      sum(case when l2.type = $3 then case when sec.location_id is not null then main.opening_qty else 0 end else 0 end) as mixed_count 
+      from tmp main
+      inner join locations l2 on l2.id::varchar = main.location_id
+      inner join products p2 on p2.id::varchar = main.product_id
+      left join (select location_id, count(*) as cnt from tmp group by location_id) sec on sec.location_id = main.location_id and sec.cnt > 1
+      group by main.product_id, main.batch_id, main.packing_type, p2.name, p2.description
+    `,
+      [LOCATION_TYPE.FLOOR, LOCATION_TYPE.BUFFER, LOCATION_TYPE.SHELF]
+    )
+
+    trxMgr.query(`
+      drop table tmp
+    `)
+  })
+
   const data = {
     logo_url: logo,
     sign_url: signature,
@@ -127,19 +159,21 @@ export async function renderGRN({ domain: domainName, grnNo }) {
     received_date: DateTimeConverter.date(foundWS.endedAt),
     truck_no: foundGAN.truckNo || '',
     container_no: foundGAN.containerNo || '',
-    product_list: targetProducts.map((op: OrderProduct, idx) => {
-      const product: Product = op.product
+    product_list: invItems.map((item, idx) => {
       return {
         list_no: idx + 1,
-        product_name: `${product.name} (${product.description})`,
-        product_type: op.packingType,
-        product_description: product.description,
-        product_batch: op.batchId,
-        product_qty: op.actualPackQty,
-        product_weight: op.totalWeight,
-        unit_weight: op.weight,
-        pallet_qty: op.actualPalletQty > 1 ? `${op.actualPalletQty} PALLETS` : `${op.actualPalletQty} PALLET`,
-        remark: op.remark
+        product_name: `${item.product_name}(${item.product_description})`,
+        product_type: item.packing_type,
+        product_batch: item.batch_id,
+        product_qty: item.total_qty,
+        product_weight: item.total_weight,
+        unit_weight: Math.round((item.total_weight / item.total_qty) * 100) / 100,
+        pallet_qty: item.pallet_count,
+        remark:
+          item.pallet_count < 1
+            ? '' + (item.mixed_count ? `${item.mixed_count} ${item.packing_type}` : '')
+            : (item.pallet_count > 1 ? `${item.pallet_count} PALLETS` : `${item.pallet_count} PALLET`) +
+              (item.mixed_count ? `, ${item.mixed_count} ${item.packing_type}` : '')
       }
     })
   }
