@@ -162,12 +162,12 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
     company_address: foundDomainBiz.address,
     container_no: foundGAN?.containerNo ? foundGAN.containerNo : null,
     container_size: foundJS ? foundJS.containerSize : null,
-    eta: foundGAN.etaDate,
+    eta: DateTimeConverter.date(foundGAN.etaDate),
     ata: DateTimeConverter.date(foundGAN.ata),
     unloading_date: foundWS?.startedAt ? DateTimeConverter.date(foundWS.startedAt) : '',
     mt_date: foundJS?.containerMtDate ? DateTimeConverter.date(foundJS.containerMtDate) : '',
     advise_mt_date: DateTimeConverter.date(foundJS.adviseMtDate),
-    loose_item: foundGAN.looseItem ? 'Y' : 'N',
+    loose_item: foundGAN.looseItem ? 'N' : 'Y',
     no_of_pallet:
       (sumPalletQty > 1 ? `${sumPalletQty} PALLETS` : `${sumPalletQty} PALLET`) +
       `, ` +
@@ -186,7 +186,7 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
         do_list: item.doName,
         transport: item?.doName ? (item.ownTransport ? 'Y' : 'N') : null,
         product_qty: item.unloadedQty,
-        remark: foundGAN.looseItem ? 'STRETCH FILM' : ''
+        remark: foundGAN.looseItem ? '' : 'STRETCH FILM'
       }
     })
   }
