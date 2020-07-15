@@ -186,7 +186,7 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
         do_list: item.doName,
         transport: item?.doName ? (item.ownTransport ? 'Y' : 'N') : null,
         product_qty: item.unloadedQty,
-        remark: foundGAN.looseItem ? null : 'STRETCH FILM'
+        remark: foundGAN.looseItem ? 'STRETCH FILM' : null
       }
     })
   }
