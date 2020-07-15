@@ -272,7 +272,7 @@ export const Mutation = /* GraphQL */ `
   undoPickingAssigment (
     worksheetNo: String!
     batchId: String!
-    productName: String!
+    productId: String!
     packingType: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 `

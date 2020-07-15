@@ -1,28 +1,35 @@
+import { Product } from '@things-factory/product-base'
 import { OrderInventory, OrderNoGenerator, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
+import { Inventory } from '@things-factory/warehouse-base'
 import { EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils'
-import { Inventory } from '@things-factory/warehouse-base'
 
 export const generateReleaseGoodWorksheetDetailsResolver = {
   async generateReleaseGoodWorksheetDetails(
     _: any,
-    { worksheetNo, batchId, productName, packingType, worksheetDetails },
+    { worksheetNo, batchId, productId, packingType, worksheetDetails },
     context: any
   ): Promise<void> {
     return await getManager().transaction(async (trxMgr: EntityManager) => {
       // 1. Remove prev worksheet details if it's exists
       const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: { name: worksheetNo, domain: context.state.domain },
-        relations: ['bizplace', 'releaseGood', 'worksheetDetails', 'worksheetDetails.targetInventory']
+        relations: [
+          'bizplace',
+          'releaseGood',
+          'worksheetDetails',
+          'worksheetDetails.targetInventory',
+          'worksheetDetails.targetInventory.product'
+        ]
       })
 
       const prevWSDs: WorksheetDetail[] = worksheet.worksheetDetails.filter((wsd: WorksheetDetail) => {
         const targetInv: OrderInventory = wsd.targetInventory
         if (
           targetInv.batchId === batchId &&
-          targetInv.productName === productName &&
+          targetInv.product.id === productId &&
           targetInv.packingType === packingType
         )
           return wsd.id
@@ -51,7 +58,7 @@ export const generateReleaseGoodWorksheetDetailsResolver = {
             inventory,
             batchId,
             status: ORDER_INVENTORY_STATUS.READY_TO_PICK,
-            productName,
+            product: await trxMgr.getRepository(Product).findOne(productId),
             packingType,
             creator: context.state.user,
             updater: context.state.user

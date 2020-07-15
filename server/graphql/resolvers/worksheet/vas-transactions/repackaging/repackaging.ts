@@ -2,8 +2,8 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderVas } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, Location, Warehouse } from '@things-factory/warehouse-base'
-import { EntityManager, getManager } from 'typeorm'
+import { Inventory, INVENTORY_STATUS, Location, Warehouse } from '@things-factory/warehouse-base'
+import { EntityManager, Equal, getManager, Not } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
 import { executeVas } from '../../execute-vas'
 import {
@@ -38,6 +38,13 @@ export const repackagingResolver = {
       const wsd: WorksheetDetail = await getWorksheetDetailByName(trxMgr, domain, worksheetDetailName)
       let { bizplace, targetVas }: { bizplace: Bizplace; targetVas: OrderVas } = wsd
 
+      const isExistingInventory: boolean = Boolean(
+        await trxMgr.getRepository(Inventory).count({
+          where: { domain, bizplace, palletId: toPalletId, status: Not(Equal(INVENTORY_STATUS.TERMINATED)) }
+        })
+      )
+      if (isExistingInventory) throw new Error(`The pallet (${toPalletId}) is exists already.`)
+
       // Init refOrder
       const { arrivalNotice, releaseGood, vasOrder }: { [key: string]: RefOrderType } = targetVas
       const refOrder: RefOrderType = arrivalNotice || releaseGood || vasOrder || null
@@ -50,6 +57,7 @@ export const repackagingResolver = {
       }
 
       let originInv: Inventory = targetVas.inventory
+
       let operationGuide: OperationGuideInterface<RepackagingGuide> = JSON.parse(targetVas.operationGuide)
       let operationGuideData: RepackagingGuide = operationGuide.data
       if (!operationGuideData.repackedInvs) operationGuideData.repackedInvs = []

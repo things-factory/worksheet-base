@@ -22,7 +22,7 @@ export const Mutation = /* GraphQL */ `
   generateReleaseGoodWorksheetDetails (
     worksheetNo: String!
     batchId: String!
-    productName: String!
+    productId: String!
     packingType: String!
     worksheetDetails: [NewWorksheetDetail]
   ): Boolean
