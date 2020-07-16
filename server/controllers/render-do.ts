@@ -170,6 +170,7 @@ export async function renderDO({ domain: domainName, doNo }) {
     driver_name: foundDriver || '',
     pallet_qty: foundDO.palletQty,
     worker_name: foundWS.updater.name,
+    do_remark: foundDO.remark,
     pallet_list: foundRP.map(rp => rp.name).join(', '),
     product_list: productList.map((prod: any, idx) => {
       return {
