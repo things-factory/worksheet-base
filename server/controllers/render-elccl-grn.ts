@@ -13,7 +13,7 @@ import { DateTimeConverter } from '../utils/datetime-util'
 
 const REPORT_API_URL = config.get('reportApiUrl', 'http://localhost:8888/rest/report/show_html')
 
-export async function renderGRN({ domain: domainName, grnNo }) {
+export async function renderElcclGRN({ domain: domainName, grnNo }) {
   // 1. find domain
   const domain: Domain = await getRepository(Domain).findOne({
     where: { subdomain: domainName }
