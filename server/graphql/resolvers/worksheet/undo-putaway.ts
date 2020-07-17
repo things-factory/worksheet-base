@@ -1,4 +1,4 @@
-import { ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
+import { ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS, ORDER_TYPES } from '@things-factory/sales-base'
 import {
   Inventory,
   INVENTORY_STATUS,
@@ -17,12 +17,32 @@ export const undoPutaway = {
       // 1. update status of worksheetDetail (DONE => EXECUTING)
       const foundWorksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
         where: { domain: context.state.domain, name: worksheetDetailName, status: WORKSHEET_STATUS.DONE },
-        relations: ['worksheet', 'worksheet.arrivalNotice', 'bizplace', 'fromLocation', 'toLocation', 'targetInventory']
+        relations: [
+          'worksheet',
+          'worksheet.arrivalNotice',
+          'bizplace',
+          'fromLocation',
+          'toLocation',
+          'targetInventory',
+          'targetInventory.inventory'
+        ]
       })
 
       if (!foundWorksheetDetail) throw new Error("Worksheet doesn't exists")
       const arrivalNotice: ArrivalNotice = foundWorksheetDetail.worksheet.arrivalNotice
       const targetInventory: OrderInventory = foundWorksheetDetail.targetInventory
+      const foundInv: Inventory = targetInventory.inventory
+
+      const foundOIs: OrderInventory[] = await trxMgr.getRepository(OrderInventory).find({
+        where: {
+          domain: context.state.domain,
+          type: ORDER_TYPES.RELEASE_OF_GOODS,
+          inventory: foundInv
+        },
+        relations: ['domain']
+      })
+
+      if (foundOIs?.length) throw new Error('This Pallet ID has been selected for releasing')
       await trxMgr.getRepository(OrderInventory).save({
         ...targetInventory,
         status: ORDER_PRODUCT_STATUS.PUTTING_AWAY,
