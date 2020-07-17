@@ -103,6 +103,12 @@ export const Mutation = /* GraphQL */ `
     inventory: InventoryPatch!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
+  preunload (
+    worksheetDetailName: String!
+    adjustedBatchId: String
+    palletQty: Int!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
   cycleCountAdjustment (
     cycleCountNo: String!
     cycleCountWorksheetDetails: [WorksheetDetailPatch]
@@ -182,7 +188,6 @@ export const Mutation = /* GraphQL */ `
     palletId: String!
     locationName: String!
     inspectedQty: Int!
-    inspectedWeight: Float!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   undoInspection (
@@ -289,6 +294,10 @@ export const Query = /* GraphQL */ `
   ): Worksheet @priviledge(category: "worksheet", priviledge: "query")
 
   unloadingWorksheet (
+    arrivalNoticeNo: String!
+  ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
+
+  preunloadWorksheet (
     arrivalNoticeNo: String!
   ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
 
