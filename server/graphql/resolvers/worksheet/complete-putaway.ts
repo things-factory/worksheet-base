@@ -2,6 +2,7 @@ import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { sendNotification } from '@things-factory/shell'
 import { Inventory, Location, LOCATION_STATUS } from '@things-factory/warehouse-base'
+import { generateGoodsReceivalNote } from '@things-factory/sales-base'
 import { Equal, getManager, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -53,7 +54,8 @@ export const completePutaway = {
           'worksheetDetails',
           'worksheetDetails.targetInventory',
           'worksheetDetails.targetInventory.inventory',
-          'bufferLocation'
+          'bufferLocation',
+          'bizplace'
         ]
       })
 
@@ -161,6 +163,16 @@ export const completePutaway = {
           updater: context.state.user
         })
       }
+
+      /**
+       * 4. Generate the Goods Received Note straight away
+       */
+      await generateGoodsReceivalNote(
+        { refNo: arrivalNotice.name, customer: foundPutawayWorksheet.bizplace.id },
+        context.state.domain,
+        context.state.user,
+        trxMgr
+      )
     })
   }
 }

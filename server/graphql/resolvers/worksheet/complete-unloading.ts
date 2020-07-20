@@ -194,16 +194,6 @@ export const completeUnloading = {
           })
         })
       }
-
-      /**
-       * 6. Generate the Goods Received Note straight away
-       */
-      await generateGoodsReceivalNote(
-        { refNo: arrivalNotice.name, customer: foundWorksheet.bizplace.id },
-        domain,
-        user,
-        trxMgr
-      )
     })
   }
 }
