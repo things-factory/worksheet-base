@@ -2,9 +2,10 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderVas } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, INVENTORY_STATUS, Location, Pallet, PALLET_TYPES, Warehouse } from '@things-factory/warehouse-base'
-import { EntityManager, Equal, getManager, Not } from 'typeorm'
+import { Inventory, Location, Pallet, PALLET_TYPES, Warehouse } from '@things-factory/warehouse-base'
+import { EntityManager, getManager } from 'typeorm'
 import { WorksheetDetail } from '../../../../../entities'
+import { checkPalletDuplication } from '../../../../../utils'
 import { executeVas } from '../../execute-vas'
 import {
   assignInventory,
@@ -38,10 +39,8 @@ export const repalletizingResolver = {
       let { bizplace, targetVas }: { bizplace: Bizplace; targetVas: OrderVas } = wsd
 
       // Check whether there's duplicated inventory in warehouse.
-      const isInvExisting: number = await trxMgr.getRepository(Inventory).count({
-        where: { domain, bizplace, palletId: toPalletId, status: Not(Equal(INVENTORY_STATUS.TERMINATED)) }
-      })
-      if (isInvExisting) throw new Error(`The Pallet (${toPalletId}) is already exsits.`)
+      if (checkPalletDuplication(domain, bizplace, toPalletId, trxMgr))
+        throw new Error(`The Pallet ID (${toPalletId}) is duplicated.`)
 
       // Init refOrder
       const { arrivalNotice, releaseGood, vasOrder }: { [key: string]: RefOrderType } = targetVas
