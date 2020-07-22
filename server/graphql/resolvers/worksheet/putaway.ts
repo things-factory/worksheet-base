@@ -38,7 +38,7 @@ export const putaway = {
         where: {
           domain: context.state.domain,
           name: toLocation,
-          type: In([LOCATION_TYPE.SHELF, LOCATION_TYPE.BUFFER, LOCATION_TYPE.FLOOR])
+          type: In([LOCATION_TYPE.SHELF, LOCATION_TYPE.BUFFER, LOCATION_TYPE.FLOOR, LOCATION_TYPE.MIXED])
         },
         relations: ['warehouse']
       })
