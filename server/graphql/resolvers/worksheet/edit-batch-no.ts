@@ -82,7 +82,7 @@ export const editBatchNo = {
       }
 
       /**
-       * 5. Update Worksheet (status: DEACTIVATED => EXECUTING)
+       * 5. Update Worksheet (status: DEACTIVATED => PENDING_ADJUSTMENT)
        */
       return await trxMgr.getRepository(Worksheet).save({
         ...foundWorksheet,

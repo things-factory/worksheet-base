@@ -10,6 +10,7 @@ import { completeInspection } from './complete-inspection'
 import { completeLoading } from './complete-loading'
 import { completePicking } from './complete-picking'
 import { completePutaway } from './complete-putaway'
+import { completePreunload } from './complete-preunload'
 import { completeReturn } from './complete-return'
 import { completeUnloading } from './complete-unloading'
 import { completeUnloadingPartiallyResolver } from './complete-unloading-partially'
@@ -38,6 +39,9 @@ import { picking } from './picking'
 import { pickingWorksheetResolver } from './picking-worksheet'
 import { proceedExtraProductsResolver } from './proceed-extra-products'
 import { proceedEditedBatchResolver } from './proceed-edited-batch'
+import { preunloadWorksheetResolver } from './preunload-worksheet'
+import { preunload } from './preunload'
+import { undoPreunload } from './undo-preunload'
 import { submitAdjustmentForApprovalResolver } from './submit-adjustment-for-approval'
 import { putaway } from './putaway'
 import { putawayWorksheetResolver } from './putaway-worksheet'
@@ -71,6 +75,7 @@ export const Query = {
   ...worksheetsResolver,
   ...worksheetResolver,
   ...unloadingWorksheetResolver,
+  ...preunloadWorksheetResolver,
   ...deliveryOrderByWorksheetResolver,
   ...putawayWorksheetResolver,
   ...returnWorksheetResolver,
@@ -106,6 +111,9 @@ export const Mutation = {
   ...completeInspection,
   ...editBatchNo,
   ...proceedEditedBatchResolver,
+  ...preunload,
+  ...completePreunload,
+  ...undoPreunload,
   ...unload,
   ...returning,
   ...undoUnloading,

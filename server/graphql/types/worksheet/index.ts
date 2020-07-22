@@ -106,7 +106,8 @@ export const Mutation = /* GraphQL */ `
   preunload (
     worksheetDetailName: String!
     adjustedBatchId: String
-    palletQty: Int!
+    adjustedPalletQty: Int!
+    palletQty: Int
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   cycleCountAdjustment (
@@ -129,6 +130,10 @@ export const Mutation = /* GraphQL */ `
     worksheetDetails: [WorksheetDetailPatch]
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
+  completePreunload (
+    arrivalNoticeNo: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
   completeLoading (
     releaseGoodNo: String!
     worksheetDetails: [WorksheetDetailPatch]
@@ -143,6 +148,10 @@ export const Mutation = /* GraphQL */ `
   undoPutaway (
     worksheetDetailName: String!
     palletId: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  undoPreunload (
+    worksheetDetailName: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   returning (

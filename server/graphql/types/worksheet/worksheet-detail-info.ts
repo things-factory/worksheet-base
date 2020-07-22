@@ -11,6 +11,8 @@ export const WorksheetDetailInfo = gql`
     actualPalletQty: Int
     packQty: Int
     actualPackQty: Int
+    adjustedPalletQty: Int
+    adjustedBatchId: String
     qty: Int
     weight: Float
     releaseQty: Int

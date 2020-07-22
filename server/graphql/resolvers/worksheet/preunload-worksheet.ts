@@ -1,6 +1,6 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderProduct, ORDER_STATUS } from '@things-factory/sales-base'
-import { getRepository, In } from 'typeorm'
+import { getRepository } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -57,10 +57,10 @@ export const preunloadWorksheetResolver = {
           targetName: targetProduct.name,
           packingType: targetProduct.packingType,
           palletQty: targetProduct.palletQty,
+          adjustedPalletQty: targetProduct?.adjustedPalletQty ? targetProduct.adjustedPalletQty : null,
           packQty: targetProduct.packQty,
           remark: targetProduct.remark,
-          issue: productWSD.issue,
-          status: productWSD.status
+          status: targetProduct.status
         }
       })
     }
