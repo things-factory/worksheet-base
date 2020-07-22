@@ -1,5 +1,5 @@
 import { Role } from '@things-factory/auth-base'
-import { ArrivalNotice, OrderProduct, ORDER_STATUS } from '@things-factory/sales-base'
+import { ArrivalNotice, OrderProduct, ORDER_STATUS, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
 import { sendNotification } from '@things-factory/shell'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -31,6 +31,7 @@ export const completePreunload = {
           return {
             ...op,
             palletQty: op.adjustedPalletQty,
+            status: op.status === ORDER_PRODUCT_STATUS.INSPECTED ? ORDER_PRODUCT_STATUS.READY_TO_UNLOAD : op.status,
             updater: context.state.user
           }
         }
