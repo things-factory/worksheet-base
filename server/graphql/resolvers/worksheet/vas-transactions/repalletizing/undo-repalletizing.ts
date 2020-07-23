@@ -1,112 +1,78 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { OrderVas } from '@things-factory/sales-base'
+import { OrderVas, VasOrder } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
-import { WORKSHEET_TYPE } from '../../../../../constants'
-import { Worksheet, WorksheetDetail } from '../../../../../entities'
-import { OperationGuideInterface, RepalletizedInvInfo, RepalletizingGuide } from '../intefaces'
+import { WorksheetDetail } from '../../../../../entities'
+import { dismissInventory, getWorksheetDetailByName, updateRelatedOrderVas } from '../common-utils'
+import {
+  OperationGuideInterface,
+  PalletChangesInterface,
+  RefOrderType,
+  RepalletizedInvInfo,
+  RepalletizingGuide
+} from '../interfaces'
 
 export const undoRepalletizingResolver = {
-  async undoRepalletizing(_: any, { worksheetDetailName, palletId }, context: any) {
+  async undoRepalletizing(_: any, { worksheetDetailName, fromPalletId, toPalletId }, context: any) {
     return await getManager().transaction(async (trxMgr: EntityManager) => {
       /**
-       * initialize required variables
+       * Initialize required variables
        */
       const domain: Domain = context.state.domain
       const user: User = context.state.user
-
-      const wsd: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
-        where: { domain, name: worksheetDetailName },
-        relations: [
-          'bizplace',
-          'worksheet',
-          'targetVas',
-          'targetVas.inventory',
-          'targetVas.arrivalNotice',
-          'targetVas.releaseGood',
-          'targetVas.shippingOrder',
-          'targetVas.vasOrder',
-          'targetVas.vas'
-        ]
-      })
-
+      const wsd: WorksheetDetail = await getWorksheetDetailByName(trxMgr, domain, worksheetDetailName)
       const bizplace: Bizplace = wsd.bizplace
       const targetVas: OrderVas = wsd.targetVas
-
-      if (!wsd) throw new Error(`Couldn't find worksheet detail with name: ${worksheetDetailName}`)
-      if (!targetVas) throw new Error(`Couldn't find any related target vas, using current worksheet detail`)
+      const { arrivalNotice, releaseGood, vasOrder } = targetVas
+      const refOrder: RefOrderType = arrivalNotice || releaseGood || vasOrder
 
       let operationGuide: OperationGuideInterface<RepalletizingGuide> = JSON.parse(targetVas.operationGuide)
       let operationGuideData: RepalletizingGuide = operationGuide.data
       let repalletizedInvs: RepalletizedInvInfo[] = operationGuideData.repalletizedInvs
-
-      const undoInventory: RepalletizedInvInfo = repalletizedInvs.find(
-        (inv: RepalletizedInvInfo) => inv.palletId == palletId
+      let undoInventory: RepalletizedInvInfo = repalletizedInvs.find(
+        (ri: RepalletizedInvInfo) => ri.palletId === toPalletId
       )
-      if (!undoInventory) throw new Error(`Couldn't find pallet, using pallet id (${palletId})`)
-      // Filter out pallet which is matched with current pallet id
-      repalletizedInvs = repalletizedInvs.filter((inv: RepalletizedInvInfo) => inv.palletId !== palletId)
+      if (!undoInventory) throw new Error(`Couldn't find pallet, using pallet id (${toPalletId})`)
 
-      const worksheet: Worksheet = wsd.worksheet
-      const relatedWSDs: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
-        where: { domain, bizplace, worksheet },
-        relations: ['targetVas', 'targetVas.vas']
-      })
+      const stdQty: number = operationGuideData.stdQty
 
-      const requiredPalletQty: number =
-        operationGuideData.requiredPalletQty + Math.floor(undoInventory.addedQty / operationGuideData.stdQty)
+      // If current undo pallet is completed pallet, plus 1 required pallet qty
+      const totalQty: number = undoInventory.repalletizedFrom.reduce(
+        (totalQty: number, rf: PalletChangesInterface) => (totalQty += rf.reducedQty),
+        0
+      )
 
-      // Update related order vas
-      const relatedOrderVass: OrderVas[] = relatedWSDs
-        .map((wsd: WorksheetDetail) => wsd.targetVas)
-        .filter((ov: OrderVas) => ov.id !== targetVas.id && ov.set === targetVas.set && ov.vas.id === targetVas.vas.id)
-        .map((ov: OrderVas) => {
-          ov.operationGuide = JSON.parse(ov.operationGuide)
-          const refOperationGuideData: RepalletizingGuide = {
-            palletType: ov.operationGuide.data.palletType,
-            stdQty: ov.operationGuide.data.stdQty,
-            repalletizedInvs: ov.operationGuide.data.repalletizedInvs,
-            requiredPalletQty
+      if (totalQty === stdQty) {
+        operationGuideData.requiredPalletQty++
+      }
+
+      undoInventory.repalletizedFrom = undoInventory.repalletizedFrom.filter(
+        (rf: PalletChangesInterface) => rf.fromPalletId !== fromPalletId
+      )
+
+      let updatedRepalletizedInvs: RepalletizedInvInfo[]
+      if (!undoInventory.repalletizedFrom?.length) {
+        updatedRepalletizedInvs = repalletizedInvs.filter((ri: RepalletizedInvInfo) => ri.palletId !== toPalletId)
+      } else {
+        updatedRepalletizedInvs = repalletizedInvs.map((ri: RepalletizedInvInfo) => {
+          if (ri.palletId === toPalletId) {
+            ri = undoInventory
           }
-
-          delete ov.operationGuide.data
-
-          const refOperationGuide: OperationGuideInterface<RepalletizingGuide> = {
-            ...ov.operationGuide,
-            data: refOperationGuideData,
-            completed: !Boolean(requiredPalletQty)
-          }
-
-          return {
-            ...ov,
-            operationGuide: JSON.stringify(refOperationGuide),
-            updater: user
-          }
+          return ri
         })
-
-      await trxMgr.getRepository(OrderVas).save(relatedOrderVass)
-
-      // Update current order vas
-      const currentOperationGuideData: RepalletizingGuide = {
-        palletType: operationGuide.data.palletType,
-        stdQty: operationGuide.data.stdQty,
-        repalletizedInvs,
-        requiredPalletQty
       }
-      delete operationGuide.data
+      operationGuide.data.repalletizedInvs = updatedRepalletizedInvs
 
-      const currentOperationGuide: OperationGuideInterface<RepalletizingGuide> = {
-        ...operationGuide,
-        data: currentOperationGuideData,
-        completed: !Boolean(requiredPalletQty)
+      if (!(refOrder instanceof VasOrder)) {
+        const palletChanges: PalletChangesInterface[] = operationGuide.data.repalletizedInvs
+          .map((ri: RepalletizedInvInfo) => ri.repalletizedFrom)
+          .flat()
+        await dismissInventory(trxMgr, wsd, targetVas, palletChanges, toPalletId)
       }
 
-      await trxMgr.getRepository(OrderVas).save({
-        ...targetVas,
-        operationGuide: JSON.stringify(currentOperationGuide),
-        updater: user
-      })
+      // Update every order vas to share same operation guide
+      await updateRelatedOrderVas<RepalletizingGuide>(trxMgr, domain, bizplace, wsd, targetVas, operationGuide, user)
     })
   }
 }

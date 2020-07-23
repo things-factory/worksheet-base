@@ -10,14 +10,14 @@ export const activateLoadingResolver = {
   async activateLoading(_: any, { worksheetNo, loadingWorksheetDetails }, context: any) {
     return getManager().transaction(async (trxMgr: EntityManager) => {
       const domain: Domain = context.state.domain
-      const foundWorksheet: Worksheet = await trxMgr.getTreeRepository(Worksheet).findOne({
+      const foundWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: {
           domain,
           name: worksheetNo,
           status: WORKSHEET_STATUS.DEACTIVATED,
           type: WORKSHEET_TYPE.LOADING
         },
-        relations: ['bizplace', 'arrivalNotice', 'worksheetDetails', 'worksheetDetails.targetInventory']
+        relations: ['bizplace', 'releaseGood', 'worksheetDetails', 'worksheetDetails.targetInventory']
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
@@ -25,25 +25,26 @@ export const activateLoadingResolver = {
       const relatedWorksheetCnt: number = await trxMgr.getRepository(Worksheet).count({
         where: {
           domain,
-          arrivalNotice: foundWorksheet.arrivalNotice,
+          releaseGood: foundWorksheet.releaseGood,
           type: WORKSHEET_TYPE.VAS,
           status: Not(Equal(WORKSHEET_STATUS.DONE))
         }
       })
 
+      // Stop to activate loading worksheet with Exception
+      // This resolver is being called from client side not from other resolver.
+      // So if there's a related worksheet, it should throw an Error to inform user about non-finished order.
       if (relatedWorksheetCnt) {
-        throw new Error(`Related VAS order with RO: ${foundWorksheet.arrivalNotice.name} is still under processing.`)
+        throw new Error(`Related VAS order with RO: ${foundWorksheet.releaseGood.name} is still under processing.`)
       }
 
-      return await getManager().transaction(async trxMgr => {
-        return await activateLoading(
-          worksheetNo,
-          loadingWorksheetDetails,
-          context.state.domain,
-          context.state.user,
-          trxMgr
-        )
-      })
+      return await activateLoading(
+        worksheetNo,
+        loadingWorksheetDetails,
+        context.state.domain,
+        context.state.user,
+        trxMgr
+      )
     })
   }
 }
@@ -93,6 +94,9 @@ export async function activateLoading(
     }
   })
 
+  // Stop to activate loading worksheet without Exception
+  // When this function called from other resolver, there might be something have to be done completely.
+  // So even though there's a related worksheet, it doesn't throw an error at this point.
   if (relatedWorksheetCnt) return
 
   const customerBizplace: Bizplace = foundWorksheet.bizplace

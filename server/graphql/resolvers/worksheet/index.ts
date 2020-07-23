@@ -4,7 +4,7 @@ import { activatePicking } from './activate-picking'
 import { activatePutawayResolver } from './activate-putaway'
 import { activateReturnResolver } from './activate-return'
 import { activateUnloading } from './activate-unloading'
-import { activateVas } from './activate-vas'
+import { activateVasResolver } from './activate-vas'
 import { assignVasInventoriesResolver } from './assign-vas-inventories'
 import { completeInspection } from './complete-inspection'
 import { completeLoading } from './complete-loading'
@@ -61,10 +61,12 @@ import { unloadingWorksheetResolver } from './unloading-worksheet'
 import { updateWorksheet } from './update-worksheet'
 import { vasCandidatesResolver } from './vas-candidates'
 import {
-  checkRepackablePalletResolver,
+  checkRelabelableResolver,
+  relabelingResolver,
   repackagingResolver,
   repalletizingResolver,
-  undoRepackaging,
+  undoRelabelingResolver,
+  undoRepackagingResolver,
   undoRepalletizingResolver
 } from './vas-transactions'
 import { vasWorksheetResolver } from './vas-worksheet'
@@ -87,7 +89,7 @@ export const Query = {
   ...loadedInventories,
   ...vasCandidatesResolver,
   ...inventoriesByPalletResolver,
-  ...checkRepackablePalletResolver
+  ...checkRelabelableResolver
 }
 
 export const Mutation = {
@@ -105,7 +107,7 @@ export const Mutation = {
   ...activatePutawayResolver,
   ...activateLoadingResolver,
   ...activateReturnResolver,
-  ...activateVas,
+  ...activateVasResolver,
   ...activatePicking,
   ...activateCycleCount,
   ...completeInspection,
@@ -143,6 +145,8 @@ export const Mutation = {
   ...repalletizingResolver,
   ...undoRepalletizingResolver,
   ...repackagingResolver,
-  ...undoRepackaging,
+  ...undoRepackagingResolver,
+  ...relabelingResolver,
+  ...undoRelabelingResolver,
   ...undoPickingAssigmentResolver
 }

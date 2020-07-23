@@ -56,7 +56,6 @@ export async function activatePutaway(
   const wsRepo: Repository<Worksheet> = trxMgr?.getRepository(Worksheet) || getRepository(Worksheet)
   const wsdRepo: Repository<WorksheetDetail> = trxMgr?.getRepository(WorksheetDetail) || getRepository(WorksheetDetail)
   const oiRepo: Repository<OrderInventory> = trxMgr?.getRepository(OrderInventory) || getRepository(OrderInventory)
-  const ganRepo: Repository<ArrivalNotice> = trxMgr?.getRepository(ArrivalNotice) || getRepository(ArrivalNotice)
 
   const foundWorksheet: Worksheet = await wsRepo.findOne({
     where: {

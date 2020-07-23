@@ -141,7 +141,6 @@ export async function checkPalletDuplication(
   const duplicatedPalletCnt: number = await invRepo.count({
     domain,
     bizplace,
-    status: Not(Equal(INVENTORY_STATUS.TERMINATED)),
     palletId
   })
 

@@ -17,6 +17,7 @@ export const WorksheetDetailPatch = gql`
     toLocation: ObjectRef
     batchId: String
     palletQty: Int
+    palletizingVasId: String
     palletizingDescription: String
     status: String
     remark: String

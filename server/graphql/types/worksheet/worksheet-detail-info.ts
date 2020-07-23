@@ -15,7 +15,7 @@ export const WorksheetDetailInfo = gql`
     adjustedBatchId: String
     qty: Int
     weight: Float
-    releaseQty: Int
+    releaseQty: Float
     releaseWeight: Float
     operationGuide: String
     set: Int

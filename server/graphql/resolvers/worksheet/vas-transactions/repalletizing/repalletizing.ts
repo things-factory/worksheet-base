@@ -1,200 +1,151 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { OrderInventory, OrderVas, ORDER_TYPES, ReleaseGood } from '@things-factory/sales-base'
+import { OrderVas } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, Location, Warehouse } from '@things-factory/warehouse-base'
+import { Inventory, Location, Pallet, PALLET_TYPES, Warehouse } from '@things-factory/warehouse-base'
+import { checkPalletDuplication } from 'server/utils'
 import { EntityManager, getManager } from 'typeorm'
-import { Worksheet, WorksheetDetail } from '../../../../../entities'
-import { OperationGuideInterface, RefOrderType, RepalletizedInvInfo, RepalletizingGuide } from '../intefaces'
+import { WorksheetDetail } from '../../../../../entities'
+import { executeVas } from '../../execute-vas'
+import {
+  assignInventory,
+  getCurrentAmount,
+  getRemainInventoryAmount,
+  getWorksheetDetailByName,
+  updateRelatedOrderVas
+} from '../common-utils'
+import {
+  OperationGuideInterface,
+  PalletChangesInterface,
+  RefOrderType,
+  RepalletizedInvInfo,
+  RepalletizingGuide
+} from '../interfaces'
 
 export const repalletizingResolver = {
-  async repalletizing(_: any, { worksheetDetailName, palletId, locationName, packageQty }, context: any) {
+  async repalletizing(_: any, { worksheetDetailName, fromPalletId, toPalletId, locationName }, context: any) {
     return await getManager().transaction(async (trxMgr: EntityManager) => {
-      /**
-       * Initialize required variables
-       */
       const domain: Domain = context.state.domain
       const user: User = context.state.user
-
-      // Find target worksheet detail & target order vas
-      const wsd: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
-        where: { domain, name: worksheetDetailName },
-        relations: [
-          'bizplace',
-          'targetVas',
-          'targetVas.inventory',
-          'targetVas.inventory.product',
-          'targetVas.vas',
-          'targetVas.arrivalNotice',
-          'targetVas.releaseGood',
-          'targetVas.shippingOrder',
-          'targetVas.vasOrder',
-          'worksheet'
-        ]
-      })
-
-      const bizplace: Bizplace = wsd.bizplace
-      const targetVas: OrderVas = wsd.targetVas
-      let originInv: Inventory = targetVas.inventory
       const location: Location = await trxMgr.getRepository(Location).findOne({
         where: { domain, name: locationName },
         relations: ['warehouse']
       })
-      const warehouse: Warehouse = location.warehouse
-      // Update operation guide data for every related repalletizing vas
-      const operationGuide: OperationGuideInterface<RepalletizingGuide> = JSON.parse(targetVas.operationGuide)
-
-      let refOrder: RefOrderType
-      if (targetVas?.arrivalNotice?.id) {
-        refOrder = targetVas.arrivalNotice
-      } else if (targetVas?.releaseGood?.id) {
-        refOrder = targetVas.releaseGood
-      } else if (targetVas?.shippingOrder?.id) {
-        refOrder = targetVas.shippingOrder
-      } else if (targetVas?.vasOrder?.id) {
-        refOrder = targetVas.vasOrder
-      }
-
-      // Validity checking
-      if (!wsd) throw new Error(`Couldn't find target worksheet detail`)
-      if (!targetVas) throw new Error(`Couldn't find target vas`)
-      if (!originInv) throw new Error(`Inventory wasn't assigned to target vas`)
-      if (!refOrder) throw new Error(`Couldn't find reference order with current order vas`)
       if (!location) throw new Error(`Couldn't find location by its name (${locationName})`)
+      const warehouse: Warehouse = location.warehouse
       if (!warehouse) throw new Error(`Location (name: ${locationName}) doesn't have any relation with warehouse`)
 
-      // Calculate remain qty and weight
-      let repalletizedInvs: RepalletizedInvInfo[] = operationGuide.data.repalletizedInvs || []
-      const { repalletizedQty, repalletizedWeight } = repalletizedInvs.reduce(
-        (
-          repalletizedAmount: {
-            repalletizedQty: number
-            repalletizedWeight: number
-          },
-          repalletizedInv: RepalletizedInvInfo
-        ) => {
-          return {
-            repalletizedQty: repalletizedAmount.repalletizedQty + repalletizedInv.addedQty,
-            repalletizedWeight: repalletizedAmount.repalletizedWeight + repalletizedInv.addedWeight
-          }
-        },
-        {
-          repalletizedQty: 0,
-          repalletizedWeight: 0
-        }
+      const wsd: WorksheetDetail = await getWorksheetDetailByName(trxMgr, domain, worksheetDetailName)
+      let { bizplace, targetVas }: { bizplace: Bizplace; targetVas: OrderVas } = wsd
+
+      // Check whether there's duplicated inventory in warehouse.
+      if (checkPalletDuplication(domain, bizplace, toPalletId, trxMgr))
+        throw new Error(`The Pallet ID (${toPalletId}) is duplicated.`)
+
+      // Init refOrder
+      const { arrivalNotice, releaseGood, vasOrder }: { [key: string]: RefOrderType } = targetVas
+      const refOrder: RefOrderType = arrivalNotice || releaseGood || vasOrder || null
+      if (!refOrder) throw new Error(`Couldn't find reference order with current order vas`)
+
+      // Assign inventory if specific inventory isn't assigned yet.
+      // This case is occured when the VAS order comes with Arrival Notice or Release Good
+      if (!targetVas.inventory) {
+        targetVas = await assignInventory(trxMgr, domain, bizplace, user, wsd, refOrder, targetVas, fromPalletId)
+      }
+
+      let originInv: Inventory = targetVas.inventory
+      let operationGuide: OperationGuideInterface<RepalletizingGuide> = JSON.parse(targetVas.operationGuide)
+      let operationGuideData: RepalletizingGuide = operationGuide.data
+
+      const palletType: string = operationGuideData.palletType
+      if (palletType === PALLET_TYPES.REUSABLE_PALLET) {
+        // Check whether the pallet is available
+        const pallet: Pallet = await trxMgr.getRepository(Pallet).findOne({
+          where: { domain, name: toPalletId },
+          relatoins: ['inventory']
+        })
+        if (!pallet) throw new Error(`Couldn't find reusable pallet by its ID (${toPalletId})`)
+        if (pallet.inventory) throw new Error(`The pallet (${toPalletId}) is located already.`)
+      }
+
+      if (!operationGuideData.repalletizedInvs) operationGuideData.repalletizedInvs = []
+      const repalletizedInvs: RepalletizedInvInfo[] = operationGuideData.repalletizedInvs
+      const palletChanges: PalletChangesInterface[] = repalletizedInvs
+        .map((ri: RepalletizedInvInfo) => ri.repalletizedFrom)
+        .flat()
+      const { remainQty, remainWeight } = await getRemainInventoryAmount(
+        trxMgr,
+        refOrder,
+        domain,
+        bizplace,
+        originInv,
+        palletChanges,
+        fromPalletId
       )
-
-      // Validity check for amount of inventory
-      let remainQty: number
-      let remainWeight: number
-
-      if (refOrder instanceof ReleaseGood) {
-        const orderInv: OrderInventory = await trxMgr.getRepository(OrderInventory).findOne({
-          where: { domain, bizplace, inventory: originInv, releaseGood: refOrder, type: ORDER_TYPES.RELEASE_OF_GOODS }
-        })
-        remainQty = orderInv.releaseQty - repalletizedQty
-        remainWeight = orderInv.releaseWeight - repalletizedWeight
-      } else {
-        remainQty = originInv.qty - repalletizedQty
-        remainWeight = originInv.weight - repalletizedWeight
-      }
-
-      if (!remainQty) throw new Error(`There's no more remain package of pallet (${originInv.palletId})`)
-      if (remainQty < packageQty)
-        throw new Error(`Pallet doesn't have enough number of packages (${originInv.palletId}`)
-
       const unitWeight: number = remainWeight / remainQty
+      const stdQty: number = operationGuideData.stdQty
+      const { qty } = getCurrentAmount(palletChanges, toPalletId)
+      const requiredQty: number = stdQty - qty
+      if (requiredQty === 0) throw new Error(`The pallet (${toPalletId}) is repalletized already.`)
+      const reducedQty: number = remainQty >= requiredQty ? requiredQty : remainQty
 
-      // Add more into prev repalletized pallet
-      if (repalletizedInvs.find((inv: RepalletizedInvInfo) => inv.palletId === palletId)) {
-        repalletizedInvs = repalletizedInvs.map((inv: RepalletizedInvInfo) => {
-          if (inv.palletId === palletId) {
-            return {
-              ...inv,
-              addedQty: inv.addedQty + packageQty,
-              addedWeight: inv.addedWeight + unitWeight * packageQty,
-              completed: inv.addedQty + packageQty >= operationGuide.data.stdQty
-            }
-          } else {
-            return inv
-          }
-        })
-      } else {
-        // Append new inventory information
-        const newRepalletizedInv: RepalletizedInvInfo = {
-          palletId,
-          locationName,
-          addedQty: packageQty,
-          addedWeight: unitWeight * packageQty,
-          completed: packageQty >= operationGuide.data.stdQty
-        }
+      const repalletizedInv: RepalletizedInvInfo = getRepalletizedInv(operationGuideData, toPalletId, locationName)
+      const repalletizedFrom: PalletChangesInterface = {
+        fromPalletId,
+        toPalletId,
+        reducedQty,
+        reducedWeight: reducedQty * unitWeight
+      }
+      repalletizedInv.repalletizedFrom.push(repalletizedFrom)
 
-        repalletizedInvs.push(newRepalletizedInv)
+      const isCompleted: boolean = qty + reducedQty === stdQty
+      let requiredPalletQty: number = isCompleted
+        ? operationGuideData.requiredPalletQty - 1
+        : operationGuideData.requiredPalletQty
+
+      operationGuide.data = {
+        palletType: operationGuideData.palletType,
+        stdQty: operationGuideData.stdQty,
+        requiredPalletQty,
+        repalletizedInvs
       }
 
-      const requiredPalletQty: number =
-        operationGuide.data.requiredPalletQty - Math.floor(packageQty / operationGuide.data.stdQty)
+      // Update every order vas to share same operation guide
+      await updateRelatedOrderVas<RepalletizingGuide>(trxMgr, domain, bizplace, wsd, targetVas, operationGuide, user)
 
-      const worksheet: Worksheet = wsd.worksheet
-      const relatedWSDs: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
-        where: {
-          domain,
-          bizplace,
-          worksheet
-        },
-        relations: ['targetVas', 'targetVas.vas']
-      })
-
-      // Update related order vas
-      const relatedOrderVass: OrderVas[] = relatedWSDs
-        .map((wsd: WorksheetDetail) => wsd.targetVas)
-        .filter((ov: OrderVas) => ov.id !== targetVas.id && ov.set === targetVas.set && ov.vas.id === targetVas.vas.id)
-        .map((ov: OrderVas) => {
-          ov.operationGuide = JSON.parse(ov.operationGuide)
-          const refOperationGuideData: RepalletizingGuide = {
-            palletType: ov.operationGuide.data.palletType,
-            stdQty: ov.operationGuide.data.stdQty,
-            repalletizedInvs: ov.operationGuide.data.repalletizedInvs,
-            requiredPalletQty
-          }
-
-          delete ov.operationGuide.data
-
-          const refOperationGuide: OperationGuideInterface<RepalletizingGuide> = {
-            ...ov.operationGuide,
-            data: refOperationGuideData,
-            completed: !Boolean(requiredPalletQty)
-          }
-
-          return {
-            ...ov,
-            operationGuide: JSON.stringify(refOperationGuide),
-            updater: user
-          }
-        })
-
-      await trxMgr.getRepository(OrderVas).save(relatedOrderVass)
-
-      // Update current order vas
-      const currentOperationGuideData: RepalletizingGuide = {
-        palletType: operationGuide.data.palletType,
-        stdQty: operationGuide.data.stdQty,
-        repalletizedInvs,
-        requiredPalletQty
+      // If pallet is created completely
+      // If there's no more products on from pallet
+      if (remainQty - reducedQty === 0 || requiredPalletQty === 0) {
+        await executeVas(trxMgr, wsd, domain, user)
       }
-      delete operationGuide.data
-
-      const currentOperationGuide: OperationGuideInterface<RepalletizingGuide> = {
-        ...operationGuide,
-        data: currentOperationGuideData,
-        completed: !Boolean(requiredPalletQty)
-      }
-
-      await trxMgr.getRepository(OrderVas).save({
-        ...targetVas,
-        operationGuide: JSON.stringify(currentOperationGuide),
-        updater: user
-      })
     })
   }
+}
+
+/**
+ * @description Find repalletized pallet which has same pallet id with passed pallet id as param
+ * If there's no repalletized pallet init new RepalletizedInvInfo object and return it
+ *
+ * @param {RepalletizedInvInfo} operationGuideData
+ * @param {String} palletId
+ * @param {String} locationName
+ */
+function getRepalletizedInv(
+  operationGuideData: RepalletizingGuide,
+  palletId: string,
+  locationName: string
+): RepalletizedInvInfo {
+  let repalletizedInv: RepalletizedInvInfo = operationGuideData.repalletizedInvs.find(
+    (ri: RepalletizedInvInfo) => ri.palletId === palletId
+  )
+
+  if (!repalletizedInv) {
+    repalletizedInv = {
+      palletId,
+      locationName,
+      repalletizedFrom: []
+    }
+    operationGuideData.repalletizedInvs.push(repalletizedInv)
+  }
+  return repalletizedInv
 }

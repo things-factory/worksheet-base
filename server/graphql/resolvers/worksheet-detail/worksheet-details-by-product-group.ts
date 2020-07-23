@@ -21,7 +21,7 @@ export const worksheetDetailsByProductGroupResolver = {
       .andWhere('"WSD"."bizplace_id" = :bizplaceId')
       .andWhere('"ORD_INV"."release_good_id" = :releaseGoodId')
       .andWhere('"ORD_INV"."batch_id" = :batchId')
-      .andWhere('"ORD_INV"."product_name" = :productName')
+      .andWhere('"PROD"."name" = :productName')
       .andWhere('"ORD_INV"."packing_type" = :packingType')
       .setParameters({
         domainId: context.state.domain.id,

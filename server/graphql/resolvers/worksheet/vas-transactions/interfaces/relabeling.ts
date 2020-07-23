@@ -1,3 +1,5 @@
+import { PalletChangesInterface } from '.'
+
 export interface RelabelingToProduct {
   id: string
   name: string
@@ -14,4 +16,5 @@ export interface RelabelingGuide {
   toProduct?: RelabelingToProduct
   toBatchId?: string
   newLabel: RelabelingLabel
+  relabeledFrom: PalletChangesInterface[]
 }

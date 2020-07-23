@@ -1,9 +1,9 @@
+import { PalletChangesInterface } from './index'
+
 export interface RepalletizedInvInfo {
   palletId: string
   locationName: string
-  addedQty: number
-  addedWeight: number
-  completed: boolean
+  repalletizedFrom: PalletChangesInterface[]
 }
 
 export interface RepalletizingGuide {

@@ -1,8 +1,9 @@
 import { ArrivalNotice, OrderInventory, ORDER_STATUS } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
 import { getRepository, In } from 'typeorm'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
+import { WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
+import { fetchExecutingWorksheet } from '../../../utils'
 
 export const putawayWorksheetResolver = {
   async putawayWorksheet(_: any, { arrivalNoticeNo }, context: any) {
@@ -12,23 +13,17 @@ export const putawayWorksheetResolver = {
       // PROCESSING means some products are still being unloaded.
       where: {
         domain: context.state.domain,
-        name: arrivalNoticeNo,
-        status: In([ORDER_STATUS.PUTTING_AWAY, ORDER_STATUS.PROCESSING])
+        name: arrivalNoticeNo
+        /*status: In([ORDER_STATUS.PUTTING_AWAY, ORDER_STATUS.PROCESSING])*/
       },
       relations: ['bizplace']
     })
 
     if (!arrivalNotice) throw new Error(`Arrival notice dosen't exist.`)
-
-    const worksheet: Worksheet = await getRepository(Worksheet).findOne({
-      where: {
-        domain: context.state.domain,
-        arrivalNotice,
-        bizplace: arrivalNotice.bizplace,
-        type: WORKSHEET_TYPE.PUTAWAY,
-        status: WORKSHEET_STATUS.EXECUTING
-      },
-      relations: [
+    const worksheet: Worksheet = await fetchExecutingWorksheet(
+      context.state.domain,
+      arrivalNotice.bizplace,
+      [
         'bizplace',
         'arrivalNotice',
         'worksheetDetails',
@@ -37,8 +32,10 @@ export const putawayWorksheetResolver = {
         'worksheetDetails.targetInventory.inventory.location',
         'worksheetDetails.targetInventory.inventory.product',
         'worksheetDetails.toLocation'
-      ]
-    })
+      ],
+      WORKSHEET_TYPE.PUTAWAY,
+      arrivalNotice
+    )
 
     return {
       worksheetInfo: {

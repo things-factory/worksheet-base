@@ -61,6 +61,7 @@ export const unload = {
         domain: context.state.domain,
         bizplace: customerBizplace,
         palletId: palletId,
+        status: Not(Equal(INVENTORY_STATUS.TERMINATED)),
         warehouse: foundWorksheetDetail.worksheet.bufferLocation.warehouse,
         location: foundWorksheetDetail.worksheet.bufferLocation,
         zone: foundWorksheetDetail.worksheet.bufferLocation.zone

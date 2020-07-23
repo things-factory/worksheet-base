@@ -4,23 +4,30 @@ import { EntityManager, getManager } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const undoPickingAssigmentResolver = {
-  async undoPickingAssigment(_: any, { worksheetNo, batchId, productName, packingType }, context: any): Promise<void> {
+  async undoPickingAssigment(_: any, { worksheetNo, batchId, productId, packingType }, context: any): Promise<void> {
     return await getManager().transaction(async (trxMgr: EntityManager) => {
       const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: { name: worksheetNo, domain: context.state.domain },
-        relations: ['bizplace', 'releaseGood', 'worksheetDetails', 'worksheetDetails.targetInventory', 'worksheetDetails.targetInventory.inventory']
+        relations: [
+          'bizplace',
+          'releaseGood',
+          'worksheetDetails',
+          'worksheetDetails.targetInventory',
+          'worksheetDetails.targetInventory.product',
+          'worksheetDetails.targetInventory.inventory'
+        ]
       })
       const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails.filter(
         (wsd: WorksheetDetail) =>
           wsd.targetInventory.batchId === batchId &&
-          wsd.targetInventory.productName === productName &&
+          wsd.targetInventory.product?.id === productId &&
           wsd.targetInventory.packingType === packingType
       )
 
       const wsdIds: string[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.id)
       const orderInvIds: string[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory.id)
 
-      worksheetDetails.map( async (wsd: WorksheetDetail) => {
+      worksheetDetails.map(async (wsd: WorksheetDetail) => {
         let inv = wsd.targetInventory?.inventory
         await trxMgr.getRepository(Inventory).save({
           ...inv,

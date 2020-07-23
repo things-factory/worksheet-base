@@ -213,6 +213,7 @@ export const Mutation = /* GraphQL */ `
 
   executeVas (
     worksheetDetail: WorksheetDetailPatch!
+    palletId: String
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   undoVas (
@@ -226,26 +227,41 @@ export const Mutation = /* GraphQL */ `
 
   repalletizing (
     worksheetDetailName: String!
-    fromPalletIds: [String]!
-    palletId: String!
+    fromPalletId: String!
+    toPalletId: String!
     locationName: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   undoRepalletizing (
     worksheetDetailName: String!
-    palletId: String!
+    fromPalletId: String!
+    toPalletId: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   repackaging (
     worksheetDetailName: String!
-    fromPalletIds: [String]!
-    palletId: String!
+    fromPalletId: String!
+    toPalletId: String!
     locationName: String!
+    packageQty: Int!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   undoRepackaging (
     worksheetDetailName: String!
-    palletId: String!
+    fromPalletId: String!
+    toPalletId: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  relabeling (
+    worksheetDetailName: String!
+    fromPalletId: String!
+    toPalletId: String!
+    locationName: String
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  undoRelabeling (
+    worksheetDetailName: String!
+    toPalletId: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   proceedExtraProducts (
@@ -286,7 +302,7 @@ export const Mutation = /* GraphQL */ `
   undoPickingAssigment (
     worksheetNo: String!
     batchId: String!
-    productName: String!
+    productId: String!
     packingType: String!
   ): Boolean @priviledge(category: "worksheet_control", priviledge: "mutation")
 `
@@ -357,11 +373,12 @@ export const Query = /* GraphQL */ `
     locationSortingRules: [Sorting]
   ): InventoryList @priviledge(category: "inventory", priviledge: "query")
 
-  checkRepackablePallet (
-    worksheetDetailName: String!
-    palletId: String!
-  ): Inventory @priviledge(category: "worksheet", priviledge: "query")
-
+  checkRelabelable (
+    batchId: String!,
+    productId: String!,
+    packingType: String!,
+    unitWeight: Int!
+  ): Boolean @priviledge(category: "inventory", priviledge: "query")
 `
 
 export const Types = /* GraphQL */ [

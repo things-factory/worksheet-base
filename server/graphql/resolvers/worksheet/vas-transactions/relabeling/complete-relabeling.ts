@@ -1,57 +1,89 @@
 import { User } from '@things-factory/auth-base'
+import { Bizplace } from '@things-factory/biz-base'
 import { Product } from '@things-factory/product-base'
-import { OrderVas } from '@things-factory/sales-base'
+import { ArrivalNotice, OrderVas, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory, INVENTORY_TRANSACTION_TYPE } from '@things-factory/warehouse-base'
 import { EntityManager } from 'typeorm'
-import { generateInventoryHistory } from '../../../../..//utils'
-import { OperationGuideInterface, RefOrderType } from '../intefaces'
-import { RelabelingGuide } from '../intefaces/relabeling'
+import {
+  createLoadingWorksheet,
+  createPutawayWorksheet,
+  deductProductAmount,
+  getReducedAmount,
+  upsertInventory
+} from '../common-utils'
+import {
+  OperationGuideInterface,
+  PalletChangesInterface,
+  RefOrderType,
+  RelabelingGuide,
+  RelabelingToProduct
+} from '../interfaces'
 
-export async function completeRelabeling(trxMgr: EntityManager, orderVas: OrderVas, user: User) {
+export async function completeRelabeling(trxMgr: EntityManager, orderVas: OrderVas, user: User): Promise<void> {
   orderVas = await trxMgr.getRepository(OrderVas).findOne(orderVas.id, {
-    relations: ['domain', 'inventory', 'inventory.product', 'arrivalNotice', 'releaseGood', 'shippingOrder', 'vasOrder']
+    relations: ['domain', 'bizplace', 'inventory', 'inventory.product', 'arrivalNotice', 'releaseGood', 'vasOrder']
   })
 
   const domain: Domain = orderVas.domain
+  const bizplace: Bizplace = orderVas.bizplace
   let originInv: Inventory = orderVas.inventory
-  let refOrder: RefOrderType
-  if (orderVas.arrivalNotice) {
-    refOrder = orderVas.arrivalNotice
-  } else if (orderVas.releaseGood) {
-    refOrder = orderVas.releaseGood
-  } else if (orderVas.shippingOrder) {
-    refOrder = orderVas.shippingOrder
-  } else if (orderVas.vasOrder) {
-    refOrder = orderVas.vasOrder
-  }
-
   const operationGuide: OperationGuideInterface<RelabelingGuide> = JSON.parse(orderVas.operationGuide)
   const operationGuideData: RelabelingGuide = operationGuide.data
+  const { toBatchId, toProduct }: { toBatchId?: string; toProduct?: RelabelingToProduct } = operationGuideData
+  const { arrivalNotice, releaseGood, vasOrder } = orderVas
+  const refOrder: RefOrderType = arrivalNotice || releaseGood || vasOrder
+  const palletChanges: PalletChangesInterface[] = extractRelabeledPallets(
+    operationGuideData.relabeledFrom,
+    orderVas.inventory.palletId
+  )
 
-  const toBatchId: string = operationGuideData?.toBatchId
-  const toProductId: string = operationGuideData?.toProduct?.id
+  let copiedInv: Inventory = Object.assign({}, originInv)
+  if (toBatchId) copiedInv.batchId = toBatchId
+  if (toProduct) copiedInv.product = await trxMgr.getRepository(Product).findOne(toProduct.id)
 
-  if (!toBatchId && !toProductId)
-    throw new Error(`Invalid target inforation both batch id and product id doesn't exists`)
+  copiedInv.refInventory = originInv
 
-  if (toBatchId) {
-    originInv.batchId = toBatchId
+  for (const palletChange of palletChanges) {
+    const newInventory: Inventory = await upsertInventory(
+      trxMgr,
+      domain,
+      bizplace,
+      user,
+      copiedInv,
+      refOrder,
+      palletChange.toPalletId,
+      palletChange.locationName,
+      copiedInv.packingType,
+      palletChange.reducedQty,
+      palletChange.reducedWeight,
+      INVENTORY_TRANSACTION_TYPE.RELABELING
+    )
+
+    const { reducedQty, reducedWeight } = getReducedAmount(palletChanges, orderVas.inventory.palletId)
+    // Deduct amount of product on original pallet or order inventory (Case for release order)
+    // originInv = await deductProductAmount(trxMgr, domain, bizplace, user, refOrder, originInv, qty, weight)
+    originInv = await deductProductAmount(
+      trxMgr,
+      domain,
+      bizplace,
+      user,
+      refOrder,
+      originInv,
+      reducedQty,
+      reducedWeight,
+      INVENTORY_TRANSACTION_TYPE.RELABELING
+    )
+
+    // Create worksheet if it's related with Arrival Notice or Release Order
+    if (refOrder instanceof ArrivalNotice) {
+      await createPutawayWorksheet(trxMgr, domain, bizplace, user, refOrder, originInv, newInventory)
+    } else if (refOrder instanceof ReleaseGood) {
+      await createLoadingWorksheet(trxMgr, domain, bizplace, user, refOrder, originInv, newInventory)
+    }
   }
+}
 
-  if (toProductId) {
-    const toProduct: Product = await trxMgr.getRepository(Product).findOne({
-      where: { domain, id: toProductId }
-    })
-
-    if (!toProduct) throw new Error(`Couldn't find product, via Product ID: (${toProductId})`)
-    originInv.product = toProduct
-  }
-
-  originInv = await trxMgr.getRepository(Inventory).save({
-    ...originInv,
-    updater: user
-  })
-
-  await generateInventoryHistory(originInv, refOrder, INVENTORY_TRANSACTION_TYPE.RELABELING, 0, 0, user, trxMgr)
+function extractRelabeledPallets(palletChanges: PalletChangesInterface[], palletId: string): PalletChangesInterface[] {
+  return palletChanges.filter((pc: PalletChangesInterface) => pc.fromPalletId === palletId)
 }

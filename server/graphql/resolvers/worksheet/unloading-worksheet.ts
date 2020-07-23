@@ -1,28 +1,23 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderProduct, ORDER_STATUS } from '@things-factory/sales-base'
-import { getRepository, In } from 'typeorm'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
+import { getRepository } from 'typeorm'
+import { WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
+import { fetchExecutingWorksheet } from '../../../utils'
 
 export const unloadingWorksheetResolver = {
   async unloadingWorksheet(_: any, { arrivalNoticeNo }, context: any) {
     const arrivalNotice: ArrivalNotice = await getRepository(ArrivalNotice).findOne({
-      where: { domain: context.state.domain, name: arrivalNoticeNo, status: ORDER_STATUS.PROCESSING },
+      where: { domain: context.state.domain, name: arrivalNoticeNo /*status: ORDER_STATUS.PROCESSING*/ },
       relations: ['bizplace']
     })
-
     if (!arrivalNotice) throw new Error(`Arrival notice dosen't exist.`)
-    const customerBizplace: Bizplace = arrivalNotice.bizplace
 
-    const worksheet: Worksheet = await getRepository(Worksheet).findOne({
-      where: {
-        domain: context.state.domain,
-        arrivalNotice,
-        bizplace: customerBizplace,
-        type: WORKSHEET_TYPE.UNLOADING,
-        status: WORKSHEET_STATUS.EXECUTING
-      },
-      relations: [
+    const customerBizplace: Bizplace = arrivalNotice.bizplace
+    const worksheet: Worksheet = await fetchExecutingWorksheet(
+      context.state.domain,
+      customerBizplace,
+      [
         'bizplace',
         'bufferLocation',
         'bufferLocation.warehouse',
@@ -32,10 +27,10 @@ export const unloadingWorksheetResolver = {
         'worksheetDetails.targetProduct.product',
         'creator',
         'updater'
-      ]
-    })
-
-    if (!worksheet) throw new Error(`Worksheet dosen't exist.`)
+      ],
+      WORKSHEET_TYPE.UNLOADING,
+      arrivalNotice
+    )
 
     return {
       worksheetInfo: {
