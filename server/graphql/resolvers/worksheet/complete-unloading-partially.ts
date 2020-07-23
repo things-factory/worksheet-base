@@ -70,7 +70,8 @@ export const completeUnloadingPartiallyResolver = {
       let orderProduct: OrderProduct = foundWSD.targetProduct
       orderProduct = await ordProdRepo.save({
         ...orderProduct,
-        status: ORDER_PRODUCT_STATUS.PARTIALLY_UNLOADED
+        status: ORDER_PRODUCT_STATUS.PARTIALLY_UNLOADED,
+        remark: foundWSD.issue || null
       })
 
       /**

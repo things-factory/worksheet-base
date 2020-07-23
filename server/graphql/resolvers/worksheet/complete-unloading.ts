@@ -78,7 +78,23 @@ export const completeUnloading = {
         const worksheetDetail: WorksheetDetail = worksheetDetails.find(
           (worksheetDetail: WorksheetDetail) => foundWSD.name === worksheetDetail.name
         )
-        if (worksheetDetail && worksheetDetail.issue) foundWSD.issue = worksheetDetail.issue
+        if (worksheetDetail && worksheetDetail.issue) {
+          foundWSD.issue = worksheetDetail.issue
+        
+          targetProducts = targetProducts.map((targetProduct: OrderProduct) => {
+            if (foundWSD.targetProduct.id === targetProduct.id) {
+              return {
+                ...targetProduct,
+                remark: foundWSD.issue
+              }
+            } else {
+              return {
+                ...targetProduct
+              }
+            }
+          })
+        }
+
         return {
           ...foundWSD,
           status: WORKSHEET_STATUS.DONE,
