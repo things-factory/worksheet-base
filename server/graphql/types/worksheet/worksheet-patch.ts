@@ -6,6 +6,7 @@ export const WorksheetPatch = gql`
     description: String
     type: String
     worksheetDetails: [ObjectRef]
+    initialBatchId: String
     status: String
     truckNo: String
     palletQty: String
