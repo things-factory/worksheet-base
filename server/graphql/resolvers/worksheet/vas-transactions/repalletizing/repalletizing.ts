@@ -39,7 +39,7 @@ export const repalletizingResolver = {
       let { bizplace, targetVas }: { bizplace: Bizplace; targetVas: OrderVas } = wsd
 
       // Check whether there's duplicated inventory in warehouse.
-      if (checkPalletDuplication(domain, bizplace, toPalletId, trxMgr))
+      if (await checkPalletDuplication(domain, bizplace, toPalletId, trxMgr))
         throw new Error(`The Pallet ID (${toPalletId}) is duplicated.`)
 
       // Init refOrder
