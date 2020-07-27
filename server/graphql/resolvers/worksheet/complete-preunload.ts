@@ -26,17 +26,19 @@ export const completePreunload = {
         }
       })
 
-      foundOPs = foundOPs.map((op: OrderProduct) => {
-        if (op?.adjustedPalletQty) {
-          return {
-            ...op,
-            palletQty: op.adjustedPalletQty,
-            status: op.status === ORDER_PRODUCT_STATUS.INSPECTED ? ORDER_PRODUCT_STATUS.READY_TO_UNLOAD : op.status,
-            updater: context.state.user
+      if (foundOPs.some(op => op.status === ORDER_PRODUCT_STATUS.INSPECTED)) {
+        foundOPs = foundOPs.map((op: OrderProduct) => {
+          if (op?.adjustedPalletQty) {
+            return {
+              ...op,
+              palletQty: op.adjustedPalletQty,
+              status: op.status === ORDER_PRODUCT_STATUS.INSPECTED ? ORDER_PRODUCT_STATUS.READY_TO_UNLOAD : op.status,
+              updater: context.state.user
+            }
           }
-        }
-      })
-      await trxMgr.getRepository(OrderProduct).save(foundOPs)
+        })
+        await trxMgr.getRepository(OrderProduct).save(foundOPs)
+      }
 
       const foundWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: {
