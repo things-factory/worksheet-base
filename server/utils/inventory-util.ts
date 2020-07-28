@@ -1,5 +1,6 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
+import { Product } from '@things-factory/product-base'
 import { Domain } from '@things-factory/shell'
 import {
   Inventory,
@@ -9,7 +10,7 @@ import {
   Location,
   LOCATION_STATUS
 } from '@things-factory/warehouse-base'
-import { EntityManager, Equal, getRepository, Not, Repository } from 'typeorm'
+import { EntityManager, getRepository, Repository } from 'typeorm'
 
 /**
  * @description It will insert new record into inventory histories table.
@@ -145,4 +146,48 @@ export async function checkPalletDuplication(
   })
 
   return Boolean(duplicatedPalletCnt)
+}
+
+/**
+ * @description Check whether inventory is same with passed conditions
+ * @param {Domain} domain
+ * @param {Bizplace} bizplace
+ * @param {String} palletId
+ * @param {String} batchId
+ * @param {String | Product} product
+ * @param {String} packingType
+ * @param {EntityManager} trxMgr
+ */
+export async function checkPalletIdenticallity(
+  domain: Domain,
+  bizplace: Bizplace,
+  palletId: string,
+  batchId: string,
+  product: string | Product,
+  packingType: string,
+  trxMgr?: EntityManager
+): Promise<{ identicallity: boolean; errorMessage?: string }> {
+  const productRepo: Repository<Product> = trxMgr?.getRepository(Product) || getRepository(Product)
+  const invRepo: Repository<Inventory> = trxMgr?.getRepository(Inventory) || getRepository(Inventory)
+
+  if (typeof product === 'string') {
+    product = (await productRepo.findOne(product)) as Product
+  }
+
+  if (!product) throw new Error(``)
+
+  const inv: Inventory = invRepo.findOne({
+    where: { domain, bizplace, palletId },
+    relations: ['product']
+  })
+
+  if (batchId !== inv.batchId) return { identicallity: false, errorMessage: `Batch ID is not matched with ${batchId}` }
+
+  if (product?.id !== inv?.product?.id)
+    return { identicallity: false, errorMessage: `Product is not matched with ${product.name}` }
+
+  if (packingType !== inv.packingType)
+    return { identicallity: false, errorMessage: `Packing Type is not matched with ${packingType}` }
+
+  return { identicallity: true }
 }
