@@ -5,7 +5,7 @@ import { Domain } from '@things-factory/shell'
 import { Inventory, Location, Pallet, PALLET_TYPES, Warehouse } from '@things-factory/warehouse-base'
 import { EntityManager, getManager } from 'typeorm'
 import { WorksheetDetail } from '../../../../../entities'
-import { checkPalletDuplication } from '../../../../../utils'
+import { checkPalletDuplication, checkPalletIdenticallity } from '../../../../../utils'
 import { executeVas } from '../../execute-vas'
 import {
   assignInventory,
@@ -37,6 +37,19 @@ export const repalletizingResolver = {
 
       const wsd: WorksheetDetail = await getWorksheetDetailByName(trxMgr, domain, worksheetDetailName)
       let { bizplace, targetVas }: { bizplace: Bizplace; targetVas: OrderVas } = wsd
+
+      // Check whether from pallet has valid condition compared with customer's request
+      // Batch ID, product and packing type
+      const { identicallity, errorMessage } = await checkPalletIdenticallity(
+        domain,
+        bizplace,
+        fromPalletId,
+        targetVas.targetBatchId,
+        targetVas.targetProduct,
+        targetVas.packingType,
+        trxMgr
+      )
+      if (!identicallity) throw new Error(errorMessage)
 
       // Check whether there's duplicated inventory in warehouse.
       if (await checkPalletDuplication(domain, bizplace, toPalletId, trxMgr))
