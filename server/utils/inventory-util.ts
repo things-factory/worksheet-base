@@ -171,12 +171,12 @@ export async function checkPalletIdenticallity(
   const invRepo: Repository<Inventory> = trxMgr?.getRepository(Inventory) || getRepository(Inventory)
 
   if (typeof product === 'string') {
-    product = (await productRepo.findOne(product)) as Product
+    const foundProduct: Product = await productRepo.findOne(product)
+    if (!foundProduct) throw new Error(`Failed to find product with ${product}`)
+    product = foundProduct
   }
 
-  if (!product) throw new Error(``)
-
-  const inv: Inventory = invRepo.findOne({
+  const inv: Inventory = await invRepo.findOne({
     where: { domain, bizplace, palletId },
     relations: ['product']
   })
