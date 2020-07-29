@@ -67,7 +67,8 @@ export const completeVas = {
 
       // Do complete operation transactions if there it is
       for (const ov of orderVASs) {
-        if (ov?.operationGuide) {
+        const { issue }: { issue: string } = vasWSDs.find((wsd: WorksheetDetail) => wsd.targetVas.id === ov.id)
+        if (ov?.operationGuide && !issue) {
           await doOperationTransaction(trxMgr, ov, user)
         }
       }
