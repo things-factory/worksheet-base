@@ -34,17 +34,17 @@ export const inventoriesByPalletResolver = {
       .andWhere(
         `(iv.batch_id, product.name, iv.packing_type) NOT IN (
         SELECT 
-          OI.batch_id, P.name, OI.packing_type
+          oi.batch_id, p2.name, oi.packing_type
         FROM 
-          order_inventories OI
+          order_inventories oi
         LEFT JOIN
-          products P
+          products p2
         ON
-          OI.product_id = P.id
+          oi.product_id = p2.id
         WHERE 
           status = '${ORDER_INVENTORY_STATUS.PENDING_SPLIT}'
-        AND OI.bizplace_id IN (:...permittedBizplaceIds)
-        AND OI.domain_id = (:domainId)
+        AND oi.bizplace_id IN (:...permittedBizplaceIds)
+        AND oi.domain_id = (:domainId)
       )`,
         { permittedBizplaceIds, domainId: context.state.domain.id }
       )
