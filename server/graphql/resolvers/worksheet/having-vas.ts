@@ -1,10 +1,10 @@
 import { ArrivalNotice, ORDER_TYPES, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { EntityManager, getRepository, Repository, FindManyOptions, FindOneOptions } from 'typeorm'
+import { EntityManager, getRepository, Repository, FindOneOptions } from 'typeorm'
 import { Worksheet } from '../../../entities'
 
 export const havingVasResolver = {
-  async havingVas(_: any, { orderType, orderNo }, context: any): Promise<boolean> {
+  async havingVas(_: any, { orderType, orderNo }, context: any): Promise<Worksheet> {
     return await havingVas(orderType, orderNo, context)
   }
 }
@@ -19,7 +19,7 @@ export async function havingVas(orderType: string, orderNo: string, context: any
   const orderFindOptions: FindOneOptions<ArrivalNotice | ReleaseGood> = {
     where: { domain, name: orderNo }
   }
-  let wsFindOptions: FindManyOptions<Worksheet> = {
+  let wsFindOptions: FindOneOptions<Worksheet> = {
     where: { domain }
   }
 
@@ -35,5 +35,5 @@ export async function havingVas(orderType: string, orderNo: string, context: any
     throw new Error(`Order type (${orderType}) is not target to check about having VAS`)
   }
 
-  return Boolean(await wsRepo.count(wsFindOptions))
+  return await wsRepo.findOne(wsFindOptions)
 }
