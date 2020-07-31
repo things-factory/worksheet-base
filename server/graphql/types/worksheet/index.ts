@@ -345,6 +345,11 @@ export const Query = /* GraphQL */ `
     packingType: String!,
     unitWeight: Int!
   ): Boolean @priviledge(category: "inventory", priviledge: "query")
+
+  havingVas (
+    orderType: String!
+    orderNo: String!
+  ): Boolean @priviledge(category: "worksheet", priviledge: "query")
 `
 
 export const Types = /* GraphQL */ [
