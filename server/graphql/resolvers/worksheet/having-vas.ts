@@ -1,6 +1,7 @@
 import { ArrivalNotice, ORDER_TYPES, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { EntityManager, getRepository, Repository, FindOneOptions } from 'typeorm'
+import { EntityManager, FindOneOptions, getRepository, Repository } from 'typeorm'
+import { WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet } from '../../../entities'
 
 export const havingVasResolver = {
@@ -20,7 +21,7 @@ export async function havingVas(orderType: string, orderNo: string, context: any
     where: { domain, name: orderNo }
   }
   let wsFindOptions: FindOneOptions<Worksheet> = {
-    where: { domain }
+    where: { domain, type: WORKSHEET_TYPE.VAS }
   }
 
   if (orderType === ORDER_TYPES.ARRIVAL_NOTICE) {
