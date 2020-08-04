@@ -350,6 +350,11 @@ export const Query = /* GraphQL */ `
     orderType: String!
     orderNo: String!
   ): Worksheet @priviledge(category: "worksheet", priviledge: "query")
+
+  worksheetByOrderNo (
+    orderType: String!
+    orderNo: String!
+  ): Worksheet @priviledge(category: "worksheet", priviledge: "query")
 `
 
 export const Types = /* GraphQL */ [
