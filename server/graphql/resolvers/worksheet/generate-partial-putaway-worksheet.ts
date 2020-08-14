@@ -26,13 +26,23 @@ export const generatePartialPutawayWorksheetResolver = {
           'worksheetDetails.targetInventory.inventory'
         ]
       })
+
+      const remainPalltCnt: number = await trxMgr.getRepository(Inventory).count({
+        where: {
+          domain: context.state.domain,
+          refOrderId: arrivalNotice.id,
+          status: WORKSHEET_STATUS.PARTIALLY_UNLOADED
+        }
+      })
+      const wsdStatus: string = remainPalltCnt >= 0 ? WORKSHEET_STATUS.PARTIALLY_UNLOADED : WORKSHEET_STATUS.EXECUTING
+
       const worksheetDetails: WorksheetDetail[] = unloadingWorksheet.worksheetDetails
       await Promise.all(
         worksheetDetails.map(async (wsd: WorksheetDetail) => {
           if (wsd?.targetInventory?.inventory?.status !== INVENTORY_STATUS.PARTIALLY_UNLOADED) {
             await trxMgr.getRepository(WorksheetDetail).save({
               ...wsd,
-              status: WORKSHEET_STATUS.EXECUTING,
+              status: wsdStatus,
               updater: context.state.user
             })
           }

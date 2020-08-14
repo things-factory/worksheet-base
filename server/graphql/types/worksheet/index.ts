@@ -171,6 +171,12 @@ export const Mutation = /* GraphQL */ `
     releaseQty: Int!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
+  crossDockPicking (
+    worksheetDetailName: String!
+    palletId: String!
+    releaseQty: Int!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
   inspecting (
     worksheetDetailName: String!
     palletId: String!

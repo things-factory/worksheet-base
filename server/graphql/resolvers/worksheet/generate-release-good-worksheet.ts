@@ -17,24 +17,23 @@ import { WorksheetNoGenerator } from '../../../utils'
 
 export const generateReleaseGoodWorksheetResolver = {
   async generateReleaseGoodWorksheet(_: any, { releaseGoodNo }, context: any) {
-    return await getManager().transaction(async txMgr => {
-      return await generateReleaseGoodWorksheet(txMgr, releaseGoodNo, context)
+    return await getManager().transaction(async trxMgr => {
+      return await generateReleaseGoodWorksheet(trxMgr, releaseGoodNo, context)
     })
   }
 }
 
 export async function generateReleaseGoodWorksheet(
-  txMgr: EntityManager,
+  trxMgr: EntityManager,
   releaseGoodNo: string,
   context: any
 ): Promise<{
   pickingWorksheet: Worksheet
   vasWorksheet: Worksheet
 }> {
-  const domain: Domain = context.state.domain
-  const user: User = context.state.user
+  const { domain, user } = context.state
 
-  let foundReleaseGood: ReleaseGood = await txMgr.getRepository(ReleaseGood).findOne({
+  let foundReleaseGood: ReleaseGood = await trxMgr.getRepository(ReleaseGood).findOne({
     where: {
       domain,
       name: releaseGoodNo,
@@ -53,7 +52,7 @@ export async function generateReleaseGoodWorksheet(
    * 2. Create worksheet and worksheet details for inventories
    */
   // 2. 1) Create picking worksheet
-  const pickingWorksheet = await txMgr.getRepository(Worksheet).save({
+  const pickingWorksheet = await trxMgr.getRepository(Worksheet).save({
     domain,
     bizplace: customerBizplace,
     name: WorksheetNoGenerator.picking(),
@@ -65,29 +64,21 @@ export async function generateReleaseGoodWorksheet(
   })
 
   let oiStatus: string = ORDER_INVENTORY_STATUS.PENDING_SPLIT
-  if (foundOIs.every((oi: OrderInventory) => oi?.inventory?.id)) {
+  // order inventories is assigned when customer request pick by pallet
+  if (foundOIs.every((oi: OrderInventory) => oi?.inventory?.id) || foundReleaseGood.crossDocking) {
     // 2. 2) Create picking worksheet details
-    const pickingWorksheetDetails = foundOIs.map((oi: OrderInventory) => {
-      return {
-        domain,
-        bizplace: customerBizplace,
-        worksheet: pickingWorksheet,
-        name: WorksheetNoGenerator.pickingDetail(),
-        targetInventory: oi,
-        type: WORKSHEET_TYPE.PICKING,
-        status: WORKSHEET_STATUS.DEACTIVATED,
-        creator: user,
-        updater: user
-      }
-    })
-    await txMgr.getRepository(WorksheetDetail).save(pickingWorksheetDetails)
+
+    for (let oi of foundOIs) {
+      await generatePickingWorksheetDetail(trxMgr, domain, customerBizplace, user, pickingWorksheet, oi)
+    }
+
     oiStatus = ORDER_INVENTORY_STATUS.READY_TO_PICK
 
     foundOIs.map(async (oi: OrderInventory) => {
       oi.inventory.lockedQty = oi.releaseQty
       oi.inventory.lockedWeight = oi.releaseWeight
       oi.inventory.updater = user
-      await txMgr.getRepository(Inventory).save(oi.inventory)
+      await trxMgr.getRepository(Inventory).save(oi.inventory)
     })
   }
 
@@ -97,7 +88,7 @@ export async function generateReleaseGoodWorksheet(
     oi.updater = user
     return oi
   })
-  await txMgr.getRepository(OrderInventory).save(foundOIs)
+  await trxMgr.getRepository(OrderInventory).save(foundOIs)
 
   /**
    * 3. Create worksheet and worksheet details for vass (if it exists)
@@ -105,7 +96,7 @@ export async function generateReleaseGoodWorksheet(
   let vasWorksheet: Worksheet = new Worksheet()
   if (foundOVs && foundOVs.length) {
     // 3. 1) Create vas worksheet
-    vasWorksheet = await txMgr.getRepository(Worksheet).save({
+    vasWorksheet = await trxMgr.getRepository(Worksheet).save({
       domain,
       bizplace: customerBizplace,
       name: WorksheetNoGenerator.vas(),
@@ -130,7 +121,7 @@ export async function generateReleaseGoodWorksheet(
         updater: user
       }
     })
-    await txMgr.getRepository(WorksheetDetail).save(vasWorksheetDetails)
+    await trxMgr.getRepository(WorksheetDetail).save(vasWorksheetDetails)
 
     // 3. 3) Update status of order vas (PENDING_RECEIVE => READY_TO_PROCESS)
     foundOVs = foundOVs.map((ov: OrderVas) => {
@@ -138,7 +129,7 @@ export async function generateReleaseGoodWorksheet(
       ov.updater = user
       return ov
     })
-    await txMgr.getRepository(OrderVas).save(foundOVs)
+    await trxMgr.getRepository(OrderVas).save(foundOVs)
   }
 
   /**
@@ -146,7 +137,7 @@ export async function generateReleaseGoodWorksheet(
    */
   foundReleaseGood.status = ORDER_STATUS.READY_TO_PICK
   foundReleaseGood.updater = user
-  await txMgr.getRepository(ReleaseGood).save(foundReleaseGood)
+  await trxMgr.getRepository(ReleaseGood).save(foundReleaseGood)
 
   /**
    * 6. Returning worksheet as a result
@@ -155,4 +146,41 @@ export async function generateReleaseGoodWorksheet(
     pickingWorksheet,
     vasWorksheet
   }
+}
+
+/**
+ * @description This function will generate picking worksheet detail
+ * If you call this function without specified status, status will be set as DEACTIVATED
+ *
+ * @param {EntityManager} trxMgr
+ * @param {Domain} domain
+ * @param {Bizplace} bizplace
+ * @param {User} user
+ * @param {Worksheet} worksheet
+ * @param {OrderInventory} targetInventory
+ * @param {String} status
+ */
+export async function generatePickingWorksheetDetail(
+  trxMgr: EntityManager,
+  domain: Domain,
+  bizplace: Bizplace,
+  user: User,
+  worksheet: Worksheet,
+  targetInventory: OrderInventory,
+  status: string = WORKSHEET_STATUS.DEACTIVATED
+): Promise<WorksheetDetail> {
+  if (!WORKSHEET_STATUS.hasOwnProperty(status)) throw new Error('Passed status is not a candidate of available status')
+
+  let pickingWSD: WorksheetDetail = new WorksheetDetail()
+  pickingWSD.domain = domain
+  pickingWSD.bizplace = bizplace
+  pickingWSD.worksheet = worksheet
+  pickingWSD.name = WorksheetNoGenerator.pickingDetail()
+  pickingWSD.targetInventory = targetInventory
+  pickingWSD.type = WORKSHEET_TYPE.PICKING
+  pickingWSD.status = status
+  pickingWSD.creator = user
+  pickingWSD.updater = user
+
+  return await trxMgr.getRepository(WorksheetDetail).save(pickingWSD)
 }

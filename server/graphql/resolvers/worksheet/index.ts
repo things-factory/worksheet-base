@@ -16,6 +16,7 @@ import { completeUnloadingPartiallyResolver } from './complete-unloading-partial
 import { completeVas } from './complete-vas'
 import { confirmCancellationReleaseOrder } from './confirm-cancellation-release-order'
 import { createWorksheet } from './create-worksheet'
+import { crossDockPickingResolver } from './cross-dock-picking'
 import { cycleCountAdjustment } from './cycle-count-adjustment'
 import { cycleCountWorksheetResolver } from './cycle-count-worksheet'
 import { deleteWorksheet } from './delete-worksheet'
@@ -138,5 +139,6 @@ export const Mutation = {
   ...undoRepackagingResolver,
   ...relabelingResolver,
   ...undoRelabelingResolver,
-  ...undoPickingAssigmentResolver
+  ...undoPickingAssigmentResolver,
+  ...crossDockPickingResolver
 }
