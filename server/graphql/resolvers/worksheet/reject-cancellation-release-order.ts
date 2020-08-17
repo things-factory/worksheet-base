@@ -74,10 +74,10 @@ export const rejectCancellationReleaseOrder = {
       // change the order inventory status accordingly
       let newOrderInventories: OrderInventory[] = targetOIs.map(
         (oi: OrderInventory) => {
-          if (isLoadingStage && oi.deliveryOrder && oi.status === ORDER_INVENTORY_STATUS.PENDING_CANCEL)
+          if (isLoadingStage && oi.deliveryOrder && oi.status === ORDER_INVENTORY_STATUS.PENDING_REVERSE)
             oi.status = ORDER_INVENTORY_STATUS.LOADED
               
-          else if (isLoadingStage && !oi.deliveryOrder && oi.status === ORDER_INVENTORY_STATUS.PENDING_CANCEL)
+          else if (isLoadingStage && !oi.deliveryOrder && oi.status === ORDER_INVENTORY_STATUS.PENDING_REVERSE)
             oi.status = ORDER_INVENTORY_STATUS.LOADING
 
           else if (!isLoadingStage && oi.inventory && isDeactivatedPicking && oi.status === ORDER_INVENTORY_STATUS.PENDING_CANCEL)
@@ -114,7 +114,7 @@ export const rejectCancellationReleaseOrder = {
           //change the worksheet details status accordingly
           newOrderInventories.forEach((oi: OrderInventory) => {
             
-            if (wsd.targetInventory?.id === oi.id) {
+            if (wsd.targetInventory?.id === oi.id && wsd.type === WORKSHEET_TYPE.PICKING) {
               switch (oi.status) {
                 case ORDER_INVENTORY_STATUS.READY_TO_PICK:
                   wsd.status = WORKSHEET_STATUS.DEACTIVATED
@@ -124,14 +124,26 @@ export const rejectCancellationReleaseOrder = {
                   wsd.status = WORKSHEET_STATUS.EXECUTING
                   break
   
-                case ORDER_INVENTORY_STATUS.PICKED:
-                  wsd.status = WORKSHEET_STATUS.DONE
-                  break
-  
                 case ORDER_INVENTORY_STATUS.REPLACED:
                   wsd.status = WORKSHEET_STATUS.REPLACED
                   break
   
+                case ORDER_INVENTORY_STATUS.PICKED:
+                  wsd.status = WORKSHEET_STATUS.DONE
+                  break
+  
+                case ORDER_INVENTORY_STATUS.LOADING:
+                  wsd.status = WORKSHEET_STATUS.DONE
+                  break
+  
+                case ORDER_INVENTORY_STATUS.LOADED:
+                  wsd.status = WORKSHEET_STATUS.DONE
+                  break
+              }
+            }
+
+            else if (wsd.targetInventory?.id === oi.id && wsd.type === WORKSHEET_TYPE.LOADING) {
+              switch (oi.status) {
                 case ORDER_INVENTORY_STATUS.LOADING:
                   wsd.status = WORKSHEET_STATUS.EXECUTING
                   break
