@@ -45,7 +45,7 @@ export const replacePickingPalletsResolver = {
       // 2. update status of previous order Inventory
       await trxMgr.getRepository(OrderInventory).save({
         ...prevOrderInv,
-        status: ORDER_INVENTORY_STATUS.TERMINATED,
+        status: ORDER_INVENTORY_STATUS.REPLACED,
         updater: user
       })
 

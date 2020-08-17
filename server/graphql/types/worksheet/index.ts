@@ -292,7 +292,11 @@ export const Mutation = /* GraphQL */ `
 
   confirmCancellationReleaseOrder (
     name: String!
-  ): Boolean
+  ): Boolean @priviledge(category: "worksheet_control", priviledge: "mutation")
+
+  rejectCancellationReleaseOrder (
+    name: String!
+  ): Boolean @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   assignVasInventories (
     worksheetDetailIds: [String]!

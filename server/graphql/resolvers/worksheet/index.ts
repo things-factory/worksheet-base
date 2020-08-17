@@ -16,6 +16,7 @@ import { completeUnloading } from './complete-unloading'
 import { completeUnloadingPartiallyResolver } from './complete-unloading-partially'
 import { completeVas } from './complete-vas'
 import { confirmCancellationReleaseOrder } from './confirm-cancellation-release-order'
+import { rejectCancellationReleaseOrder } from './reject-cancellation-release-order'
 import { createWorksheet } from './create-worksheet'
 import { cycleCountAdjustment } from './cycle-count-adjustment'
 import { cycleCountWorksheetResolver } from './cycle-count-worksheet'
@@ -140,6 +141,7 @@ export const Mutation = {
   ...replacePickingPalletsResolver,
   ...pendingCancellationReleaseOrder,
   ...confirmCancellationReleaseOrder,
+  ...rejectCancellationReleaseOrder,
   ...submitAdjustmentForApprovalResolver,
   ...assignVasInventoriesResolver,
   ...repalletizingResolver,
