@@ -38,15 +38,11 @@ export const activateUnloadingResolver = {
         context.state.user
       )
 
-      let crossDocking: boolean = false
-      if (unloadingWS?.arrivalNotice?.crossDocking !== undefined) {
-        crossDocking = unloadingWS.arrivalNotice.crossDocking
-      } else {
+      const crossDocking: boolean = unloadingWS?.arrivalNotice?.crossDocking
+      if (crossDocking) {
         unloadingWS = await trxMgr.getRepository(Worksheet).findOne(unloadingWS.id, {
           relations: ['arrivalNotice', 'arrivalNotice.releaseGood']
         })
-
-        crossDocking = unloadingWS.arrivalNotice.crossDocking
       }
 
       if (crossDocking) {
