@@ -1,12 +1,11 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, OrderInventory, OrderNoGenerator, ReleaseGood } from '@things-factory/sales-base'
+import { OrderInventory, OrderNoGenerator, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, INVENTORY_STATUS, INVENTORY_TRANSACTION_TYPE } from '@things-factory/warehouse-base'
+import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { EntityManager, getManager, In, SelectQueryBuilder } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { generateInventoryHistory } from '../../../utils'
 import { generatePickingWorksheetDetail } from './generate-release-good-worksheet'
 import { executePicking } from './picking'
 
@@ -39,16 +38,15 @@ export const crossDockPickingResolver = {
       if (!wsd) throw new Error(`Failed to find picking worksheet detail by passed worksheet detail name`)
       const worksheet: Worksheet = wsd.worksheet
       const releaseGood: ReleaseGood = worksheet.releaseGood
-      const arrivalNotice: ArrivalNotice = releaseGood.arrivalNotice
 
       let targetInv: OrderInventory = wsd.targetInventory
       const bizplace: Bizplace = targetInv.bizplace
       let inventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
         where: {
           domain,
+          bizplace,
           palletId,
-          refOrderId: arrivalNotice.id,
-          status: In([INVENTORY_STATUS.UNLOADED, INVENTORY_STATUS.PARTIALLY_UNLOADED])
+          status: In([INVENTORY_STATUS.STORED, INVENTORY_STATUS.PARTIALLY_UNLOADED])
         },
         relations: ['product', 'location']
       })
