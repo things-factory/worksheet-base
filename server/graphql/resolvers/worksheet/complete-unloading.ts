@@ -25,7 +25,7 @@ export const completeUnloading = {
       const user: User = context.state.user
       let arrivalNotice: ArrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({
         where: { domain, name: arrivalNoticeNo, status: ORDER_STATUS.PROCESSING },
-        relations: ['bizplace', 'orderProducts']
+        relations: ['bizplace', 'orderProducts', 'releaseGood']
       })
 
       if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
