@@ -60,7 +60,7 @@ export const unload = {
       if (inventory.reusablePallet) {
         reusablePalletData = await trxMgr.getRepository(Pallet).findOne({
           domain: context.state.domain,
-          id: inventory.reusablePallet
+          id: inventory.reusablePallet.id
         })
       }
 
