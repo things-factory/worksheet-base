@@ -56,10 +56,13 @@ export const unload = {
       const customerBizplace: Bizplace = foundWorksheetDetail.bizplace
       const bufferLocation: Location = foundWorksheetDetail.worksheet.bufferLocation
 
-      const reusablePallet: Pallet = await trxMgr.getRepository(Pallet).findOne({
-        domain: context.state.domain,
-        id: inventory.reusablePallet.id
-      })
+      let reusablePalletData = null
+      if (inventory.reusablePallet) {
+        reusablePalletData = await trxMgr.getRepository(Pallet).findOne({
+          domain: context.state.domain,
+          id: inventory.reusablePallet
+        })
+      }
 
       // 2. Create new inventory data
       // Find previous pallet ( Same batchId, Same product, Same pallet id)
@@ -87,7 +90,7 @@ export const unload = {
         qty,
         weight: Math.round(inventory.qty * foundWorksheetDetail.targetProduct.weight * 100) / 100,
         refOrderId: arrivalNotice.id,
-        reusablePallet: reusablePallet,
+        reusablePallet: reusablePalletData,
         warehouse: foundWorksheetDetail.worksheet.bufferLocation.warehouse,
         location: foundWorksheetDetail.worksheet.bufferLocation,
         zone: foundWorksheetDetail.worksheet.bufferLocation.zone,
