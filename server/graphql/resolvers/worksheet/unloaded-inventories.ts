@@ -29,7 +29,8 @@ export const unloadedInventories = {
         location: foundWorksheetDetail.worksheet.bufferLocation,
         orderProductId: foundWorksheetDetail.targetProduct.id,
         status: INVENTORY_STATUS.UNLOADED
-      }
+      },
+      relations: ['reusablePallet']
     })
   }
 }
