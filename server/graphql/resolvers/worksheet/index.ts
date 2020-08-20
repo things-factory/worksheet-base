@@ -1,9 +1,9 @@
 import { activateCycleCount } from './activate-cycle-count'
 import { activateLoadingResolver } from './activate-loading'
-import { activatePicking } from './activate-picking'
+import { activatePickingResolver } from './activate-picking'
 import { activatePutawayResolver } from './activate-putaway'
 import { activateReturnResolver } from './activate-return'
-import { activateUnloading } from './activate-unloading'
+import { activateUnloadingResolver } from './activate-unloading'
 import { activateVasResolver } from './activate-vas'
 import { assignVasInventoriesResolver } from './assign-vas-inventories'
 import { completeInspection } from './complete-inspection'
@@ -18,18 +18,20 @@ import { completeVas } from './complete-vas'
 import { confirmCancellationReleaseOrder } from './confirm-cancellation-release-order'
 import { rejectCancellationReleaseOrder } from './reject-cancellation-release-order'
 import { createWorksheet } from './create-worksheet'
+import { crossDockPickingResolver } from './cross-dock-picking'
 import { cycleCountAdjustment } from './cycle-count-adjustment'
 import { cycleCountWorksheetResolver } from './cycle-count-worksheet'
 import { deleteWorksheet } from './delete-worksheet'
 import { deliveryOrderByWorksheetResolver } from './delivery-order-by-worksheet'
 import { executeVasResolver } from './execute-vas'
 import { editBatchNo } from './edit-batch-no'
-import { generateArrivalNoticeWorksheet } from './generate-arrival-notice-worksheet'
+import { generateArrivalNoticeWorksheetResolver } from './generate-arrival-notice-worksheet'
 import { generateCycleCountWorksheet } from './generate-cycle-count-worksheet'
 import { generatePartialPutawayWorksheetResolver } from './generate-partial-putaway-worksheet'
 import { generatePutawayWorksheetResolver } from './generate-putaway-worksheet'
-import { generateReleaseGoodWorksheet } from './generate-release-good-worksheet'
+import { generateReleaseGoodWorksheetResolver } from './generate-release-good-worksheet'
 import { generateVasOrderWorksheet } from './generate-vas-order-worksheet'
+import { havingVasResolver } from './having-vas'
 import { inspecting } from './inspecting'
 import { inventoriesByPalletResolver } from './inventories-by-pallet'
 import { loadedInventories } from './loaded-inventories'
@@ -72,6 +74,7 @@ import {
 } from './vas-transactions'
 import { vasWorksheetResolver } from './vas-worksheet'
 import { worksheetResolver } from './worksheet'
+import { worksheetByOrderNoResolver } from './worksheet-by-order-no'
 import { worksheetsResolver } from './worksheets'
 
 export const Query = {
@@ -90,7 +93,9 @@ export const Query = {
   ...loadedInventories,
   ...vasCandidatesResolver,
   ...inventoriesByPalletResolver,
-  ...checkRelabelableResolver
+  ...checkRelabelableResolver,
+  ...havingVasResolver,
+  ...worksheetByOrderNoResolver
 }
 
 export const Mutation = {
@@ -99,17 +104,17 @@ export const Mutation = {
   ...cycleCountAdjustment,
   ...generateCycleCountWorksheet,
   ...deleteWorksheet,
-  ...generateArrivalNoticeWorksheet,
+  ...generateArrivalNoticeWorksheetResolver,
   ...generatePutawayWorksheetResolver,
   ...generatePartialPutawayWorksheetResolver,
-  ...generateReleaseGoodWorksheet,
+  ...generateReleaseGoodWorksheetResolver,
   ...generateVasOrderWorksheet,
-  ...activateUnloading,
+  ...activateUnloadingResolver,
   ...activatePutawayResolver,
   ...activateLoadingResolver,
   ...activateReturnResolver,
   ...activateVasResolver,
-  ...activatePicking,
+  ...activatePickingResolver,
   ...activateCycleCount,
   ...completeInspection,
   ...editBatchNo,
@@ -150,5 +155,6 @@ export const Mutation = {
   ...undoRepackagingResolver,
   ...relabelingResolver,
   ...undoRelabelingResolver,
-  ...undoPickingAssigmentResolver
+  ...undoPickingAssigmentResolver,
+  ...crossDockPickingResolver
 }

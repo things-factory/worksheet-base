@@ -2,6 +2,7 @@ import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, OrderProduct, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
 import {
   Inventory,
+  Pallet,
   InventoryNoGenerator,
   INVENTORY_STATUS,
   INVENTORY_TRANSACTION_TYPE,
@@ -55,6 +56,14 @@ export const unload = {
       const customerBizplace: Bizplace = foundWorksheetDetail.bizplace
       const bufferLocation: Location = foundWorksheetDetail.worksheet.bufferLocation
 
+      let reusablePalletData = null
+      if (inventory.reusablePallet) {
+        reusablePalletData = await trxMgr.getRepository(Pallet).findOne({
+          domain: context.state.domain,
+          id: inventory.reusablePallet.id
+        })
+      }
+
       // 2. Create new inventory data
       // Find previous pallet ( Same batchId, Same product, Same pallet id)
       const prevInventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
@@ -81,6 +90,7 @@ export const unload = {
         qty,
         weight: Math.round(inventory.qty * foundWorksheetDetail.targetProduct.weight * 100) / 100,
         refOrderId: arrivalNotice.id,
+        reusablePallet: reusablePalletData,
         warehouse: foundWorksheetDetail.worksheet.bufferLocation.warehouse,
         location: foundWorksheetDetail.worksheet.bufferLocation,
         zone: foundWorksheetDetail.worksheet.bufferLocation.zone,
