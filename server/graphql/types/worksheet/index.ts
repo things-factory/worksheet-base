@@ -192,6 +192,12 @@ export const Mutation = /* GraphQL */ `
     releaseQty: Int!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
+  crossDockPicking (
+    worksheetDetailName: String!
+    palletId: String!
+    releaseQty: Int!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
   inspecting (
     worksheetDetailName: String!
     palletId: String!
@@ -383,6 +389,16 @@ export const Query = /* GraphQL */ `
     packingType: String!,
     unitWeight: Int!
   ): Boolean @priviledge(category: "inventory", priviledge: "query")
+
+  havingVas (
+    orderType: String!
+    orderNo: String!
+  ): Worksheet @priviledge(category: "worksheet", priviledge: "query")
+
+  worksheetByOrderNo (
+    orderType: String!
+    orderNo: String!
+  ): Worksheet @priviledge(category: "worksheet", priviledge: "query")
 `
 
 export const Types = /* GraphQL */ [

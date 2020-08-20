@@ -25,10 +25,19 @@ export const completeUnloading = {
       const user: User = context.state.user
       let arrivalNotice: ArrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({
         where: { domain, name: arrivalNoticeNo, status: ORDER_STATUS.PROCESSING },
-        relations: ['bizplace', 'orderProducts']
+        relations: ['bizplace', 'orderProducts', 'releaseGood']
       })
 
       if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
+
+      if(arrivalNotice.crossDocking) {
+        // Picking worksheet for cross docking should be completed before complete it
+        // Find picking worksheet
+        const executingPickingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+          where: { domain, releaseGood: arrivalNotice.releaseGood, type: WORKSHEET_TYPE.PICKING, status: Not(Equal(WORKSHEET_STATUS.DONE))}
+        })
+        if(executingPickingWorksheet) throw new Error(`Picking should be completed before complete unloading for cross docking.`)
+      }
 
       /**
        * 2. Validation for non-approved order products

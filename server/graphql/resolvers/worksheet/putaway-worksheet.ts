@@ -31,6 +31,7 @@ export const putawayWorksheetResolver = {
         'worksheetDetails.targetInventory.inventory',
         'worksheetDetails.targetInventory.inventory.location',
         'worksheetDetails.targetInventory.inventory.product',
+        'worksheetDetails.targetInventory.inventory.reusablePallet',
         'worksheetDetails.toLocation'
       ],
       WORKSHEET_TYPE.PUTAWAY,
@@ -56,7 +57,8 @@ export const putawayWorksheetResolver = {
           description: putawayWSD.description,
           targetName: targetInventory.name,
           packingType: inventory.packingType,
-          location: inventory.location
+          location: inventory.location,
+          reusablePallet: inventory.reusablePallet
         }
       })
     }

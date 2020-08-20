@@ -3,7 +3,7 @@ import { OrderInventory, OrderProduct, OrderVas } from '@things-factory/sales-ba
 import { getRepository, In } from 'typeorm'
 import { Worksheet } from '../../../entities'
 
-interface IWorksheet extends Worksheet {
+interface WorksheetInterface extends Worksheet {
   orderProducts: OrderProduct[]
   orderInventories: OrderInventory[]
   orderVass: OrderVas[]
@@ -11,7 +11,7 @@ interface IWorksheet extends Worksheet {
 
 export const worksheetResolver = {
   async worksheet(_: any, { name }, context: any) {
-    const worksheet: IWorksheet = (await getRepository(Worksheet).findOne({
+    const worksheet: WorksheetInterface = (await getRepository(Worksheet).findOne({
       where: {
         domain: context.state.domain,
         bizplace: In(await getPermittedBizplaceIds(context.state.domain, context.state.user)),
@@ -23,7 +23,9 @@ export const worksheetResolver = {
         'bufferLocation',
         'bufferLocation.warehouse',
         'arrivalNotice',
+        'arrivalNotice.releaseGood',
         'releaseGood',
+        'releaseGood.arrivalNotice',
         'inventoryCheck',
         'vasOrder',
         'worksheetDetails',
@@ -36,6 +38,7 @@ export const worksheetResolver = {
         'worksheetDetails.targetVas.inventory.location',
         'worksheetDetails.targetVas.targetProduct',
         'worksheetDetails.targetInventory',
+        'worksheetDetails.targetInventory.product',
         'worksheetDetails.targetInventory.inventory',
         'worksheetDetails.targetInventory.inventory.product',
         'worksheetDetails.targetInventory.inventory.warehouse',
@@ -44,7 +47,7 @@ export const worksheetResolver = {
         'creator',
         'updater'
       ]
-    })) as IWorksheet
+    })) as WorksheetInterface
 
     if (worksheet?.arrivalNotice?.id) {
       worksheet.orderProducts = await getRepository(OrderProduct).find({
