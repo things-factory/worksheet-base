@@ -46,7 +46,7 @@ export const crossDockPickingResolver = {
           domain,
           bizplace,
           palletId,
-          status: In([INVENTORY_STATUS.STORED, INVENTORY_STATUS.PARTIALLY_UNLOADED])
+          status: In([INVENTORY_STATUS.STORED, INVENTORY_STATUS.PARTIALLY_UNLOADED, INVENTORY_STATUS.UNLOADED])
         },
         relations: ['product', 'location']
       })
