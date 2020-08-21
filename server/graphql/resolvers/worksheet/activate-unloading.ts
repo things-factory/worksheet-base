@@ -154,83 +154,83 @@ export async function activateUnloading(
    *  - 5. 2) Append new vas worksheet details
    */
   // Check there's some pallet qty and palletizingDescription => need to create vas worksheet
-  if (
-    unloadingWorksheetDetails.some(
-      (worksheetDetail: any) => worksheetDetail.palletQty && worksheetDetail.palletizingDescription
-    )
-  ) {
-    // Check if there's VAS worksheet which is related with current arrival notice order.
-    if (!relatedVasWorksheet) {
-      relatedVasWorksheet = await trxMgr.getRepository(Worksheet).save({
-        domain,
-        bizplace: customerBizplace,
-        name: WorksheetNoGenerator.vas(),
-        arrivalNotice,
-        statedAt: new Date(),
-        endedAt: new Date(),
-        type: WORKSHEET_TYPE.VAS,
-        status: WORKSHEET_STATUS.DONE,
-        creator: user,
-        updater: user
-      })
-    }
+  // if (
+  //   unloadingWorksheetDetails.some(
+  //     (worksheetDetail: any) => worksheetDetail.palletQty && worksheetDetail.palletizingDescription
+  //   )
+  // ) {
+  //   // Check if there's VAS worksheet which is related with current arrival notice order.
+  //   if (!relatedVasWorksheet) {
+  //     relatedVasWorksheet = await trxMgr.getRepository(Worksheet).save({
+  //       domain,
+  //       bizplace: customerBizplace,
+  //       name: WorksheetNoGenerator.vas(),
+  //       arrivalNotice,
+  //       statedAt: new Date(),
+  //       endedAt: new Date(),
+  //       type: WORKSHEET_TYPE.VAS,
+  //       status: WORKSHEET_STATUS.DONE,
+  //       creator: user,
+  //       updater: user
+  //     })
+  //   }
 
-    const palletizingWSDs: WorksheetDetail[] | any[] = unloadingWorksheetDetails.filter(
-      (worksheetDetail: any) => worksheetDetail.palletQty && worksheetDetail.palletizingDescription
-    )
+  //   const palletizingWSDs: WorksheetDetail[] | any[] = unloadingWorksheetDetails.filter(
+  //     (worksheetDetail: any) => worksheetDetail.palletQty && worksheetDetail.palletizingDescription
+  //   )
 
-    let palletizingOrderVass: OrderVas[] = []
-    for (let palletizingWSD of palletizingWSDs) {
-      const originWSD: WorksheetDetail = foundWSDs.find(
-        (foundWSD: WorksheetDetail) => foundWSD.name === palletizingWSD.name
-      )
-      const originOP: OrderProduct = await trxMgr.getRepository(OrderProduct).findOne({
-        where: { domain, id: originWSD.targetProduct.id },
-        relations: ['product']
-      })
-      const targetBatchId: string = originOP.batchId
-      const targetProduct: Product = originOP.product
-      const packingType: string = originOP.packingType
-      const vas: Vas = await trxMgr.getRepository(Vas).findOne({
-        where: { domain, id: palletizingWSD.palletizingVasId }
-      })
+  //   let palletizingOrderVass: OrderVas[] = []
+  //   for (let palletizingWSD of palletizingWSDs) {
+  //     const originWSD: WorksheetDetail = foundWSDs.find(
+  //       (foundWSD: WorksheetDetail) => foundWSD.name === palletizingWSD.name
+  //     )
+  //     const originOP: OrderProduct = await trxMgr.getRepository(OrderProduct).findOne({
+  //       where: { domain, id: originWSD.targetProduct.id },
+  //       relations: ['product']
+  //     })
+  //     const targetBatchId: string = originOP.batchId
+  //     const targetProduct: Product = originOP.product
+  //     const packingType: string = originOP.packingType
+  //     const vas: Vas = await trxMgr.getRepository(Vas).findOne({
+  //       where: { domain, id: palletizingWSD.palletizingVasId }
+  //     })
 
-      palletizingOrderVass.push({
-        domain,
-        name: OrderNoGenerator.orderVas(),
-        arrivalNotice,
-        vas,
-        targetType: VAS_TARGET_TYPES.BATCH_AND_PRODUCT_TYPE,
-        targetBatchId,
-        targetProduct,
-        packingType,
-        description: palletizingWSD.palletizingDescription,
-        batchId: palletizingWSD.batchId,
-        bizplace: customerBizplace,
-        type: ORDER_TYPES.ARRIVAL_NOTICE,
-        status: ORDER_VAS_STATUS.COMPLETED
-      })
-    }
+  //     palletizingOrderVass.push({
+  //       domain,
+  //       name: OrderNoGenerator.orderVas(),
+  //       arrivalNotice,
+  //       vas,
+  //       targetType: VAS_TARGET_TYPES.BATCH_AND_PRODUCT_TYPE,
+  //       targetBatchId,
+  //       targetProduct,
+  //       packingType,
+  //       description: palletizingWSD.palletizingDescription,
+  //       batchId: palletizingWSD.batchId,
+  //       bizplace: customerBizplace,
+  //       type: ORDER_TYPES.ARRIVAL_NOTICE,
+  //       status: ORDER_VAS_STATUS.COMPLETED
+  //     })
+  //   }
 
-    palletizingOrderVass = await trxMgr.getRepository(OrderVas).save(palletizingOrderVass)
+  //   palletizingOrderVass = await trxMgr.getRepository(OrderVas).save(palletizingOrderVass)
 
-    const palletizingWorksheetDetails = palletizingOrderVass.map((ov: OrderVas) => {
-      return {
-        domain,
-        bizplace: customerBizplace,
-        worksheet: relatedVasWorksheet,
-        name: WorksheetNoGenerator.vasDetail(),
-        targetVas: ov,
-        description: ov.description,
-        type: WORKSHEET_TYPE.VAS,
-        status: WORKSHEET_STATUS.DONE,
-        creator: user,
-        updater: user
-      }
-    })
+  //   const palletizingWorksheetDetails = palletizingOrderVass.map((ov: OrderVas) => {
+  //     return {
+  //       domain,
+  //       bizplace: customerBizplace,
+  //       worksheet: relatedVasWorksheet,
+  //       name: WorksheetNoGenerator.vasDetail(),
+  //       targetVas: ov,
+  //       description: ov.description,
+  //       type: WORKSHEET_TYPE.VAS,
+  //       status: WORKSHEET_STATUS.DONE,
+  //       creator: user,
+  //       updater: user
+  //     }
+  //   })
 
-    await trxMgr.getRepository(WorksheetDetail).save(palletizingWorksheetDetails)
-  }
+  //   await trxMgr.getRepository(WorksheetDetail).save(palletizingWorksheetDetails)
+  // }
 
   /**
    * 6. Update Worksheet (status: DEACTIVATED => EXECUTING)
