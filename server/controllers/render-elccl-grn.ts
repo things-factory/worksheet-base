@@ -127,8 +127,7 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
       inner join products p2 on p2.id::varchar = main.product_id
       left join (select location_id, count(*) as cnt from tmp group by location_id) sec on sec.location_id = main.location_id and sec.cnt > 1
       group by main.product_id, main.batch_id, main.packing_type, p2.name, p2.description
-    `,
-      [LOCATION_TYPE.FLOOR, LOCATION_TYPE.BUFFER, LOCATION_TYPE.SHELF]
+    `
     )
 
     trxMgr.query(`
