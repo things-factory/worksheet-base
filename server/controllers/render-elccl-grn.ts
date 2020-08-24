@@ -119,7 +119,7 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
 
     invItems = await trxMgr.query(
       `          
-      select main.product_id, main.batch_id, main.packing_type, sum(main.opening_qty) as total_qty, sum(main.opening_weight) as total_weight ,p2.name as product_name, p2.description as product_description,
+      select main.product_id, main.batch_id, main.packing_type, sum(main.qty) as total_qty, sum(main.weight) as total_weight ,p2.name as product_name, p2.description as product_description,
       sum(case when main.reusable_pallet_id is null then 1 else 0 end) as pallet_count,
       sum(case when main.reusable_pallet_id is not null then main.qty else 0 end) as mixed_count 
       from tmp main
