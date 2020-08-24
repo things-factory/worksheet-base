@@ -46,13 +46,17 @@ export const activateUnloadingResolver = {
       }
 
       if (crossDocking) {
-        const { name: pickingWorksheetNo } = await worksheetByOrderNo(
+        const pickingWS: Worksheet = await worksheetByOrderNo(
           context.state.domain,
           unloadingWS.arrivalNotice.releaseGood.name,
           WORKSHEET_TYPE.PICKING,
           trxMgr
         )
-        await activatePicking(trxMgr, pickingWorksheetNo, context.state.domain, context.state.user)
+
+        // Check whether picking targets stored inventory
+        if (pickingWS.worksheetDetails.every((wsd: WorksheetDetail) => wsd.targetInventory.crossDocking)) {
+          await activatePicking(trxMgr, pickingWS.name, context.state.domain, context.state.user)
+        }
       }
 
       return unloadingWS
