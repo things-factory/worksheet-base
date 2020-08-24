@@ -110,13 +110,8 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
     await trxMgr.query(
       `
       create temp table tmp as(
-        select invh.* from (
-          select invh.domain_id, invh.pallet_id, max(invh.seq) as seq from order_inventories oi
-          inner join inventory_histories invh on oi.arrival_notice_id = invh.ref_order_id::uuid and invh.transaction_type = $2
-          where oi.arrival_notice_id = $1 and invh.ref_order_id is not null
-          group by invh.domain_id, invh.pallet_id
-        ) src
-        inner join inventory_histories invh on invh.domain_id = src.domain_id and invh.pallet_id = src.pallet_id and invh.seq = src.seq
+        select invh.* from reduced_inventory_histories invh 
+        where invh.ref_order_id is not null and invh.ref_order_id::uuid = $1 and invh.transaction_type = $2
       )   
     `,
       [foundGAN.id, TRANSACTION_TYPE.UNLOADING]
