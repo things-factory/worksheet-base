@@ -340,6 +340,11 @@ export const Query = /* GraphQL */ `
     worksheetDetailName: String!
   ): [Inventory] @priviledge(category: "worksheet", priviledge: "query")
 
+  unloadedInventoriesByReusablePallet (
+    reusablePalletId: String!
+    worksheetDetailName: String!
+  ): [Inventory] @priviledge(category: "worksheet", priviledge: "query")
+
   loadedInventories (
     releaseGoodNo: String!
   ): [OrderInventory] @priviledge(category: "worksheet", priviledge: "query")

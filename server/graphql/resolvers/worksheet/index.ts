@@ -60,6 +60,7 @@ import { undoUnloading } from './undo-unloading'
 import { undoVas } from './undo-vas'
 import { unload } from './unload'
 import { unloadedInventories } from './unloaded-inventories'
+import { unloadedInventoriesByReusablePallet } from './unloaded-inventories-by-reusable-pallet'
 import { unloadingWorksheetResolver } from './unloading-worksheet'
 import { updateWorksheet } from './update-worksheet'
 import { vasCandidatesResolver } from './vas-candidates'
@@ -90,6 +91,7 @@ export const Query = {
   ...vasWorksheetResolver,
   ...loadingWorksheetResolver,
   ...unloadedInventories,
+  ...unloadedInventoriesByReusablePallet,
   ...loadedInventories,
   ...vasCandidatesResolver,
   ...inventoriesByPalletResolver,
