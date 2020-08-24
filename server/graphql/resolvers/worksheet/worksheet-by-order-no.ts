@@ -21,14 +21,16 @@ export async function worksheetByOrderNo(
   type: string,
   trxMgr?: EntityManager
 ): Promise<Worksheet> {
-  let findOption: FindOneOptions<Worksheet> = { where: { domain, type } }
+  let findOption: FindOneOptions<Worksheet> = { where: { domain, type }, relations: ['worksheetDetails'] }
 
   if (type === WORKSHEET_TYPE.UNLOADING || type === WORKSHEET_TYPE.PUTAWAY) {
     const ganRepo: Repository<ArrivalNotice> = trxMgr?.getRepository(ArrivalNotice) || getRepository(ArrivalNotice)
     findOption.where['arrivalNotice'] = await ganRepo.findOne({ domain, name: orderNo })
+    findOption.relations.push('worksheetDetails.targetProduct')
   } else if (type === WORKSHEET_TYPE.PICKING || type === WORKSHEET_TYPE.LOADING) {
     const roRepo: Repository<ReleaseGood> = trxMgr?.getRepository(ReleaseGood) || getRepository(ReleaseGood)
     findOption.where['releaseGood'] = await roRepo.findOne({ domain, name: orderNo })
+    findOption.relations.push('worksheetDetails.targetInventory')
   }
 
   const wsRepo: Repository<Worksheet> = trxMgr?.getRepository(Worksheet) || getRepository(Worksheet)
