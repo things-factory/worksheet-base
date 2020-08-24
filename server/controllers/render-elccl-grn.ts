@@ -111,10 +111,9 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
       `
       create temp table tmp as(
         select invh.* from (
-          select invh.domain_id, invh.pallet_id, max(seq) as seq from order_inventories oi
-          inner join inventories inv on inv.id = oi.inventory_id
-          inner join reduced_inventory_histories invh on invh.domain_id = inv.domain_id and invh.pallet_id = inv.pallet_id and invh.transaction_type = $2
-          where oi.arrival_notice_id = $1 
+          select invh.domain_id, invh.pallet_id, max(invh.seq) as seq from order_inventories oi
+          inner join inventory_histories invh on oi.arrival_notice_id = invh.ref_order_id::uuid and invh.transaction_type = $2
+          where oi.arrival_notice_id = $1 and invh.ref_order_id is not null
           group by invh.domain_id, invh.pallet_id
         ) src
         inner join inventory_histories invh on invh.domain_id = src.domain_id and invh.pallet_id = src.pallet_id and invh.seq = src.seq
