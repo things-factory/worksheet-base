@@ -63,7 +63,6 @@ export async function generateReleaseGoodWorksheet(
     updater: user
   })
 
-  let oiStatus: string = ORDER_INVENTORY_STATUS.PENDING_SPLIT
   // order inventories is assigned when customer request pick by pallet
   if (foundOIs.every((oi: OrderInventory) => oi?.inventory?.id) || foundReleaseGood.crossDocking) {
     // 2. 2) Create picking worksheet details
@@ -72,19 +71,27 @@ export async function generateReleaseGoodWorksheet(
       await generatePickingWorksheetDetail(trxMgr, domain, customerBizplace, user, pickingWorksheet, oi)
     }
 
-    oiStatus = ORDER_INVENTORY_STATUS.READY_TO_PICK
-
     foundOIs.map(async (oi: OrderInventory) => {
-      oi.inventory.lockedQty = oi.releaseQty
-      oi.inventory.lockedWeight = oi.releaseWeight
-      oi.inventory.updater = user
-      await trxMgr.getRepository(Inventory).save(oi.inventory)
+      if (oi.inventory?.id) {
+        oi.inventory.lockedQty = oi.releaseQty
+        oi.inventory.lockedWeight = oi.releaseWeight
+        oi.inventory.updater = user
+        await trxMgr.getRepository(Inventory).save(oi.inventory)
+      }
     })
   }
 
-  // 2. 2) Update status of order inventories (PENDING_RECEIVE => PENDING_SPLIT)
+  // 2. 2) Update status of order inventories (PENDING_RECEIVE => PENDING_SPLIT or READY_TO_PICK)
+  // If order inventory was created by cross docking or already has assigned inventory
+  // status will be READY_TO_PICK because the inventory will be assigned  dynamically
+  // else if there's no assigned inventory status should be PENDING_SPLIT
   foundOIs = foundOIs.map((oi: OrderInventory) => {
-    oi.status = oiStatus
+    let status: string = ORDER_INVENTORY_STATUS.PENDING_SPLIT
+    if (oi.crossDocking || oi.inventory?.id) {
+      status = ORDER_INVENTORY_STATUS.READY_TO_PICK
+    }
+
+    oi.status = status
     oi.updater = user
     return oi
   })
