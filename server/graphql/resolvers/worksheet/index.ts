@@ -24,12 +24,11 @@ import { deleteWorksheet } from './delete-worksheet'
 import { deliveryOrderByWorksheetResolver } from './delivery-order-by-worksheet'
 import { editBatchNo } from './edit-batch-no'
 import { executeVasResolver } from './execute-vas'
-import { generateArrivalNoticeWorksheetResolver } from './generate-arrival-notice-worksheet'
 import { generateCycleCountWorksheet } from './generate-cycle-count-worksheet'
 import { generatePartialPutawayWorksheetResolver } from './generate-partial-putaway-worksheet'
 import { generatePutawayWorksheetResolver } from './generate-putaway-worksheet'
-import { generateReleaseGoodWorksheetResolver } from './generate-release-good-worksheet'
 import { generateVasOrderWorksheet } from './generate-vas-order-worksheet'
+import { Mutation as GenerateWorksheetMutations } from './generate-worksheet'
 import { havingVasResolver } from './having-vas'
 import { inspecting } from './inspecting'
 import { inventoriesByPalletResolver } from './inventories-by-pallet'
@@ -99,15 +98,14 @@ export const Query = {
 }
 
 export const Mutation = {
+  ...GenerateWorksheetMutations,
   ...updateWorksheet,
   ...createWorksheet,
   ...cycleCountAdjustment,
   ...generateCycleCountWorksheet,
   ...deleteWorksheet,
-  ...generateArrivalNoticeWorksheetResolver,
   ...generatePutawayWorksheetResolver,
   ...generatePartialPutawayWorksheetResolver,
-  ...generateReleaseGoodWorksheetResolver,
   ...generateVasOrderWorksheet,
   ...activateUnloadingResolver,
   ...activatePutawayResolver,
