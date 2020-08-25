@@ -120,7 +120,7 @@ async function executePutaway(
     where: {
       domain,
       name: locationName,
-      type: In([LOCATION_TYPE.SHELF, LOCATION_TYPE.BUFFER])
+      type: In([LOCATION_TYPE.SHELF, LOCATION_TYPE.BUFFER, LOCATION_TYPE.FLOOR])
     },
     relations: ['warehouse']
   })
