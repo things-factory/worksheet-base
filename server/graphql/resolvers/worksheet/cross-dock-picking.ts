@@ -4,9 +4,10 @@ import { OrderInventory, OrderNoGenerator, ReleaseGood } from '@things-factory/s
 import { Domain } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { EntityManager, getManager, In, SelectQueryBuilder } from 'typeorm'
-import { WORKSHEET_STATUS } from '../../../constants'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
+import { WorksheetController } from '../../../controllers/worksheet-controller'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { generatePickingWorksheetDetail } from './generate-release-good-worksheet'
+import { WorksheetNoGenerator } from '../../../utils'
 import { executePicking } from './picking'
 
 export const crossDockPickingResolver = {
@@ -87,25 +88,30 @@ export const crossDockPickingResolver = {
 
         if (remainQty > 0 || remainWeight > 0) {
           // Need to create order inventory and worksheet detail without inventory assignment
-          let newTargetInv: OrderInventory = Object.assign({}, targetInv)
-          delete newTargetInv.id
-          newTargetInv.name = OrderNoGenerator.orderInventory()
-          newTargetInv.releaseQty = remainQty
-          newTargetInv.releaseWeight = remainWeight
-          newTargetInv.inventory = null
-          newTargetInv.creator = user
-          newTargetInv.updater = user
-          newTargetInv = await trxMgr.getRepository(OrderInventory).save(newTargetInv)
+          let targetInventory: OrderInventory = Object.assign({}, targetInv)
+          delete targetInventory.id
+          targetInventory.name = OrderNoGenerator.orderInventory()
+          targetInventory.releaseQty = remainQty
+          targetInventory.releaseWeight = remainWeight
+          targetInventory.inventory = null
+          targetInventory.creator = user
+          targetInventory.updater = user
+          targetInventory = await trxMgr.getRepository(OrderInventory).save(targetInventory)
 
-          await generatePickingWorksheetDetail(
-            trxMgr,
-            domain,
-            bizplace,
-            user,
-            worksheet,
-            newTargetInv,
-            WORKSHEET_STATUS.EXECUTING
-          )
+          const worksheetController: WorksheetController = new WorksheetController(trxMgr)
+          worksheetController.createWorksheetDetails([
+            {
+              domain,
+              bizplace,
+              worksheet,
+              name: WorksheetNoGenerator.pickingDetail(),
+              targetInventory,
+              type: WORKSHEET_TYPE.PICKING,
+              status: WORKSHEET_STATUS.DEACTIVATED,
+              creator: user,
+              updater: user
+            }
+          ])
         }
       } else {
         let { targetInventory: originOrdInv } = await trxMgr.getRepository(WorksheetDetail).findOne(originWSD.id, {

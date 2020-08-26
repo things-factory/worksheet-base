@@ -1,57 +1,21 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import {
-  ArrivalNotice,
-  OrderInventory,
-  OrderProduct,
-  OrderVas,
-  ORDER_INVENTORY_STATUS,
-  ORDER_PRODUCT_STATUS,
-  ORDER_STATUS,
-  ORDER_VAS_STATUS,
-  ReleaseGood,
-  VasOrder
-} from '@things-factory/sales-base'
+import { ArrivalNotice, InventoryCheck, ReleaseGood, VasOrder } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, Location } from '@things-factory/warehouse-base'
+import { WORKSHEET_STATUS } from 'server/constants'
 import { EntityManager, EntitySchema, FindOneOptions } from 'typeorm'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
 import { WorksheetNoGenerator } from '../utils'
 
-type ReferenceOrderType = ArrivalNotice | ReleaseGood | VasOrder
+export type ReferenceOrderType = ArrivalNotice | ReleaseGood | VasOrder | InventoryCheck
 
-export interface GenerateUnloadingInterface {
-  type: 'UNLOADING'
+export interface GenerateInterface {
   domain: Domain
   user: User
-  arrivalNoticeNo: string
-  bufferLocationId: string
-}
-
-export interface GeneratePutawayInterface {
-  type: 'PUTAWAY'
-}
-
-export interface GeneratePickingInterface {
-  type: 'PICKING'
-  domain: Domain
-  user: User
-  releaseGoodNo: string
-}
-export interface GenerateLoadingInterface {
-  type: 'LOADING'
-}
-
-export interface GenerateVasInterface {
-  type: 'VAS'
-  domain: Domain
-  user: User
-  referenceOrder: ReferenceOrderType
 }
 
 export class WorksheetController {
-  private trxMgr: EntityManager
+  protected trxMgr: EntityManager
 
   public readonly ERROR_MSG = {
     FIND: {
@@ -72,309 +36,6 @@ export class WorksheetController {
     this.trxMgr = trxMgr
   }
 
-  async generate(worksheetInterface: GenerateUnloadingInterface): Promise<Worksheet>
-  async generate(worksheetInterface: GeneratePutawayInterface): Promise<Worksheet>
-  async generate(worksheetInterface: GeneratePickingInterface): Promise<Worksheet>
-  async generate(worksheetInterface: GenerateLoadingInterface): Promise<Worksheet>
-  async generate(worksheetInterface: GenerateVasInterface): Promise<Worksheet>
-  async generate(worksheetInterface: any): Promise<Worksheet> {
-    let worksheet: Worksheet
-
-    switch (worksheetInterface.type) {
-      case 'UNLOADING':
-        worksheet = await this.generateUnloadingWorksheet(worksheetInterface)
-        break
-
-      case 'PUTAWAY':
-        worksheet = await this.generatePutawayWorksheet(worksheetInterface)
-        break
-
-      case 'PICKING':
-        worksheet = await this.generatePickingWorksheet(worksheetInterface)
-        break
-
-      case 'LOADING':
-        worksheet = await this.generateLoadingWorksheet(worksheetInterface)
-        break
-
-      case 'VAS':
-        worksheet = await this.generateVasWorksheet(worksheetInterface)
-        break
-    }
-
-    return worksheet
-  }
-
-  /**
-   * @summary Generate Unloading Worksheet
-   * @description
-   * Create unloading worksheet
-   *  - status: DEACTIVATED
-   *
-   * Create unloading worksheet details
-   *  - status: DEACTIVATED
-   *
-   * Update status of orderProducts
-   *  - status: ARRIVED => READY_TO_UNLOAD
-   *
-   * Call generateVasWorksheet function if it's needed
-   *
-   * Update status of arrival notice
-   *  - status: ARRIVED => READY_TO_UNLOAD
-   * @param {GenerateUnloadingInterface} worksheetInterface
-   * @returns {Promise<Worksheet>}
-   */
-  async generateUnloadingWorksheet(worksheetInterface: GenerateUnloadingInterface): Promise<Worksheet> {
-    const domain: Domain = worksheetInterface.domain
-    const user: User = worksheetInterface.user
-    let arrivalNotice: ArrivalNotice = await this.findRefOrder(
-      ArrivalNotice,
-      {
-        domain,
-        name: worksheetInterface.arrivalNoticeNo,
-        status: ORDER_STATUS.ARRIVED
-      },
-      ['bizplace', 'orderProducts', 'orderVass']
-    )
-    const bizplace: Bizplace = arrivalNotice.bizplace
-    const orderProducts: OrderProduct[] = arrivalNotice.orderProducts
-    const orderVASs: OrderVas[] = arrivalNotice.orderVass
-
-    const bufferLocationId: string = worksheetInterface.bufferLocationId
-    const bufferLocation: Location = await this.trxMgr.getRepository(Location).findOne(bufferLocationId)
-
-    const worksheet: Worksheet = await this.createWorksheet({
-      domain,
-      bizplace,
-      name: WorksheetNoGenerator.unloading(),
-      bufferLocation,
-      arrivalNotice,
-      type: WORKSHEET_TYPE.UNLOADING,
-      status: WORKSHEET_STATUS.DEACTIVATED,
-      creator: user,
-      updater: user
-    })
-
-    const worksheetDetails: Partial<WorksheetDetail>[] = orderProducts.map((targetProduct: OrderProduct) => {
-      return {
-        domain,
-        bizplace,
-        worksheet,
-        name: WorksheetNoGenerator.unloadingDetail(),
-        type: WORKSHEET_TYPE.UNLOADING,
-        targetProduct,
-        status: WORKSHEET_STATUS.DEACTIVATED,
-        creator: user,
-        updater: user
-      } as Partial<WorksheetDetail>
-    })
-    await this.createWorksheetDetails(worksheetDetails)
-
-    orderProducts.forEach((ordProd: OrderProduct) => {
-      ordProd.status = ORDER_PRODUCT_STATUS.READY_TO_UNLOAD
-      ordProd.updater = user
-    })
-    await this.updateOrderTargets(OrderProduct, orderProducts)
-
-    if (orderVASs?.length > 0) {
-      await this.generateVasWorksheet({
-        domain,
-        user,
-        referenceOrder: arrivalNotice
-      } as GenerateVasInterface)
-    }
-
-    arrivalNotice.status = ORDER_STATUS.READY_TO_UNLOAD
-    arrivalNotice.updater = user
-    await this.updateRefOrder(ArrivalNotice, arrivalNotice)
-
-    return worksheet
-  }
-
-  async generatePutawayWorksheet(worksheetInterface: GeneratePutawayInterface): Promise<Worksheet> {
-    return
-  }
-
-  /**
-   * @summary Generate Picking Worksheet
-   * @description
-   * Create picking worksheet
-   *  - status: DEACTIVATED
-   *
-   * Create picking worksheet details
-   *  - status: DEACTIVATED
-   *
-   * Update status of orderInventories
-   *  - status: PENDING_RECEIVE => READY_TO_PICK
-   *
-   * Call generateVasWorksheet function if it's needed
-   *
-   * Update status of release good
-   *  - status: PENDING_RECEIVE => READY_TO_UNLOAD
-   * @param {GenerateUnloadingInterface} worksheetInterface
-   * @returns {Promise<Worksheet>}
-   */
-  async generatePickingWorksheet(worksheetInterface: GeneratePickingInterface): Promise<Worksheet> {
-    const domain: Domain = worksheetInterface.domain
-    const user: User = worksheetInterface.user
-    let releaseGood: ReleaseGood = await this.findRefOrder(
-      ReleaseGood,
-      {
-        domain,
-        name: worksheetInterface.releaseGoodNo,
-        status: ORDER_STATUS.PENDING_RECEIVE
-      },
-      ['bizplace', 'orderInventories', 'orderInventories.inventory', 'orderVass']
-    )
-    const bizplace: Bizplace = releaseGood.bizplace
-    const orderInventories: OrderInventory[] = releaseGood.orderInventories
-    const orderVASs: OrderVas[] = releaseGood.orderVass
-
-    const worksheet: Worksheet = await this.createWorksheet({
-      domain,
-      bizplace,
-      name: WorksheetNoGenerator.picking(),
-      releaseGood,
-      type: WORKSHEET_TYPE.PICKING,
-      status: WORKSHEET_STATUS.DEACTIVATED,
-      creator: user,
-      updater: user
-    })
-
-    if (orderInventories.every((oi: OrderInventory) => oi.inventory?.id) || releaseGood.crossDocking) {
-      const worksheetDetails: Partial<WorksheetDetail>[] = orderInventories.map((targetInventory: OrderInventory) => {
-        return {
-          domain,
-          bizplace,
-          worksheet,
-          name: WorksheetNoGenerator.pickingDetail(),
-          targetInventory,
-          type: WORKSHEET_TYPE.PICKING,
-          status: WORKSHEET_STATUS.DEACTIVATED,
-          creator: user,
-          updater: user
-        } as Partial<WorksheetDetail>
-      })
-      await this.createWorksheetDetails(worksheetDetails)
-
-      const inventories: Inventory[] = orderInventories.map((oi: OrderInventory) => {
-        let inventory: Inventory = oi.inventory
-        inventory.lockedQty = oi.releaseQty
-        inventory.lockedWeight = oi.releaseWeight
-        inventory.updater = user
-      })
-
-      await this.trxMgr.getRepository(Inventory).save(inventories)
-    }
-
-    orderInventories.forEach((oi: OrderInventory) => {
-      oi.status =
-        oi.crossDocking || oi.inventory?.id
-          ? ORDER_INVENTORY_STATUS.READY_TO_PICK
-          : ORDER_INVENTORY_STATUS.PENDING_SPLIT
-      oi.updater = user
-    })
-    await this.updateOrderTargets(OrderInventory, orderInventories)
-
-    if (orderVASs?.length > 0) {
-      await this.generateVasWorksheet({
-        domain,
-        user,
-        referenceOrder: releaseGood
-      } as GenerateVasInterface)
-    }
-
-    releaseGood.status = ORDER_STATUS.READY_TO_PICK
-    releaseGood.updater = user
-    await this.updateRefOrder(ReleaseGood, releaseGood)
-
-    return worksheet
-  }
-
-  async generateLoadingWorksheet(worksheetInterface: GenerateLoadingInterface): Promise<Worksheet> {
-    return
-  }
-
-  /**
-   * @summary Generate VAS Worksheet
-   * @description
-   * Create VAS worksheet
-   *  - status: DEACTIVATED
-   *
-   * Create VAS worksheet details
-   *  - status: DEACTIVATED
-   *
-   * Update status of orderVass
-   *  - status: ARRIVED => READY_TO_PROCESS
-   *
-   * @param {GenerateVasInterface} worksheetInterface
-   * @returns {Promise<Worksheet>}
-   */
-  async generateVasWorksheet(worksheetInterface: GenerateVasInterface): Promise<Worksheet> {
-    const domain: Domain = worksheetInterface.domain
-    const referenceOrder: ReferenceOrderType = worksheetInterface.referenceOrder
-    const user: User = worksheetInterface.user
-
-    let bizplace: Bizplace
-    let worksheet: Partial<Worksheet> = {
-      domain,
-      name: WorksheetNoGenerator.vas(),
-      type: WORKSHEET_TYPE.VAS,
-      status: WORKSHEET_STATUS.DEACTIVATED,
-      creator: user,
-      updater: user
-    }
-
-    let orderVASs: OrderVas[]
-
-    if (referenceOrder instanceof ArrivalNotice) {
-      if (!referenceOrder.bizplace?.id) {
-        const arrivalNotice: ArrivalNotice = await this.findRefOrder(ArrivalNotice, referenceOrder, [
-          'bizplace',
-          'orderVass'
-        ])
-        bizplace = arrivalNotice.bizplace
-        worksheet.arrivalNotice = arrivalNotice
-        worksheet.bizplace = bizplace
-
-        orderVASs = arrivalNotice.orderVass
-      }
-    } else if (referenceOrder instanceof ReleaseGood) {
-      const releaseGood: ReleaseGood = await this.findRefOrder(ReleaseGood, referenceOrder, ['bizplace', 'orderVass'])
-      bizplace = releaseGood.bizplace
-      worksheet.releaseGood = releaseGood
-      worksheet.bizplace = bizplace
-
-      orderVASs = releaseGood.orderVASs
-    } else {
-    }
-
-    worksheet = await this.createWorksheet(worksheet)
-
-    const vasWorksheetDetails: Partial<WorksheetDetail>[] = orderVASs.map((targetVas: OrderVas) => {
-      return {
-        domain,
-        bizplace,
-        worksheet,
-        name: WorksheetNoGenerator.vasDetail(),
-        targetVas,
-        type: WORKSHEET_TYPE.VAS,
-        status: WORKSHEET_STATUS.DEACTIVATED,
-        creator: user,
-        updater: user
-      } as Partial<WorksheetDetail>
-    })
-    worksheet.worksheetDetails = await this.createWorksheetDetails(vasWorksheetDetails)
-
-    orderVASs.forEach((ordVas: OrderVas) => {
-      ordVas.status = ORDER_VAS_STATUS.READY_TO_PROCESS
-      ordVas.updater = user
-    })
-    await this.updateOrderTargets(OrderVas, orderVASs)
-
-    return worksheet as Worksheet
-  }
-
   /**
    * @summary Insert worksheet into worksheet table
    * @description
@@ -386,9 +47,36 @@ export class WorksheetController {
    * @param {Partial<Worksheet>} worksheet
    * @returns {Promise<Worksheet>}
    */
-  async createWorksheet(worksheet: Partial<Worksheet>): Promise<Worksheet> {
-    if (worksheet.id) throw new Error(this.ERROR_MSG.CREATE.ID_EXISTS)
+  async createWorksheet(
+    domain: Domain,
+    bizplace: Bizplace,
+    refOrder: ReferenceOrderType,
+    type: string,
+    user: User,
+    ...additionlProps: Partial<Worksheet>[]
+  ): Promise<Worksheet> {
+    let refOrderType: string = ''
+    if (refOrder instanceof ArrivalNotice) {
+      refOrderType = 'arrivalNotice'
+    } else if (refOrder instanceof ReleaseGood) {
+      refOrderType = 'releaseGood'
+    } else {
+      refOrderType = 'vasOrder'
+    }
 
+    const worksheet: Partial<Worksheet> = {
+      domain,
+      bizplace,
+      name: WorksheetNoGenerator.generate(type),
+      type,
+      status: WORKSHEET_STATUS.DEACTIVATED,
+      creator: user,
+      updater: user,
+      [refOrderType]: refOrder,
+      ...additionlProps
+    }
+
+    if (worksheet.id) throw new Error(this.ERROR_MSG.CREATE.ID_EXISTS)
     if (!worksheet.creator) throw new Error(this.ERROR_MSG.CREATE.EMPTY_CREATOR)
     if (!worksheet.updater) throw new Error(this.ERROR_MSG.CREATE.EMPTY_UPDATER)
 
@@ -474,5 +162,28 @@ export class WorksheetController {
     if (!refOrder.updater?.id) throw new Error(this.ERROR_MSG.UPDATE.EMPTY_UPDATER)
 
     return await this.trxMgr.getRepository(entitySchema).save(refOrder)
+  }
+
+  async findWorksheet(
+    domain: Domain,
+    refOrder: ReferenceOrderType,
+    type: string,
+    relations: string[] = ['worksheetDetails']
+  ): Promise<Worksheet> {
+    let condition: FindOneOptions = { where: { domain, type }, relations }
+    if (refOrder instanceof ArrivalNotice) {
+      condition.where['arrivalNotice'] = refOrder
+    } else if (refOrder instanceof ReleaseGood) {
+      condition.where['releaseGood'] = refOrder
+    } else if (refOrder instanceof InventoryCheck) {
+      condition.where['inventoryCheck'] = refOrder
+    } else {
+      condition.where['vasOrder'] = refOrder
+    }
+
+    const worksheet: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne(condition)
+    if (!worksheet) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(type))
+
+    return worksheet
   }
 }

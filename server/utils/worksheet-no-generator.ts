@@ -1,6 +1,63 @@
+import { WORKSHEET_TYPE } from 'server/constants'
 import uuid from 'uuid/v4'
 
 export class WorksheetNoGenerator {
+  static generate(type: string, isDetail: boolean = false): string {
+    if (isDetail) {
+      return this.generateDetail(type)
+    } else {
+      if (Object.keys(WORKSHEET_TYPE).indexOf(type) < 0) {
+        throw new Error(`Invalid type pased (passed type: ${type})`)
+      }
+
+      switch (type) {
+        case WORKSHEET_TYPE.UNLOADING:
+          return this.unloading()
+
+        case WORKSHEET_TYPE.PUTAWAY:
+          return this.putaway()
+
+        case WORKSHEET_TYPE.PICKING:
+          return this.picking()
+
+        case WORKSHEET_TYPE.LOADING:
+          return this.loading()
+
+        case WORKSHEET_TYPE.RETURN:
+          return this.return()
+
+        case WORKSHEET_TYPE.VAS:
+          return this.vas()
+      }
+    }
+  }
+
+  static generateDetail(type: string): string {
+    if (Object.keys(WORKSHEET_TYPE).indexOf(type) < 0) {
+      throw new Error(`Invalid type pased (passed type: ${type})`)
+    }
+
+    switch (type) {
+      case WORKSHEET_TYPE.UNLOADING:
+        return this.unloadingDetail()
+
+      case WORKSHEET_TYPE.PUTAWAY:
+        return this.putawayDetail()
+
+      case WORKSHEET_TYPE.PICKING:
+        return this.pickingDetail()
+
+      case WORKSHEET_TYPE.LOADING:
+        return this.loadingDetail()
+
+      case WORKSHEET_TYPE.RETURN:
+        return this.returnDetail()
+
+      case WORKSHEET_TYPE.VAS:
+        return this.vasDetail()
+    }
+  }
+
   static unloading() {
     return `ULD-${uuid()}`
   }

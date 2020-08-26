@@ -1,18 +1,12 @@
 import { Role, User } from '@things-factory/auth-base'
-import {
-  ArrivalNotice,
-  generateGoodsReceivalNote,
-  OrderProduct,
-  ORDER_PRODUCT_STATUS,
-  ORDER_STATUS
-} from '@things-factory/sales-base'
+import { ArrivalNotice, OrderProduct, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { Domain, sendNotification } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { EntityManager, Equal, getManager, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { activatePutaway } from './activate-putaway'
-import { generatePutawayWorksheet } from './generate-putaway-worksheet'
+import { generatePutawayWorksheet } from './generate-worksheet/generate-putaway-worksheet'
 
 export const completeUnloading = {
   async completeUnloading(_: any, { arrivalNoticeNo, worksheetDetails }, context: any) {
@@ -30,13 +24,19 @@ export const completeUnloading = {
 
       if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
 
-      if(arrivalNotice.crossDocking) {
+      if (arrivalNotice.crossDocking) {
         // Picking worksheet for cross docking should be completed before complete it
         // Find picking worksheet
         const executingPickingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-          where: { domain, releaseGood: arrivalNotice.releaseGood, type: WORKSHEET_TYPE.PICKING, status: Not(Equal(WORKSHEET_STATUS.DONE))}
+          where: {
+            domain,
+            releaseGood: arrivalNotice.releaseGood,
+            type: WORKSHEET_TYPE.PICKING,
+            status: Not(Equal(WORKSHEET_STATUS.DONE))
+          }
         })
-        if(executingPickingWorksheet) throw new Error(`Picking should be completed before complete unloading for cross docking.`)
+        if (executingPickingWorksheet)
+          throw new Error(`Picking should be completed before complete unloading for cross docking.`)
       }
 
       /**
@@ -89,7 +89,7 @@ export const completeUnloading = {
         )
         if (worksheetDetail && worksheetDetail.issue) {
           foundWSD.issue = worksheetDetail.issue
-        
+
           targetProducts = targetProducts.map((targetProduct: OrderProduct) => {
             if (foundWSD.targetProduct.id === targetProduct.id) {
               return {
@@ -169,11 +169,11 @@ export const completeUnloading = {
       })
 
       const putawayWorksheet: Worksheet = await generatePutawayWorksheet(
+        trxMgr,
         domain,
-        arrivalNotice,
-        inventories,
         user,
-        trxMgr
+        arrivalNotice.name,
+        inventories
       )
 
       // Activate it if putaway worksheet is deactivated

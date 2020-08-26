@@ -24,10 +24,6 @@ import { deleteWorksheet } from './delete-worksheet'
 import { deliveryOrderByWorksheetResolver } from './delivery-order-by-worksheet'
 import { editBatchNo } from './edit-batch-no'
 import { executeVasResolver } from './execute-vas'
-import { generateCycleCountWorksheet } from './generate-cycle-count-worksheet'
-import { generatePartialPutawayWorksheetResolver } from './generate-partial-putaway-worksheet'
-import { generatePutawayWorksheetResolver } from './generate-putaway-worksheet'
-import { generateVasOrderWorksheet } from './generate-vas-order-worksheet'
 import { Mutation as GenerateWorksheetMutations } from './generate-worksheet'
 import { havingVasResolver } from './having-vas'
 import { inspecting } from './inspecting'
@@ -102,11 +98,7 @@ export const Mutation = {
   ...updateWorksheet,
   ...createWorksheet,
   ...cycleCountAdjustment,
-  ...generateCycleCountWorksheet,
   ...deleteWorksheet,
-  ...generatePutawayWorksheetResolver,
-  ...generatePartialPutawayWorksheetResolver,
-  ...generateVasOrderWorksheet,
   ...activateUnloadingResolver,
   ...activatePutawayResolver,
   ...activateLoadingResolver,
