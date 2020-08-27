@@ -32,8 +32,7 @@ export const unload = {
       const duplicatedInventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
         where: {
           domain: context.state.domain,
-          palletId,
-          status: Not(Equal(INVENTORY_STATUS.TERMINATED))
+          palletId
         }
       })
 
