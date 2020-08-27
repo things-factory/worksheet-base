@@ -34,6 +34,7 @@ export const unloadedInventoriesByReusablePallet = {
       where: {
         domain: context.state.domain,
         bizplace: customerBizplace,
+        batchId: foundWorksheetDetail.targetProduct.batchId,
         refOrderId: arrivalNotice.id,
         reusablePallet: foundReusablePallet,
         status: INVENTORY_STATUS.UNLOADED
