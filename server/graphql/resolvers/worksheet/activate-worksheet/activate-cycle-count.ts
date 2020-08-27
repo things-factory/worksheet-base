@@ -1,9 +1,9 @@
 import { InventoryCheck, OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { getManager } from 'typeorm'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { Worksheet, WorksheetDetail } from '../../../entities'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
+import { Worksheet, WorksheetDetail } from '../../../../entities'
 
-export const activateCycleCount = {
+export const activateCycleCountResolver = {
   async activateCycleCount(_: any, { worksheetNo }, context: any) {
     return await getManager().transaction(async trxMgr => {
       /**

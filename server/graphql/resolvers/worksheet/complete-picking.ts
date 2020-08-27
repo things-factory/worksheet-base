@@ -5,7 +5,7 @@ import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils'
-import { activateLoading } from './activate-loading'
+import { activateLoading } from './activate-worksheet/activate-loading'
 
 export const completePicking = {
   async completePicking(_: any, { releaseGoodNo }, context: any) {

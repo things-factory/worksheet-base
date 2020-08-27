@@ -5,9 +5,9 @@ import { Domain } from '@things-factory/shell'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
 import { WorksheetNoGenerator } from '../utils'
-import { GenerateInterface, ReferenceOrderType, WorksheetController } from './worksheet-controller'
+import { BasicInterface, ReferenceOrderType, WorksheetController } from './worksheet-controller'
 
-export interface GenerateVasInterface extends GenerateInterface {
+export interface GenerateVasInterface extends BasicInterface {
   referenceOrder: ReferenceOrderType
 }
 
@@ -83,5 +83,9 @@ export class VasWorksheetController extends WorksheetController {
     await this.updateOrderTargets(OrderVas, orderVASs)
 
     return worksheet as Worksheet
+  }
+
+  async activateVAS(): Promise<Worksheet> {
+    return
   }
 }

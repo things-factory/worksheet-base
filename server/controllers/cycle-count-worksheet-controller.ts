@@ -13,9 +13,9 @@ import { WorksheetNoGenerator } from 'server/utils'
 import { In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
-import { GenerateInterface, WorksheetController } from './worksheet-controller'
+import { BasicInterface, WorksheetController } from './worksheet-controller'
 
-export interface GenerateCycleCountInterface extends GenerateInterface {
+export interface GenerateCycleCountInterface extends BasicInterface {
   cycleCountNo: string
   inventories: Inventory[]
 }

@@ -9,7 +9,7 @@ import { WorksheetNoGenerator } from '../utils'
 
 export type ReferenceOrderType = ArrivalNotice | ReleaseGood | VasOrder | InventoryCheck
 
-export interface GenerateInterface {
+export interface BasicInterface {
   domain: Domain
   user: User
 }
@@ -53,7 +53,7 @@ export class WorksheetController {
     refOrder: ReferenceOrderType,
     type: string,
     user: User,
-    ...additionlProps: Partial<Worksheet>[]
+    additionalProps: Partial<Worksheet> = {}
   ): Promise<Worksheet> {
     let refOrderType: string = ''
     if (refOrder instanceof ArrivalNotice) {
@@ -73,7 +73,7 @@ export class WorksheetController {
       creator: user,
       updater: user,
       [refOrderType]: refOrder,
-      ...additionlProps
+      ...additionalProps
     }
 
     if (worksheet.id) throw new Error(this.ERROR_MSG.CREATE.ID_EXISTS)
@@ -164,7 +164,22 @@ export class WorksheetController {
     return await this.trxMgr.getRepository(entitySchema).save(refOrder)
   }
 
-  async findWorksheet(
+  async findWorksheetByNo(
+    domain: Domain,
+    worksheetNo: string,
+    relations: string[] = ['worksheetDetails']
+  ): Promise<Worksheet> {
+    const worksheet: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne({
+      where: { domain, name: worksheetNo },
+      relations
+    })
+
+    if (!worksheet) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(worksheetNo))
+
+    return worksheet
+  }
+
+  async findWorksheetByRefOrder(
     domain: Domain,
     refOrder: ReferenceOrderType,
     type: string,
@@ -185,5 +200,49 @@ export class WorksheetController {
     if (!worksheet) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(type))
 
     return worksheet
+  }
+
+  async activateWorksheet(
+    worksheet: Worksheet,
+    worksheetDetails: WorksheetDetail[],
+    changedWorksheetDetails: Partial<WorksheetDetail>[],
+    user: User
+  ): Promise<Worksheet> {
+    if (!worksheet.id || worksheetDetails.some((wsd: WorksheetDetail) => !wsd.id)) {
+      throw new Error(this.ERROR_MSG.UPDATE.ID_NOT_EXISTS)
+    }
+
+    worksheet.status = WORKSHEET_STATUS.EXECUTING
+    worksheet.startedAt = new Date()
+    worksheet.updater = user
+    worksheet = await this.trxMgr.getRepository(Worksheet).save(worksheet)
+
+    worksheetDetails = this.renewWorksheetDetails(worksheetDetails, changedWorksheetDetails, {
+      status: WORKSHEET_STATUS.EXECUTING,
+      updater: user
+    })
+    worksheet.worksheetDetails = await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetails)
+
+    return worksheet
+  }
+
+  renewWorksheetDetails(
+    originWSDs: WorksheetDetail[],
+    changedWSDs: Partial<WorksheetDetail>[],
+    additionalProps: Partial<WorksheetDetail>
+  ): WorksheetDetail[] {
+    return originWSDs.map((originWSD: WorksheetDetail) => {
+      const changedWSD: Partial<WorksheetDetail> = this.findMatchedWSD(originWSD.name, changedWSDs)
+
+      return {
+        ...originWSD,
+        ...changedWSD,
+        ...additionalProps
+      }
+    })
+  }
+
+  findMatchedWSD(originWSDName: string, changedWSDs: any[]): any {
+    return changedWSDs.find((changedWSD: Partial<WorksheetDetail>) => changedWSD.name === originWSDName)
   }
 }

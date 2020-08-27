@@ -1,10 +1,4 @@
-import { activateCycleCount } from './activate-cycle-count'
-import { activateLoadingResolver } from './activate-loading'
-import { activatePickingResolver } from './activate-picking'
-import { activatePutawayResolver } from './activate-putaway'
-import { activateReturnResolver } from './activate-return'
-import { activateUnloadingResolver } from './activate-unloading'
-import { activateVasResolver } from './activate-vas'
+import { Mutations as ActivateWorksheetMutations } from './activate-worksheet'
 import { assignVasInventoriesResolver } from './assign-vas-inventories'
 import { completeInspection } from './complete-inspection'
 import { completeLoading } from './complete-loading'
@@ -24,7 +18,7 @@ import { deleteWorksheet } from './delete-worksheet'
 import { deliveryOrderByWorksheetResolver } from './delivery-order-by-worksheet'
 import { editBatchNo } from './edit-batch-no'
 import { executeVasResolver } from './execute-vas'
-import { Mutation as GenerateWorksheetMutations } from './generate-worksheet'
+import { Mutations as GenerateWorksheetMutations } from './generate-worksheet'
 import { havingVasResolver } from './having-vas'
 import { inspecting } from './inspecting'
 import { inventoriesByPalletResolver } from './inventories-by-pallet'
@@ -95,17 +89,11 @@ export const Query = {
 
 export const Mutation = {
   ...GenerateWorksheetMutations,
+  ...ActivateWorksheetMutations,
   ...updateWorksheet,
   ...createWorksheet,
   ...cycleCountAdjustment,
   ...deleteWorksheet,
-  ...activateUnloadingResolver,
-  ...activatePutawayResolver,
-  ...activateLoadingResolver,
-  ...activateReturnResolver,
-  ...activateVasResolver,
-  ...activatePickingResolver,
-  ...activateCycleCount,
   ...completeInspection,
   ...editBatchNo,
   ...proceedEditedBatchResolver,

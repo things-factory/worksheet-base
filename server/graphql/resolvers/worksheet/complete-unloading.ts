@@ -5,7 +5,7 @@ import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { EntityManager, Equal, getManager, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { activatePutaway } from './activate-putaway'
+import { activatePutaway } from './activate-worksheet/activate-putaway'
 import { generatePutawayWorksheet } from './generate-worksheet/generate-putaway-worksheet'
 
 export const completeUnloading = {
@@ -168,17 +168,11 @@ export const completeUnloading = {
         }
       })
 
-      const putawayWorksheet: Worksheet = await generatePutawayWorksheet(
-        trxMgr,
-        domain,
-        user,
-        arrivalNotice.name,
-        inventories
-      )
+      const putawayWS: Worksheet = await generatePutawayWorksheet(trxMgr, domain, user, arrivalNotice.name, inventories)
 
       // Activate it if putaway worksheet is deactivated
-      if (putawayWorksheet.status === WORKSHEET_STATUS.DEACTIVATED) {
-        await activatePutaway(putawayWorksheet.name, putawayWorksheet.worksheetDetails, domain, user, trxMgr)
+      if (putawayWS.status === WORKSHEET_STATUS.DEACTIVATED) {
+        await activatePutaway(trxMgr, domain, user, putawayWS.name, putawayWS.worksheetDetails)
       }
 
       // Update status of arrival notice to PUTTING_AWAY

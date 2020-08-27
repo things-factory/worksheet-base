@@ -7,12 +7,12 @@ import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
 import { WorksheetNoGenerator } from '../utils'
 import { GenerateVasInterface, VasWorksheetController } from './vas-worksheet-controller'
-import { GenerateInterface } from './worksheet-controller'
+import { BasicInterface } from './worksheet-controller'
 
-export interface GeneratePickingInterface extends GenerateInterface {
+export interface GeneratePickingInterface extends BasicInterface {
   releaseGoodNo: string
 }
-export interface GenerateLoadingInterface extends GenerateInterface {}
+export interface GenerateLoadingInterface extends BasicInterface {}
 
 export class OutboundWorksheetController extends VasWorksheetController {
   /**

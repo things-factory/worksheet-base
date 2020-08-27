@@ -13,8 +13,8 @@ import { Domain } from '@things-factory/shell'
 import { EntityManager, FindOneOptions, getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { activateLoading } from './activate-loading'
-import { activatePutaway } from './activate-putaway'
+import { activateLoading } from './activate-worksheet/activate-loading'
+import { activatePutaway } from './activate-worksheet/activate-putaway'
 import { completeRelabeling, completeRepackaging, completeRepalletizing, RefOrderType } from './vas-transactions'
 
 type CompleteTransactionType = (trxMgr: EntityManager, orderVas: OrderVas, user: User) => Promise<void>
@@ -180,7 +180,7 @@ async function activatePutawayWorksheet(
     relations: ['worksheetDetails']
   })
   if (!putawayWS) throw new Error(`Couldn't find putaway worksheet related with (${refOrder.name})`)
-  await activatePutaway(putawayWS.name, putawayWS.worksheetDetails, domain, user, trxMgr)
+  await activatePutaway(trxMgr, domain, user, putawayWS.name, putawayWS.worksheetDetails)
 }
 
 /**

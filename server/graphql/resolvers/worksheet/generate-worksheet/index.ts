@@ -12,7 +12,7 @@ import { generateVasOrderWorksheetResolver } from './generate-vas-order-workshee
 /* Inspection */
 import { generateCycleCountWorksheetResolver } from './generate-cycle-count-worksheet'
 
-export const Mutation = {
+export const Mutations = {
   /* Inbound */
   ...generateArrivalNoticeWorksheetResolver,
   ...generatePutawayWorksheetResolver,
