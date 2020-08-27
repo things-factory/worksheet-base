@@ -18,7 +18,6 @@ export const unload = {
   async unload(_: any, { worksheetDetailName, inventory }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const palletId = inventory.palletId
-
       // check duplication of reusable pallet
       const duplicatedReusablePallet: Pallet = await trxMgr.getRepository(Pallet).findOne({
         where: {
