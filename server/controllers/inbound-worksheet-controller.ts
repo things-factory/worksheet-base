@@ -296,6 +296,7 @@ export class InboundWorksheetController extends VasWorksheetController {
       'worksheetDetails.targetProduct',
       'worksheetDetails.targetProduct.product'
     ])
+    this.checkWorksheetValidity(worksheet, { type: WORKSHEET_TYPE.UNLOADING, status: WORKSHEET_STATUS.DEACTIVATED })
 
     const bizplace: Bizplace = worksheet.bizplace
     const unloadingWSDs: UnloadingWorksheetDetail[] = worksheetInterface.unloadingWorksheetDetails
@@ -325,7 +326,14 @@ export class InboundWorksheetController extends VasWorksheetController {
       this.createPalletizingWSDs(domain, bizplace, user, arrivalNotice, worksheetDetails, unloadingWSDs)
     }
 
-    return this.activateWorksheet(worksheet, worksheetDetails, unloadingWSDs, user)
+    worksheet = await this.activateWorksheet(worksheet, worksheetDetails, unloadingWSDs, user)
+
+    const vasWorksheet: Worksheet = await this.findWorksheetByRefOrder(domain, ArrivalNotice, WORKSHEET_TYPE.VAS)
+    if (vasWorksheet) {
+      await this.activateVAS({ domain, user, worksheetNo: vasWorksheet.name })
+    }
+
+    return worksheet
   }
 
   /**
@@ -356,6 +364,7 @@ export class InboundWorksheetController extends VasWorksheetController {
       'worksheetDetails',
       'worksheetDetails.targetInventory'
     ])
+    this.checkWorksheetValidity(worksheet, { status: WORKSHEET_STATUS.DEACTIVATED, type: WORKSHEET_TYPE.PUTAWAY })
 
     const arrivalNotice: ArrivalNotice = worksheet.arrivalNotice
     const nonFinishedVasCnt: number = await this.trxMgr.getRepository(Worksheet).count({

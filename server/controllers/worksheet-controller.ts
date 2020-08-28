@@ -29,6 +29,11 @@ export class WorksheetController {
     UPDATE: {
       ID_NOT_EXISTS: `Target doesn't have ID`,
       EMPTY_UPDATER: 'Cannot update without updater'
+    },
+    VALIDITY: {
+      UNEXPECTED_FIELD_VALUE: (field: string, expectedValue: any, actualValue: any) => `
+        Expected ${field} value is ${expectedValue} but got ${actualValue}
+      `
     }
   }
 
@@ -244,5 +249,19 @@ export class WorksheetController {
 
   findMatchedWSD(originWSDName: string, changedWSDs: any[]): any {
     return changedWSDs.find((changedWSD: Partial<WorksheetDetail>) => changedWSD.name === originWSDName)
+  }
+
+  checkWorksheetValidity(worksheet: Worksheet, conditions: Record<string, any>): void {
+    for (let field in conditions) {
+      let isValid: boolean = false
+      if (typeof conditions[field] === 'function') {
+        isValid = conditions[field](worksheet[field])
+      } else {
+        isValid = conditions[field] === worksheet[field]
+      }
+
+      if (!isValid)
+        throw new Error(this.ERROR_MSG.VALIDITY.UNEXPECTED_FIELD_VALUE(field, conditions[field], worksheet[field]))
+    }
   }
 }

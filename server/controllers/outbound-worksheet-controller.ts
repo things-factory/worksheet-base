@@ -12,7 +12,16 @@ import { BasicInterface } from './worksheet-controller'
 export interface GeneratePickingInterface extends BasicInterface {
   releaseGoodNo: string
 }
+
 export interface GenerateLoadingInterface extends BasicInterface {}
+
+export interface ActivatePickingInterface extends BasicInterface {
+  worksheetNo: string
+}
+
+export interface ActivateLoadingInterface extends BasicInterface {
+  worksheetNo: string
+}
 
 export class OutboundWorksheetController extends VasWorksheetController {
   /**
@@ -103,6 +112,53 @@ export class OutboundWorksheetController extends VasWorksheetController {
   }
 
   async generateLoadingWorksheet(worksheetInterface: GenerateLoadingInterface): Promise<Worksheet> {
+    return
+  }
+
+  async activatePicking(worksheetInterface: ActivatePickingInterface): Promise<Worksheet> {
+    const domain: Domain = worksheetInterface.domain
+    const user: User = worksheetInterface.user
+    const worksheetNo: string = worksheetInterface.worksheetNo
+
+    let worksheet: Worksheet = await this.findWorksheetByNo(domain, worksheetNo, [
+      'releaseGood',
+      'worksheetDetails',
+      'worksheetDestails.targetInventory'
+    ])
+    this.checkWorksheetValidity(worksheet, { type: WORKSHEET_TYPE, status: WORKSHEET_STATUS.DEACTIVATED })
+    const worksheetDestails: WorksheetDetail[] = worksheet.worksheetDetails
+
+    const targetInventories: OrderInventory[] = worksheetDestails.map((wsd: WorksheetDetail) => {
+      let targetInventory: OrderInventory = wsd.targetInventory
+      targetInventory.status = ORDER_INVENTORY_STATUS.PICKING
+      targetInventory.updater = user
+      return targetInventory
+    })
+    this.updateOrderTargets(OrderInventory, targetInventories)
+
+    let releaseGood: ReleaseGood = worksheet.releaseGood
+    ;(releaseGood.status = ORDER_STATUS.PICKING), (releaseGood.updater = user)
+    this.updateRefOrder(ReleaseGood, releaseGood)
+
+    worksheet = await this.activateWorksheet(worksheet, worksheetDestails, [], user)
+
+    const vasWorksheet: Worksheet = await this.findWorksheetByRefOrder(domain, releaseGood, WORKSHEET_TYPE.VAS)
+    if (vasWorksheet) {
+      await this.activateVAS({ domain, user, worksheetNo: vasWorksheet.name })
+    }
+
+    const pendingSplitOIs: OrderInventory[] = await this.trxMgr.getRepository(OrderInventory).find({
+      where: { domain, releaseGood, status: ORDER_INVENTORY_STATUS.PENDING_SPLIT }
+    })
+    if (pendingSplitOIs?.length) {
+      const ids: string[] = pendingSplitOIs.map((oi: OrderInventory) => oi.id)
+      await this.trxMgr.getRepository(OrderInventory).delete(ids)
+    }
+
+    return worksheet
+  }
+
+  async activateLoading(worksheetInterface: ActivateLoadingInterface): Promise<Worksheet> {
     return
   }
 }

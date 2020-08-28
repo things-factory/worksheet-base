@@ -11,6 +11,10 @@ export interface GenerateVasInterface extends BasicInterface {
   referenceOrder: ReferenceOrderType
 }
 
+export interface ActivateVASInterface extends BasicInterface {
+  worksheetNo: string
+}
+
 export class VasWorksheetController extends WorksheetController {
   /**
    * @summary Generate VAS Worksheet
@@ -85,7 +89,7 @@ export class VasWorksheetController extends WorksheetController {
     return worksheet as Worksheet
   }
 
-  async activateVAS(): Promise<Worksheet> {
+  async activateVAS(worksheet: ActivateVASInterface): Promise<Worksheet> {
     return
   }
 }
