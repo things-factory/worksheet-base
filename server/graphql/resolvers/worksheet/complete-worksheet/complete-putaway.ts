@@ -1,13 +1,18 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, OrderInventory, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
+import {
+  ArrivalNotice,
+  generateGoodsReceivalNote,
+  OrderInventory,
+  ORDER_PRODUCT_STATUS,
+  ORDER_STATUS
+} from '@things-factory/sales-base'
 import { sendNotification } from '@things-factory/shell'
 import { Inventory, Location, LOCATION_STATUS } from '@things-factory/warehouse-base'
-import { generateGoodsReceivalNote } from '@things-factory/sales-base'
 import { Equal, getManager, In, Not } from 'typeorm'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { Worksheet, WorksheetDetail } from '../../../entities'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
+import { Worksheet, WorksheetDetail } from '../../../../entities'
 
-export const completePutaway = {
+export const completePutawayResolver = {
   async completePutaway(_: any, { arrivalNoticeNo }, context: any) {
     return await getManager().transaction(async trxMgr => {
       /**

@@ -10,12 +10,13 @@ import {
   ORDER_STATUS,
   ORDER_TYPES,
   ORDER_VAS_STATUS,
+  ReleaseGood,
   Vas,
   VAS_TARGET_TYPES
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS, Location } from '@things-factory/warehouse-base'
-import { Equal, Not } from 'typeorm'
+import { Equal, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
 import { WorksheetNoGenerator } from '../utils'
@@ -50,6 +51,16 @@ export interface ActivateUnloadingInterface extends BasicInterface {
 export interface ActivatePutawayInterface extends BasicInterface {
   worksheetNo: string
   putawayWorksheetDetails: Partial<WorksheetDetail>[]
+}
+
+export interface CompleteUnloadingInterface extends BasicInterface {
+  arrivalNoticeNo: string
+  unloadingWorksheetDetails: Partial<WorksheetDetail>[]
+}
+
+export interface CompletePartialUnloadingInterface extends BasicInterface {
+  arrivalNoticeNo: string
+  unloadingWorksheetDetail: Partial<WorksheetDetail>
 }
 
 export class InboundWorksheetController extends VasWorksheetController {
@@ -288,15 +299,15 @@ export class InboundWorksheetController extends VasWorksheetController {
   async activateUnloading(worksheetInterface: ActivateUnloadingInterface): Promise<Worksheet> {
     const domain: Domain = worksheetInterface.domain
     const user: User = worksheetInterface.user
+    const worksheetNo: string = worksheetInterface.worksheetNo
 
-    let worksheet: Worksheet = await this.findWorksheetByNo(domain, worksheetInterface.worksheetNo, [
+    let worksheet: Worksheet = await this.findActivatableWorksheet(domain, worksheetNo, WORKSHEET_TYPE.UNLOADING, [
       'bizplace',
       'arrivalNotice',
       'worksheetDetails',
       'worksheetDetails.targetProduct',
       'worksheetDetails.targetProduct.product'
     ])
-    this.checkWorksheetValidity(worksheet, { type: WORKSHEET_TYPE.UNLOADING, status: WORKSHEET_STATUS.DEACTIVATED })
 
     const bizplace: Bizplace = worksheet.bizplace
     const unloadingWSDs: UnloadingWorksheetDetail[] = worksheetInterface.unloadingWorksheetDetails
@@ -330,7 +341,12 @@ export class InboundWorksheetController extends VasWorksheetController {
 
     const vasWorksheet: Worksheet = await this.findWorksheetByRefOrder(domain, ArrivalNotice, WORKSHEET_TYPE.VAS)
     if (vasWorksheet) {
-      await this.activateVAS({ domain, user, worksheetNo: vasWorksheet.name })
+      await this.activateVAS({
+        domain,
+        user,
+        worksheetNo: vasWorksheet.name,
+        vasWorksheetDetails: vasWorksheet.worksheetDetails
+      })
     }
 
     return worksheet
@@ -358,13 +374,13 @@ export class InboundWorksheetController extends VasWorksheetController {
   async activatePutaway(worksheetInterface: ActivatePutawayInterface): Promise<Worksheet> {
     const domain: Domain = worksheetInterface.domain
     const user: User = worksheetInterface.user
+    const worksheetNo: string = worksheetInterface.worksheetNo
 
-    let worksheet: Worksheet = await this.findWorksheetByNo(domain, worksheetInterface.worksheetNo, [
+    let worksheet: Worksheet = await this.findActivatableWorksheet(domain, worksheetNo, WORKSHEET_TYPE.PUTAWAY, [
       'arrivalNotice',
       'worksheetDetails',
       'worksheetDetails.targetInventory'
     ])
-    this.checkWorksheetValidity(worksheet, { status: WORKSHEET_STATUS.DEACTIVATED, type: WORKSHEET_TYPE.PUTAWAY })
 
     const arrivalNotice: ArrivalNotice = worksheet.arrivalNotice
     const nonFinishedVasCnt: number = await this.trxMgr.getRepository(Worksheet).count({
@@ -378,7 +394,7 @@ export class InboundWorksheetController extends VasWorksheetController {
     if (nonFinishedVasCnt) return
 
     const putawayWSDs: Partial<WorksheetDetail>[] = worksheetInterface.putawayWorksheetDetails
-    let worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
+    const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
 
     const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => {
       let targetInventory: OrderInventory = wsd.targetInventory
@@ -389,6 +405,173 @@ export class InboundWorksheetController extends VasWorksheetController {
     await this.updateOrderTargets(OrderInventory, targetInventories)
 
     return this.activateWorksheet(worksheet, worksheetDetails, putawayWSDs, user)
+  }
+
+  async completeUnloading(worksheetInterface: CompleteUnloadingInterface): Promise<void> {
+    const domain: Domain = worksheetInterface.domain
+    const user: User = worksheetInterface.user
+    const arrivalNoticeNo: string = worksheetInterface.arrivalNoticeNo
+
+    let arrivalNotice: ArrivalNotice = await this.findRefOrder(
+      ArrivalNotice,
+      { domain, name: arrivalNoticeNo, status: ORDER_STATUS.PROCESSING },
+      ['orderProducts', 'releaseGood']
+    )
+
+    if (arrivalNotice.crossDocking) {
+      // Picking worksheet for cross docking should be completed before complete it
+      // Find picking worksheet
+      const releaseGood: ReleaseGood = arrivalNotice.releaseGood
+      const executingPickingWS: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne({
+        where: {
+          domain,
+          releaseGood,
+          type: WORKSHEET_TYPE.PICKING,
+          status: Not(Equal(WORKSHEET_STATUS.DONE))
+        }
+      })
+
+      if (executingPickingWS)
+        throw new Error(`Picking should be completed before complete unloading for cross docking.`)
+    }
+
+    if (arrivalNotice.orderProducts.some((op: OrderProduct) => op.status === ORDER_PRODUCT_STATUS.READY_TO_APPROVED)) {
+      throw new Error(`There's non-approved order products`)
+    }
+
+    let worksheet: Worksheet = await this.findWorksheetByRefOrder(domain, arrivalNotice, WORKSHEET_TYPE.UNLOADING)
+    this.checkWorksheetValidity(worksheet, { status: WORKSHEET_STATUS.EXECUTING })
+
+    const partiallyUnloadedCnt: number = await this.trxMgr.getRepository(Inventory).count({
+      where: { domain, refOrderId: arrivalNotice.id, status: INVENTORY_STATUS.PARTIALLY_UNLOADED }
+    })
+    if (partiallyUnloadedCnt) {
+      throw new Error('There is partially unloaded pallet, generate putaway worksheet before complete unloading.')
+    }
+
+    const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
+    let unloadingWorksheetDetails: Partial<WorksheetDetail>[] = worksheetInterface.unloadingWorksheetDetails
+    unloadingWorksheetDetails = this.renewWorksheetDetails(worksheetDetails, unloadingWorksheetDetails, {
+      status: WORKSHEET_STATUS.DONE,
+      updater: user
+    })
+
+    unloadingWorksheetDetails.forEach((wsd: WorksheetDetail) => {
+      wsd.targetProduct.remark = wsd.issue || wsd.targetProduct.remark
+    })
+
+    const targetProducts: OrderProduct[] = unloadingWorksheetDetails.map((wsd: WorksheetDetail) => {
+      let targetProduct: OrderProduct = wsd.targetProduct
+      targetProduct.status = ORDER_PRODUCT_STATUS.TERMINATED
+      targetProduct.user = user
+      return targetProduct
+    })
+    await this.updateOrderTargets(OrderProduct, targetProducts)
+
+    /**
+     * Check whether every related worksheet is completed
+     *    - if yes => Update Status of arrival notice
+     *    - VAS doesn't affect to status of arrival notice
+     *    - Except putaway worksheet because putaway worksheet can be exist before complete unloading by partial unloading
+     */
+    const relatedWorksheets: Worksheet[] = await this.trxMgr.getRepository(Worksheet).find({
+      where: {
+        domain,
+        arrivalNotice,
+        status: Not(Equal(WORKSHEET_STATUS.DONE)),
+        type: Not(In([WORKSHEET_TYPE.VAS, WORKSHEET_TYPE.PUTAWAY]))
+      }
+    })
+
+    // If there's no related order && if status of arrival notice is not indicating putaway process
+    if (relatedWorksheets?.length === 0 && arrivalNotice.status !== ORDER_STATUS.PUTTING_AWAY) {
+      arrivalNotice.status = ORDER_STATUS.READY_TO_PUTAWAY
+      arrivalNotice.updater = user
+      arrivalNotice = await this.updateRefOrder(ArrivalNotice, arrivalNotice)
+    }
+
+    const inventories: Inventory[] = await this.trxMgr.getRepository(Inventory).find({
+      where: {
+        domain,
+        refOrderId: arrivalNotice.id,
+        status: INVENTORY_STATUS.UNLOADED
+      }
+    })
+
+    let putawayWorksheet: Worksheet = await this.generatePutawayWorksheet({
+      domain,
+      user,
+      arrivalNoticeNo,
+      inventories
+    })
+    if (!putawayWorksheet?.worksheetDetails?.length) {
+      putawayWorksheet = await this.findWorksheetByNo(domain, putawayWorksheet.name)
+    }
+
+    if (putawayWorksheet?.status === WORKSHEET_STATUS.DEACTIVATED) {
+      await this.activatePutaway({
+        domain,
+        user,
+        worksheetNo: putawayWorksheet.name,
+        putawayWorksheetDetails: putawayWorksheet.worksheetDetails
+      })
+    }
+
+    arrivalNotice.status = ORDER_STATUS.PUTTING_AWAY
+    arrivalNotice.updater = user
+    await this.updateRefOrder(ArrivalNotice, arrivalNotice)
+
+    worksheet.status = WORKSHEET_STATUS.DONE
+    worksheet.endedAt = new Date()
+    worksheet.updater = user
+    await this.trxMgr.getRepository(Worksheet).save(worksheet)
+  }
+
+  async completeUnloadingPartially(worksheetInterface: CompletePartialUnloadingInterface): Promise<void> {
+    const domain: Domain = worksheetInterface.domain
+    const user: User = worksheetInterface.user
+    const arrivalNoticeNo: string = worksheetInterface.arrivalNoticeNo
+
+    const arrivalNotice: ArrivalNotice = await this.findRefOrder(ArrivalNotice, {
+      domain,
+      name: arrivalNoticeNo,
+      status: ORDER_STATUS.PROCESSING
+    })
+
+    const worksheet: Worksheet = await this.findWorksheetByRefOrder(domain, arrivalNotice, WORKSHEET_TYPE.UNLOADING, [
+      'worksheetDetails',
+      'worksheetDetails.targetProduct'
+    ])
+    this.checkWorksheetValidity(worksheet, { status: WORKSHEET_STATUS.EXECUTING })
+
+    const unloadingWorksheetDetail: Partial<WorksheetDetail> = worksheetInterface.unloadingWorksheetDetail
+    let worksheetDetail: WorksheetDetail = worksheet.worksheetDetails.find(
+      (wsd: WorksheetDetail) => wsd.name === unloadingWorksheetDetail.name
+    )
+    worksheetDetail.status = WORKSHEET_STATUS.PARTIALLY_UNLOADED
+    worksheetDetail.issue = unloadingWorksheetDetail.issue || worksheetDetail.issue
+    worksheetDetail.updater = user
+    worksheetDetail = await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
+
+    let targetProduct: OrderProduct = worksheetDetail.targetProduct
+    targetProduct.status = ORDER_PRODUCT_STATUS.PARTIALLY_UNLOADED
+    targetProduct.remark = worksheetDetail.issue || targetProduct.remark
+    await this.updateOrderTargets(OrderProduct, [targetProduct])
+
+    let inventories: Inventory[] = await this.trxMgr.getRepository(Inventory).find({
+      where: {
+        domain,
+        refOrderId: arrivalNotice.id,
+        orderProductId: targetProduct.id,
+        status: INVENTORY_STATUS.UNLOADED
+      }
+    })
+
+    inventories.forEach((inventory: Inventory) => {
+      inventory.status = INVENTORY_STATUS.PARTIALLY_UNLOADED
+      inventory.updater = user
+    })
+    await this.trxMgr.getRepository(Inventory).save(inventories)
   }
 
   async createPalletizingWSDs(

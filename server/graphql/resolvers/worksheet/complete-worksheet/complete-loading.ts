@@ -9,11 +9,11 @@ import {
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager, getRepository, Repository } from 'typeorm'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { Worksheet, WorksheetDetail } from '../../../entities'
-import { WorksheetNoGenerator } from '../../../utils'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
+import { Worksheet, WorksheetDetail } from '../../../../entities'
+import { WorksheetNoGenerator } from '../../../../utils'
 
-export const completeLoading = {
+export const completeLoadingResolver = {
   async completeLoading(_: any, { releaseGoodNo }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const releaseGood: ReleaseGood = await trxMgr.getRepository(ReleaseGood).findOne({

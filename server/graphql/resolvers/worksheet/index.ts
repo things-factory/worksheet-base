@@ -1,14 +1,6 @@
 import { Mutations as ActivateWorksheetMutations } from './activate-worksheet'
 import { assignVasInventoriesResolver } from './assign-vas-inventories'
-import { completeInspection } from './complete-inspection'
-import { completeLoading } from './complete-loading'
-import { completePicking } from './complete-picking'
-import { completePreunload } from './complete-preunload'
-import { completePutaway } from './complete-putaway'
-import { completeReturn } from './complete-return'
-import { completeUnloading } from './complete-unloading'
-import { completeUnloadingPartiallyResolver } from './complete-unloading-partially'
-import { completeVas } from './complete-vas'
+import { Mutations as CompleteWorksheetMutations } from './complete-worksheet'
 import { confirmCancellationReleaseOrder } from './confirm-cancellation-release-order'
 import { createWorksheet } from './create-worksheet'
 import { crossDockPickingResolver } from './cross-dock-picking'
@@ -90,36 +82,28 @@ export const Query = {
 export const Mutation = {
   ...GenerateWorksheetMutations,
   ...ActivateWorksheetMutations,
+  ...CompleteWorksheetMutations,
   ...updateWorksheet,
   ...createWorksheet,
   ...cycleCountAdjustment,
   ...deleteWorksheet,
-  ...completeInspection,
   ...editBatchNo,
   ...proceedEditedBatchResolver,
   ...preunload,
-  ...completePreunload,
   ...undoPreunload,
   ...unload,
   ...returning,
   ...undoUnloading,
   ...undoPutaway,
   ...undoInspection,
-  ...completeUnloading,
-  ...completeUnloadingPartiallyResolver,
-  ...completeLoading,
-  ...completeReturn,
   ...putaway,
   ...loading,
   ...undoLoading,
   ...transfer,
   ...inspecting,
-  ...completePutaway,
   ...picking,
-  ...completePicking,
   ...executeVasResolver,
   ...undoVas,
-  ...completeVas,
   ...proceedExtraProductsResolver,
   ...replacePickingPalletsResolver,
   ...pendingCancellationReleaseOrder,

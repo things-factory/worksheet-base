@@ -1,11 +1,11 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { OrderInventory, ORDER_STATUS, ORDER_INVENTORY_STATUS, InventoryCheck } from '@things-factory/sales-base'
+import { InventoryCheck, OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { Worksheet, WorksheetDetail } from '../../../entities'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
+import { Worksheet, WorksheetDetail } from '../../../../entities'
 
-export const completeInspection = {
+export const completeInspectionResolver = {
   async completeInspection(_: any, { inventoryCheckNo }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const inventoryCheck: InventoryCheck = await trxMgr.getRepository(InventoryCheck).findOne({

@@ -1,6 +1,13 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, OrderVas, ORDER_VAS_STATUS, ReleaseGood, VasOrder } from '@things-factory/sales-base'
+import {
+  ArrivalNotice,
+  OrderVas,
+  ORDER_STATUS,
+  ORDER_VAS_STATUS,
+  ReleaseGood,
+  VasOrder
+} from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
@@ -13,6 +20,7 @@ export interface GenerateVasInterface extends BasicInterface {
 
 export interface ActivateVASInterface extends BasicInterface {
   worksheetNo: string
+  vasWorksheetDetails: Partial<WorksheetDetail>[]
 }
 
 export class VasWorksheetController extends WorksheetController {
@@ -89,7 +97,35 @@ export class VasWorksheetController extends WorksheetController {
     return worksheet as Worksheet
   }
 
-  async activateVAS(worksheet: ActivateVASInterface): Promise<Worksheet> {
-    return
+  async activateVAS(worksheetInterface: ActivateVASInterface): Promise<Worksheet> {
+    const domain: Domain = worksheetInterface.domain
+    const user: User = worksheetInterface.user
+    const worksheetNo: string = worksheetInterface.worksheetNo
+
+    const worksheet: Worksheet = await this.findActivatableWorksheet(domain, worksheetNo, WORKSHEET_TYPE.VAS, [
+      'vasOrder',
+      'worksheetDetails',
+      'worksheetDetails.targetVas'
+    ])
+
+    const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
+    const targetVASs: OrderVas[] = worksheetDetails.map((wsd: WorksheetDetail) => {
+      let targetVAS: OrderVas = wsd.targetVas
+      targetVAS.status = ORDER_VAS_STATUS.PROCESSING
+      targetVAS.updater = user
+      return targetVAS
+    })
+
+    // Update VAS Order if it's pure VAS Order (status: READY_TO_PROCESS => PROCESSING)
+    let vasOrder: VasOrder = worksheet.vasOrder
+    if (vasOrder?.id) {
+      vasOrder.status = ORDER_STATUS.PROCESSING
+      vasOrder.updater = user
+
+      await this.updateRefOrder(VasOrder, vasOrder)
+    }
+
+    await this.updateOrderTargets(OrderVas, targetVASs)
+    return await this.activateWorksheet(worksheet, worksheetDetails, worksheetInterface.vasWorksheetDetails, user)
   }
 }

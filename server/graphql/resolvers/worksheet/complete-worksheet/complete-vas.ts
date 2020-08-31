@@ -11,11 +11,11 @@ import {
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, FindOneOptions, getManager } from 'typeorm'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { Worksheet, WorksheetDetail } from '../../../entities'
-import { activateLoading } from './activate-worksheet/activate-loading'
-import { activatePutaway } from './activate-worksheet/activate-putaway'
-import { completeRelabeling, completeRepackaging, completeRepalletizing, RefOrderType } from './vas-transactions'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
+import { Worksheet, WorksheetDetail } from '../../../../entities'
+import { activateLoading } from '../activate-worksheet/activate-loading'
+import { activatePutaway } from '../activate-worksheet/activate-putaway'
+import { completeRelabeling, completeRepackaging, completeRepalletizing, RefOrderType } from '../vas-transactions'
 
 type CompleteTransactionType = (trxMgr: EntityManager, orderVas: OrderVas, user: User) => Promise<void>
 
@@ -31,7 +31,7 @@ const COMPLETE_TRX_MAP: { [key: string]: CompleteTransactionType } = {
   'vas-relabel': completeRelabeling
 }
 
-export const completeVas = {
+export const completeVasResolver = {
   async completeVas(_: any, { orderNo, orderType }, context: any) {
     return await getManager().transaction(async (trxMgr: EntityManager) => {
       const domain: Domain = context.state.domain
@@ -203,5 +203,6 @@ async function activateLoadingWorksheet(
     relations: ['worksheetDetails']
   })
   if (!loadingWS) throw new Error(`Couldn't find loading worksheet related with (${refOrder.name})`)
-  await activateLoading(loadingWS.name, loadingWS.worksheetDetails, domain, user, trxMgr)
+
+  await activateLoading(trxMgr, domain, user, loadingWS.name, loadingWS.worksheetDetails)
 }

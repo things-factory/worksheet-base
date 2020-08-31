@@ -20,6 +20,10 @@ export interface GenerateCycleCountInterface extends BasicInterface {
   inventories: Inventory[]
 }
 
+export interface ActivateCycleCountInterface extends BasicInterface {
+  worksheetNo: string
+}
+
 export class CycleCountWorksheetController extends WorksheetController {
   /**
    * @summary Generate Cycle Count Worksheet
@@ -110,5 +114,31 @@ export class CycleCountWorksheetController extends WorksheetController {
     await this.createWorksheetDetails(worksheetDetails)
 
     return worksheet
+  }
+
+  async activateCycleCount(worksheetInterface: ActivateCycleCountInterface): Promise<Worksheet> {
+    const domain: Domain = worksheetInterface.domain
+    const user: User = worksheetInterface.user
+    const worksheetNo: string = worksheetInterface.worksheetNo
+    const worksheet: Worksheet = await this.findActivatableWorksheet(domain, worksheetNo, WORKSHEET_TYPE.CYCLE_COUNT, [
+      'inventoryCheck',
+      'worksheetDetails',
+      'worksheetDetails.targetInventory'
+    ])
+
+    const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
+    const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => {
+      let targetInventory: OrderInventory = wsd.targetInventory
+      targetInventory.status = ORDER_INVENTORY_STATUS.INSPECTING
+      targetInventory.updater = user
+      return targetInventory
+    })
+
+    let cycleCount: InventoryCheck = worksheet.inventoryCheck
+    cycleCount.status = ORDER_STATUS.INSPECTING
+    cycleCount.updater = user
+    await this.updateRefOrder(InventoryCheck, cycleCount)
+    await this.updateOrderTargets(OrderInventory, targetInventories)
+    return await this.activateWorksheet(worksheet, worksheetDetails, [], user)
   }
 }

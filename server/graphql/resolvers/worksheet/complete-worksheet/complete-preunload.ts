@@ -1,11 +1,11 @@
 import { Role } from '@things-factory/auth-base'
-import { ArrivalNotice, OrderProduct, ORDER_STATUS, ORDER_PRODUCT_STATUS } from '@things-factory/sales-base'
+import { ArrivalNotice, OrderProduct, ORDER_PRODUCT_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { sendNotification } from '@things-factory/shell'
 import { getManager } from 'typeorm'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
-import { Worksheet } from '../../../entities'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
+import { Worksheet } from '../../../../entities'
 
-export const completePreunload = {
+export const completePreunloadResolver = {
   async completePreunload(_: any, { arrivalNoticeNo }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const foundGAN: ArrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({

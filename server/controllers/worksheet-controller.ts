@@ -1,9 +1,9 @@
-import { User } from '@things-factory/auth-base'
+import { Role, User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { ArrivalNotice, InventoryCheck, ReleaseGood, VasOrder } from '@things-factory/sales-base'
-import { Domain } from '@things-factory/shell'
-import { WORKSHEET_STATUS } from 'server/constants'
+import { Domain, sendNotification } from '@things-factory/shell'
 import { EntityManager, EntitySchema, FindOneOptions } from 'typeorm'
+import { WORKSHEET_STATUS } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
 import { WorksheetNoGenerator } from '../utils'
 
@@ -14,10 +14,16 @@ export interface BasicInterface {
   user: User
 }
 
+export interface NotificationMsgInterface {
+  title: string
+  message: string
+  url: string
+}
+
 export class WorksheetController {
   protected trxMgr: EntityManager
 
-  public readonly ERROR_MSG = {
+  public readonly ERROR_MSG: Record<string, any> = {
     FIND: {
       NO_RESULT: (condition: any) => `There's no results matched with condition ${condition}`
     },
@@ -35,6 +41,10 @@ export class WorksheetController {
         Expected ${field} value is ${expectedValue} but got ${actualValue}
       `
     }
+  }
+
+  public readonly ROLE_NAMES: Record<string, string> = {
+    OFFICE_ADMIN: 'Office Admin'
   }
 
   constructor(trxMgr: EntityManager) {
@@ -129,7 +139,10 @@ export class WorksheetController {
     let findOption: FindOneOptions = { where: condition }
     if (relations?.length > 0) findOption.relations = relations
 
-    return await this.trxMgr.getRepository(entitySchema).findOne(findOption)
+    const refOrder: ReferenceOrderType = await this.trxMgr.getRepository(entitySchema).findOne(findOption)
+    if (!refOrder) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(findOption))
+
+    return refOrder
   }
 
   /**
@@ -207,6 +220,18 @@ export class WorksheetController {
     return worksheet
   }
 
+  async findActivatableWorksheet(
+    domain: Domain,
+    worksheetNo: string,
+    type: string,
+    relations: string[]
+  ): Promise<Worksheet> {
+    const worksheet: Worksheet = await this.findWorksheetByNo(domain, worksheetNo, relations)
+    this.checkWorksheetValidity(worksheet, { type, status: WORKSHEET_STATUS.DEACTIVATED })
+
+    return worksheet
+  }
+
   async activateWorksheet(
     worksheet: Worksheet,
     worksheetDetails: WorksheetDetail[],
@@ -234,7 +259,7 @@ export class WorksheetController {
   renewWorksheetDetails(
     originWSDs: WorksheetDetail[],
     changedWSDs: Partial<WorksheetDetail>[],
-    additionalProps: Partial<WorksheetDetail>
+    additionalProps: Partial<WorksheetDetail> = {}
   ): WorksheetDetail[] {
     return originWSDs.map((originWSD: WorksheetDetail) => {
       const changedWSD: Partial<WorksheetDetail> = this.findMatchedWSD(originWSD.name, changedWSDs)
@@ -263,5 +288,53 @@ export class WorksheetController {
       if (!isValid)
         throw new Error(this.ERROR_MSG.VALIDITY.UNEXPECTED_FIELD_VALUE(field, conditions[field], worksheet[field]))
     }
+  }
+
+  async notifiyToOfficeAdmin(domain: Domain, message: NotificationMsgInterface): Promise<void> {
+    const users: User[] = await this.trxMgr
+      .getRepository('users_roles')
+      .createQueryBuilder('ur')
+      .select('ur.users_id', 'id')
+      .where(qb => {
+        const subQuery = qb
+          .subQuery()
+          .select('role.id')
+          .from(Role, 'role')
+          .where('role.name = :roleName', { roleName: this.ROLE_NAMES.OFFICE_ADMIN })
+          .andWhere('role.domain_id = :domainId', { domainId: domain.id })
+          .getQuery()
+        return 'ur.roles_id IN ' + subQuery
+      })
+      .getRawMany()
+
+    this.notifyToUsers(users, message)
+  }
+
+  async notifyToCustomer(domain: Domain, bizplace: Bizplace, message: NotificationMsgInterface): Promise<void> {
+    const users: any[] = await this.trxMgr
+      .getRepository('bizplaces_users')
+      .createQueryBuilder('bu')
+      .select('bu.user_id', 'id')
+      .where(qb => {
+        const subQuery = qb
+          .subQuery()
+          .select('bizplace.id')
+          .from(Bizplace, 'bizplace')
+          .where('bizplace.name = :bizplaceName', { bizplaceName: bizplace.name })
+          .getQuery()
+        return 'bu.bizplace_id IN ' + subQuery
+      })
+      .getRawMany()
+
+    this.notifyToUsers(users, message)
+  }
+
+  notifyToUsers(users: User[], message: NotificationMsgInterface): void {
+    users.forEach((user: User) => {
+      sendNotification({
+        receiver: user.id,
+        message: JSON.stringify(message)
+      })
+    })
   }
 }

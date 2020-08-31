@@ -3,6 +3,7 @@ import { Bizplace } from '@things-factory/biz-base'
 import { OrderInventory, OrderVas, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory } from '@things-factory/warehouse-base'
+import { Equal, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
 import { WorksheetNoGenerator } from '../utils'
@@ -21,6 +22,16 @@ export interface ActivatePickingInterface extends BasicInterface {
 
 export interface ActivateLoadingInterface extends BasicInterface {
   worksheetNo: string
+  loadingWorksheetDetails: Partial<WorksheetDetail>[]
+}
+
+export interface ActivateReturningInterface extends BasicInterface {
+  worksheetNo: string
+  returningWorksheetDetails: Partial<WorksheetDetail>[]
+}
+
+export interface CompletePickingInterface extends BasicInterface {
+  releaseGoodNo: string
 }
 
 export class OutboundWorksheetController extends VasWorksheetController {
@@ -120,14 +131,13 @@ export class OutboundWorksheetController extends VasWorksheetController {
     const user: User = worksheetInterface.user
     const worksheetNo: string = worksheetInterface.worksheetNo
 
-    let worksheet: Worksheet = await this.findWorksheetByNo(domain, worksheetNo, [
+    let worksheet: Worksheet = await this.findActivatableWorksheet(domain, worksheetNo, WORKSHEET_TYPE.PICKING, [
       'releaseGood',
       'worksheetDetails',
       'worksheetDestails.targetInventory'
     ])
-    this.checkWorksheetValidity(worksheet, { type: WORKSHEET_TYPE, status: WORKSHEET_STATUS.DEACTIVATED })
-    const worksheetDestails: WorksheetDetail[] = worksheet.worksheetDetails
 
+    const worksheetDestails: WorksheetDetail[] = worksheet.worksheetDetails
     const targetInventories: OrderInventory[] = worksheetDestails.map((wsd: WorksheetDetail) => {
       let targetInventory: OrderInventory = wsd.targetInventory
       targetInventory.status = ORDER_INVENTORY_STATUS.PICKING
@@ -144,7 +154,12 @@ export class OutboundWorksheetController extends VasWorksheetController {
 
     const vasWorksheet: Worksheet = await this.findWorksheetByRefOrder(domain, releaseGood, WORKSHEET_TYPE.VAS)
     if (vasWorksheet) {
-      await this.activateVAS({ domain, user, worksheetNo: vasWorksheet.name })
+      await this.activateVAS({
+        domain,
+        user,
+        worksheetNo: vasWorksheet.name,
+        vasWorksheetDetails: vasWorksheet.worksheetDetails
+      })
     }
 
     const pendingSplitOIs: OrderInventory[] = await this.trxMgr.getRepository(OrderInventory).find({
@@ -159,6 +174,87 @@ export class OutboundWorksheetController extends VasWorksheetController {
   }
 
   async activateLoading(worksheetInterface: ActivateLoadingInterface): Promise<Worksheet> {
-    return
+    const domain: Domain = worksheetInterface.domain
+    const user: User = worksheetInterface.user
+    const worksheetNo: string = worksheetInterface.worksheetNo
+
+    const worksheet: Worksheet = await this.findActivatableWorksheet(domain, worksheetNo, WORKSHEET_TYPE.LOADING, [
+      'releaseGood',
+      'worksheetDetails',
+      'worksheetDetails.targetInventory'
+    ])
+
+    let releaseGood: ReleaseGood = worksheet.releaseGood
+    const nonFinishedVasCnt: number = await this.trxMgr.getRepository(Worksheet).count({
+      where: {
+        domain,
+        releaseGood,
+        type: WORKSHEET_TYPE.VAS,
+        status: Not(Equal(WORKSHEET_STATUS.DONE))
+      }
+    })
+    if (nonFinishedVasCnt) return
+
+    const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
+    const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => {
+      let targetInventory: OrderInventory = wsd.targetInventory
+      ;(targetInventory.status = ORDER_INVENTORY_STATUS.LOADING), (targetInventory.updater = user)
+      return targetInventory
+    })
+
+    releaseGood.status = ORDER_STATUS.LOADING
+    releaseGood.updater = user
+    await this.updateRefOrder(ReleaseGood, releaseGood)
+
+    await this.updateOrderTargets(OrderInventory, targetInventories)
+    return await this.activateWorksheet(worksheet, worksheetDetails, worksheetInterface.loadingWorksheetDetails, user)
+  }
+
+  async activateReturning(worksheetInterface: ActivateReturningInterface): Promise<Worksheet> {
+    const domain: Domain = worksheetInterface.domain
+    const user: User = worksheetInterface.user
+    const worksheetNo: string = worksheetInterface.worksheetNo
+
+    const worksheet: Worksheet = await this.findActivatableWorksheet(domain, worksheetNo, WORKSHEET_TYPE.RETURN, [
+      'bizplace',
+      'releaseGood',
+      'worksheetDetails',
+      'worksheetDetails.targetInventory'
+    ])
+
+    const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
+    const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => {
+      let targetInventory: OrderInventory = wsd.targetInventory
+      targetInventory.status = ORDER_INVENTORY_STATUS.RETURNING
+      targetInventory.updater = user
+    })
+    await this.updateOrderTargets(OrderInventory, targetInventories)
+    return await this.activateWorksheet(worksheet, worksheetDetails, worksheetInterface.returningWorksheetDetails, user)
+  }
+
+  async completePicking(worksheetInterface: CompletePickingInterface): Promise<void> {
+    const domain: Domain = worksheetInterface.domain
+    const user: User = worksheetInterface.user
+    const releaseGoodNo: string = worksheetInterface.releaseGoodNo
+
+    let releaseGood: ReleaseGood = await this.findRefOrder(ReleaseGood, {
+      domain,
+      name: releaseGoodNo,
+      status: ORDER_STATUS.PICKING
+    })
+
+    const worksheet: Worksheet = await this.findWorksheetByRefOrder(domain, releaseGood, WORKSHEET_TYPE.PICKING, [
+      'worksheetDestails',
+      'worksheetDestails.targetInventory'
+    ])
+    this.checkWorksheetValidity(worksheet, { status: WORKSHEET_STATUS.EXECUTING })
+
+    const worksheetDestails: WorksheetDetail[] = worksheet.worksheetDetails
+    const targetInventories: OrderInventory[] = worksheetDestails.map((wsd: WorksheetDetail) => wsd.targetInventory)
+
+    // Filter out replaced inventories
+    const pickedTargetInventories: OrderInventory[] = targetInventories.filter(
+      (oi: OrderInventory) => (oi.status = ORDER_INVENTORY_STATUS.PICKED)
+    )
   }
 }
