@@ -176,8 +176,9 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
     created_on: DateTimeConverter.date(foundJS.createdAt),
     job_no: foundJS ? foundJS.name : null,
     ref_no: foundGAN.name,
-    product_list: invItems.map(item => {
+    product_list: invItems.map((item, idx) => {
       return {
+        idx: idx + 1,
         pallet_id: item.palletId,
         product_name: item.productName,
         product_type: item.packingType,
