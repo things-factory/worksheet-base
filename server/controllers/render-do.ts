@@ -171,6 +171,7 @@ export async function renderDO({ domain: domainName, doNo }) {
     pallet_qty: foundDO.palletQty,
     worker_name: foundWS.updater.name,
     do_remark: foundDO.remark,
+    reusable_pallet: foundDO.reusablePallet,
     pallet_list: foundRP.map(rp => rp.name).join(', '),
     product_list: productList.map((prod: any, idx) => {
       return {
