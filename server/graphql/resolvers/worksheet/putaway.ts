@@ -38,7 +38,13 @@ export const putaway = {
           status: WORKSHEET_STATUS.EXECUTING,
           type: WORKSHEET_TYPE.PUTAWAY
         },
-        relations: ['worksheet', 'worksheet.arrivalNotice', 'targetInventory', 'targetInventory.inventory']
+        relations: [
+          'worksheet',
+          'worksheet.arrivalNotice',
+          'targetInventory',
+          'targetInventory.inventory',
+          'targetInventory.inventory.reusablePallet'
+        ]
       })
       if (!worksheetDetail) throw new Error(`Worksheet Details doesn't exists`)
 
@@ -87,15 +93,61 @@ export const putaway = {
           })
         )
       } else {
-        await executePutaway(
-          worksheetDetail,
-          arrivalNotice,
-          palletId,
-          toLocation,
-          context.state.domain,
-          context.state.user,
-          trxMgr
-        )
+        let inReusablePallet: Pallet = worksheetDetail.targetInventory.inventory.reusablePallet
+
+        if (inReusablePallet) {
+          let inventory: Inventory[] = await trxMgr.getRepository(Inventory).find({
+            where: {
+              domain: context.state.domain,
+              reusablePallet: inReusablePallet,
+              refOrderId: arrivalNotice.id,
+              status: In([INVENTORY_STATUS.PUTTING_AWAY, INVENTORY_STATUS.UNLOADED])
+            }
+          })
+
+          // use GAN find worksheet
+          const foundWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+            where: {
+              domain: context.state.domain,
+              arrivalNotice,
+              type: WORKSHEET_TYPE.PUTAWAY,
+              status: WORKSHEET_STATUS.EXECUTING
+            },
+            relations: [
+              'worksheetDetails',
+              'worksheetDetails.targetInventory',
+              'worksheetDetails.targetInventory.inventory'
+            ]
+          })
+
+          await Promise.all(
+            inventory.map(async inv => {
+              const foundWSD: WorksheetDetail[] = foundWS.worksheetDetails.filter(
+                (wsd: WorksheetDetail) => wsd.targetInventory.inventory.name === inv.name
+              )
+
+              await executePutaway(
+                foundWSD[0],
+                arrivalNotice,
+                inv.palletId,
+                toLocation,
+                context.state.domain,
+                context.state.user,
+                trxMgr
+              )
+            })
+          )
+        } else {
+          await executePutaway(
+            worksheetDetail,
+            arrivalNotice,
+            palletId,
+            toLocation,
+            context.state.domain,
+            context.state.user,
+            trxMgr
+          )
+        }
       }
     })
   }
