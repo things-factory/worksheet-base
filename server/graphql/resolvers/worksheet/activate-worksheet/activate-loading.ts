@@ -1,8 +1,8 @@
 import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
-import { OutboundWorksheetController } from 'server/controllers/outbound-worksheet-controller'
 import { EntityManager, Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
+import { OutboundWorksheetController } from '../../../../controllers'
 import { Worksheet, WorksheetDetail } from '../../../../entities'
 
 export const activateLoadingResolver = {

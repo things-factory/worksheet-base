@@ -1,18 +1,19 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace, getMyBizplace } from '@things-factory/biz-base'
-import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
+import { OrderInventory, ORDER_INVENTORY_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { WorksheetController } from 'server/controllers/worksheet-controller'
 import { EntityManager, getManager } from 'typeorm'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
+import { WORKSHEET_TYPE } from '../../../../constants'
+import { OutboundWorksheetController } from '../../../../controllers/outbound-worksheet-controller'
+import { WorksheetController } from '../../../../controllers/worksheet-controller'
 import { Worksheet, WorksheetDetail } from '../../../../entities'
-import { WorksheetNoGenerator } from '../../../../utils'
-import { activateLoading } from '../activate-worksheet/activate-loading'
 
 export const completePickingResolver = {
   async completePicking(_: any, { releaseGoodNo }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const { domain, user }: { domain: Domain; user: User } = context.state
+
+      await completePicking(trxMgr, domain, user, releaseGoodNo)
 
       const bizplace: Bizplace = await getMyBizplace(user)
       const worksheetController: WorksheetController = new WorksheetController(trxMgr)
@@ -31,75 +32,37 @@ export async function completePicking(
   user: User,
   releaseGoodNo: string
 ): Promise<void> {
-  const releaseGood: ReleaseGood = await trxMgr.getRepository(ReleaseGood).findOne({
-    where: { domain, name: releaseGoodNo, status: ORDER_STATUS.PICKING },
-    relations: ['bizplace', 'orderInventories']
-  })
-
-  if (!releaseGood) throw new Error(`Release Good doesn't exists.`)
-  const customerBizplace: Bizplace = releaseGood.bizplace
-  const foundPickingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-    where: {
-      domain,
-      bizplace: customerBizplace,
-      status: WORKSHEET_STATUS.EXECUTING,
-      type: WORKSHEET_TYPE.PICKING,
-      releaseGood
-    },
-    relations: ['worksheetDetails', 'worksheetDetails.targetInventory', 'worksheetDetails.targetInventory.inventory']
-  })
-
-  if (!foundPickingWorksheet) throw new Error(`Worksheet doesn't exists.`)
-  const worksheetDetails: WorksheetDetail[] = foundPickingWorksheet.worksheetDetails
-  const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
-
-  // filter out replaced inventory
-  const pickedtargetInv: OrderInventory[] = targetInventories.filter(
-    (targetInv: OrderInventory) => targetInv.status === ORDER_INVENTORY_STATUS.PICKED
-  )
-
-  // Update status and endedAt of worksheet
-  await trxMgr.getRepository(Worksheet).save({
-    ...foundPickingWorksheet,
-    status: WORKSHEET_STATUS.DONE,
-    endedAt: new Date(),
-    updater: user
-  })
-
-  // 3. create loading worksheet
-  const loadingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).save({
+  const worksheetController: OutboundWorksheetController = new OutboundWorksheetController(trxMgr)
+  const releaseGood: ReleaseGood = await worksheetController.findRefOrder(ReleaseGood, { domain, name: releaseGoodNo })
+  const worksheet: Worksheet = await worksheetController.findWorksheetByRefOrder(
     domain,
     releaseGood,
-    bizplace: customerBizplace,
-    name: WorksheetNoGenerator.loading(),
-    type: WORKSHEET_TYPE.LOADING,
-    status: WORKSHEET_STATUS.DEACTIVATED,
-    creator: user,
-    updater: user
+    WORKSHEET_TYPE.PICKING,
+    ['worksheetDetails', 'worksheetDetails.targetInventories']
+  )
+
+  const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
+  const pickedTargetInventories: OrderInventory[] = worksheetDetails.map(
+    (wsd: WorksheetDetail) => wsd.targetInventory.status === ORDER_INVENTORY_STATUS.PICKED
+  )
+
+  await worksheetController.completePicking({ domain, user, releaseGoodNo })
+  let loadingWorksheet: Worksheet = await worksheetController.generateLoadingWorksheet({
+    domain,
+    user,
+    releaseGoodNo,
+    targetInventories: pickedTargetInventories
   })
 
-  // 2) Create loading worksheet details
-  let loadingWorksheetDetails = pickedtargetInv.map((targetInventory: OrderInventory) => {
-    return {
-      domain,
-      bizplace: customerBizplace,
-      worksheet: loadingWorksheet,
-      name: WorksheetNoGenerator.loadingDetail(),
-      targetInventory,
-      type: WORKSHEET_TYPE.LOADING,
-      status: WORKSHEET_STATUS.DEACTIVATED,
-      creator: user,
-      updater: user
-    }
-  })
-  loadingWorksheetDetails = await trxMgr.getRepository(WorksheetDetail).save(loadingWorksheetDetails)
+  if (!loadingWorksheet.worksheetDetails?.length) {
+    loadingWorksheet = await worksheetController.findWorksheetById(loadingWorksheet.id)
+  }
 
-  await activateLoading(trxMgr, domain, user, loadingWorksheet.name, loadingWorksheetDetails)
-
-  // 3. update status of release good
-  await trxMgr.getRepository(ReleaseGood).save({
-    ...releaseGood,
-    status: ORDER_STATUS.LOADING,
-    updater: user
+  const loadingWorksheetDetails: WorksheetDetail[] = loadingWorksheet.worksheetDetails
+  await worksheetController.activateLoading({
+    domain,
+    user,
+    worksheetNo: loadingWorksheet.name,
+    loadingWorksheetDetails
   })
 }

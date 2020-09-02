@@ -16,11 +16,11 @@ import {
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS, Location } from '@things-factory/warehouse-base'
+import { switchLocationStatus } from 'server/utils'
 import { Equal, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
-import { WorksheetNoGenerator } from '../utils'
-import { GenerateVasInterface, VasWorksheetController } from './vas-worksheet-controller'
+import { VasWorksheetController } from './vas-worksheet-controller'
 import { BasicInterface } from './worksheet-controller'
 
 export interface GenerateUnloadingInterface extends BasicInterface {
@@ -63,6 +63,14 @@ export interface CompletePartialUnloadingInterface extends BasicInterface {
   unloadingWorksheetDetail: Partial<WorksheetDetail>
 }
 
+export interface CompletePreunloadingInterface extends BasicInterface {
+  arrivalNoticeNo: string
+}
+
+export interface CompletePutawayInterface extends BasicInterface {
+  arrivalNoticeNo: string
+}
+
 export class InboundWorksheetController extends VasWorksheetController {
   /**
    * @summary Generate Unloading Worksheet
@@ -95,54 +103,26 @@ export class InboundWorksheetController extends VasWorksheetController {
       },
       ['bizplace', 'orderProducts', 'orderVass']
     )
-    const bizplace: Bizplace = arrivalNotice.bizplace
     const orderProducts: OrderProduct[] = arrivalNotice.orderProducts
     const orderVASs: OrderVas[] = arrivalNotice.orderVass
 
     const bufferLocationId: string = worksheetInterface.bufferLocationId
     const bufferLocation: Location = await this.trxMgr.getRepository(Location).findOne(bufferLocationId)
 
-    const worksheet: Worksheet = await this.createWorksheet(
+    const worksheet: Worksheet = await this.generateWorksheet(
       domain,
-      bizplace,
-      arrivalNotice,
-      WORKSHEET_TYPE.UNLOADING,
       user,
-      bufferLocation
+      WORKSHEET_TYPE.UNLOADING,
+      arrivalNotice,
+      orderProducts,
+      ORDER_STATUS.READY_TO_UNLOAD,
+      ORDER_PRODUCT_STATUS.READY_TO_UNLOAD,
+      { bufferLocation }
     )
 
-    const worksheetDetails: Partial<WorksheetDetail>[] = orderProducts.map((targetProduct: OrderProduct) => {
-      return {
-        domain,
-        bizplace,
-        worksheet,
-        name: WorksheetNoGenerator.unloadingDetail(),
-        type: WORKSHEET_TYPE.UNLOADING,
-        targetProduct,
-        status: WORKSHEET_STATUS.DEACTIVATED,
-        creator: user,
-        updater: user
-      } as Partial<WorksheetDetail>
-    })
-    await this.createWorksheetDetails(worksheetDetails)
-
-    orderProducts.forEach((ordProd: OrderProduct) => {
-      ordProd.status = ORDER_PRODUCT_STATUS.READY_TO_UNLOAD
-      ordProd.updater = user
-    })
-    await this.updateOrderTargets(OrderProduct, orderProducts)
-
     if (orderVASs?.length > 0) {
-      await this.generateVasWorksheet({
-        domain,
-        user,
-        referenceOrder: arrivalNotice
-      } as GenerateVasInterface)
+      await this.generateVasWorksheet({ domain, user, referenceOrder: arrivalNotice })
     }
-
-    arrivalNotice.status = ORDER_STATUS.READY_TO_UNLOAD
-    arrivalNotice.updater = user
-    await this.updateRefOrder(ArrivalNotice, arrivalNotice)
 
     return worksheet
   }
@@ -200,18 +180,13 @@ export class InboundWorksheetController extends VasWorksheetController {
     const bufferLocation: Location = unloadingWorksheet.bufferLocation
 
     // Check whether putaway worksheet is exists or not
-    let putawayWorksheet: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne({
-      domain,
-      bizplace,
-      arrivalNotice,
-      type: WORKSHEET_TYPE.PUTAWAY
-    })
+    let worksheet: Worksheet = await this.findWorksheetByRefOrder(domain, arrivalNotice, WORKSHEET_TYPE.PUTAWAY)
 
     let oiStatus: string = ORDER_PRODUCT_STATUS.UNLOADED // Default status of order inventories is UNLOADED
     let wsdStatus: string = WORKSHEET_STATUS.DEACTIVATED // Default status of worksheet is DEACTIVATED
-    if (!putawayWorksheet) {
+    if (!worksheet) {
       // If it's not exists create new putaway worksheet
-      putawayWorksheet = await this.createWorksheet(
+      worksheet = await this.createWorksheet(
         domain,
         bizplace,
         arrivalNotice,
@@ -249,22 +224,17 @@ export class InboundWorksheetController extends VasWorksheetController {
         updater: user
       }
       targetInventory = await this.trxMgr.getRepository(OrderInventory).save(targetInventory)
-
-      const worksheetDetail: Partial<WorksheetDetail> = {
+      worksheet.worksheetDetails = await this.createWorksheetDetails(
         domain,
-        bizplace,
-        name: WorksheetNoGenerator.generate(WORKSHEET_TYPE.PUTAWAY, true),
-        worksheet: putawayWorksheet,
-        targetInventory,
-        fromLocation: bufferLocation,
-        status: wsdStatus,
-        creator: user,
-        updater: user
-      }
-      await this.createWorksheetDetails([worksheetDetail])
+        worksheet,
+        WORKSHEET_TYPE.PUTAWAY,
+        [targetInventory],
+        user,
+        { status: wsdStatus }
+      )
     }
 
-    return putawayWorksheet
+    return worksheet
   }
 
   /**
@@ -325,12 +295,12 @@ export class InboundWorksheetController extends VasWorksheetController {
 
       return targetProduct
     })
-    await this.updateOrderTargets(OrderProduct, targetProducts)
+    await this.updateOrderTargets(targetProducts)
 
     let arrivalNotice: ArrivalNotice = worksheet.arrivalNotice
     arrivalNotice.status = ORDER_STATUS.PROCESSING
     arrivalNotice.updater = user
-    this.updateRefOrder(ArrivalNotice, arrivalNotice)
+    this.updateRefOrder(arrivalNotice)
 
     const palletizingWSDs: UnloadingWorksheetDetail[] = this.filterPalletizingWSDs(unloadingWSDs)
     if (palletizingWSDs.length > 0) {
@@ -382,7 +352,7 @@ export class InboundWorksheetController extends VasWorksheetController {
       'worksheetDetails.targetInventory'
     ])
 
-    const arrivalNotice: ArrivalNotice = worksheet.arrivalNotice
+    let arrivalNotice: ArrivalNotice = worksheet.arrivalNotice
     const nonFinishedVasCnt: number = await this.trxMgr.getRepository(Worksheet).count({
       where: {
         domain,
@@ -402,8 +372,11 @@ export class InboundWorksheetController extends VasWorksheetController {
       targetInventory.updater = user
       return targetInventory
     })
-    await this.updateOrderTargets(OrderInventory, targetInventories)
+    await this.updateOrderTargets(targetInventories)
 
+    arrivalNotice.status = ORDER_STATUS.PUTTING_AWAY
+    arrivalNotice.updater = user
+    await this.updateRefOrder(arrivalNotice)
     return this.activateWorksheet(worksheet, worksheetDetails, putawayWSDs, user)
   }
 
@@ -460,34 +433,10 @@ export class InboundWorksheetController extends VasWorksheetController {
       wsd.targetProduct.remark = wsd.issue || wsd.targetProduct.remark
     })
 
-    const targetProducts: OrderProduct[] = unloadingWorksheetDetails.map((wsd: WorksheetDetail) => {
-      let targetProduct: OrderProduct = wsd.targetProduct
-      targetProduct.status = ORDER_PRODUCT_STATUS.TERMINATED
-      targetProduct.user = user
-      return targetProduct
-    })
-    await this.updateOrderTargets(OrderProduct, targetProducts)
-
-    /**
-     * Check whether every related worksheet is completed
-     *    - if yes => Update Status of arrival notice
-     *    - VAS doesn't affect to status of arrival notice
-     *    - Except putaway worksheet because putaway worksheet can be exist before complete unloading by partial unloading
-     */
-    const relatedWorksheets: Worksheet[] = await this.trxMgr.getRepository(Worksheet).find({
-      where: {
-        domain,
-        arrivalNotice,
-        status: Not(Equal(WORKSHEET_STATUS.DONE)),
-        type: Not(In([WORKSHEET_TYPE.VAS, WORKSHEET_TYPE.PUTAWAY]))
-      }
-    })
-
-    // If there's no related order && if status of arrival notice is not indicating putaway process
-    if (relatedWorksheets?.length === 0 && arrivalNotice.status !== ORDER_STATUS.PUTTING_AWAY) {
+    if (arrivalNotice.status !== ORDER_STATUS.PUTTING_AWAY) {
       arrivalNotice.status = ORDER_STATUS.READY_TO_PUTAWAY
       arrivalNotice.updater = user
-      arrivalNotice = await this.updateRefOrder(ArrivalNotice, arrivalNotice)
+      arrivalNotice = await this.updateRefOrder(arrivalNotice)
     }
 
     const inventories: Inventory[] = await this.trxMgr.getRepository(Inventory).find({
@@ -517,17 +466,10 @@ export class InboundWorksheetController extends VasWorksheetController {
       })
     }
 
-    arrivalNotice.status = ORDER_STATUS.PUTTING_AWAY
-    arrivalNotice.updater = user
-    await this.updateRefOrder(ArrivalNotice, arrivalNotice)
-
-    worksheet.status = WORKSHEET_STATUS.DONE
-    worksheet.endedAt = new Date()
-    worksheet.updater = user
-    await this.trxMgr.getRepository(Worksheet).save(worksheet)
+    await this.completWorksheet(worksheet, user)
   }
 
-  async completeUnloadingPartially(worksheetInterface: CompletePartialUnloadingInterface): Promise<void> {
+  async completeUnloadingPartially(worksheetInterface: CompletePartialUnloadingInterface): Promise<Worksheet> {
     const domain: Domain = worksheetInterface.domain
     const user: User = worksheetInterface.user
     const arrivalNoticeNo: string = worksheetInterface.arrivalNoticeNo
@@ -556,7 +498,7 @@ export class InboundWorksheetController extends VasWorksheetController {
     let targetProduct: OrderProduct = worksheetDetail.targetProduct
     targetProduct.status = ORDER_PRODUCT_STATUS.PARTIALLY_UNLOADED
     targetProduct.remark = worksheetDetail.issue || targetProduct.remark
-    await this.updateOrderTargets(OrderProduct, [targetProduct])
+    await this.updateOrderTargets([targetProduct])
 
     let inventories: Inventory[] = await this.trxMgr.getRepository(Inventory).find({
       where: {
@@ -572,6 +514,47 @@ export class InboundWorksheetController extends VasWorksheetController {
       inventory.updater = user
     })
     await this.trxMgr.getRepository(Inventory).save(inventories)
+
+    return worksheet
+  }
+
+  async completePutaway(worksheetInterface: CompletePutawayInterface): Promise<Worksheet> {
+    const domain: Domain = worksheetInterface.domain
+    const user: User = worksheetInterface.user
+    const arrivalNoticeNo: string = worksheetInterface.arrivalNoticeNo
+
+    // Because of partial unloading current status of arrivalNotice can be PUTTING_AWAY or PROCESSING
+    // PUTTING_AWAY means unloading is completely finished.
+    // PROCESSING means some products are still being unloaded.
+    let arrivalNotice: ArrivalNotice = await this.findRefOrder(ArrivalNotice, {
+      domain,
+      name: arrivalNoticeNo,
+      status: In([ORDER_STATUS.PUTTING_AWAY, ORDER_STATUS.PROCESSING])
+    })
+
+    // Check whether unloading is done or not.
+    const unloadingWorksheetCnt: number = await this.trxMgr.getRepository(Worksheet).count({
+      where: {
+        domain,
+        arrivalNotice,
+        type: WORKSHEET_TYPE.UNLOADING,
+        status: WORKSHEET_STATUS.EXECUTING
+      }
+    })
+    if (unloadingWorksheetCnt) throw new Error(`Unloading is not completed yet`)
+
+    const putawayWorksheet: Worksheet = await this.findWorksheetByRefOrder(
+      domain,
+      arrivalNotice,
+      WORKSHEET_TYPE.PUTAWAY,
+      ['bufferLocation']
+    )
+    await switchLocationStatus(domain, putawayWorksheet.bufferLocation, user, this.trxMgr)
+    return await this.completWorksheet(putawayWorksheet, user, ORDER_STATUS.DONE)
+  }
+
+  async completePreunloading(worksheetInterface: CompletePreunloadingInterface): Promise<Worksheet> {
+    // TODO
   }
 
   async createPalletizingWSDs(
@@ -621,20 +604,7 @@ export class InboundWorksheetController extends VasWorksheetController {
         referenceOrder: arrivalNotice
       })
     } else {
-      const newPalletizingWSDs: Partial<WorksheetDetail>[] = palletizingOrderVASs.map((targetVas: OrderVas) => {
-        return {
-          domain,
-          bizplace,
-          worksheet: vasWorksheet,
-          name: WorksheetNoGenerator.generate(WORKSHEET_TYPE.VAS, true),
-          targetVas,
-          type: WORKSHEET_TYPE.VAS,
-          status: WORKSHEET_STATUS.DONE,
-          creator: user,
-          updater: user
-        }
-      })
-      await this.createWorksheetDetails(newPalletizingWSDs)
+      await this.createWorksheetDetails(domain, vasWorksheet, WORKSHEET_TYPE.VAS, palletizingOrderVASs, user)
     }
   }
 

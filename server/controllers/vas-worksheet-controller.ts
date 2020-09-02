@@ -1,17 +1,22 @@
 import { User } from '@things-factory/auth-base'
-import { Bizplace } from '@things-factory/biz-base'
 import {
   ArrivalNotice,
   OrderVas,
   ORDER_STATUS,
+  ORDER_TYPES,
   ORDER_VAS_STATUS,
   ReleaseGood,
   VasOrder
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
+import { EntityManager } from 'typeorm'
+import { WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
-import { WorksheetNoGenerator } from '../utils'
+import {
+  completeRelabeling,
+  completeRepackaging,
+  completeRepalletizing
+} from '../graphql/resolvers/worksheet/vas-transactions'
 import { BasicInterface, ReferenceOrderType, WorksheetController } from './worksheet-controller'
 
 export interface GenerateVasInterface extends BasicInterface {
@@ -23,7 +28,20 @@ export interface ActivateVASInterface extends BasicInterface {
   vasWorksheetDetails: Partial<WorksheetDetail>[]
 }
 
+export interface CompleteVASInterface extends BasicInterface {
+  orderNo: string
+  orderType: string
+}
+
+type CompleteTransactionType = (trxMgr: EntityManager, orderVas: OrderVas, user: User) => Promise<void>
+
 export class VasWorksheetController extends WorksheetController {
+  private readonly COMPLETE_TRX_MAP: Record<string, CompleteTransactionType> = {
+    'vas-repalletizing': completeRepalletizing,
+    'vas-repack': completeRepackaging,
+    'vas-relabel': completeRelabeling
+  }
+
   /**
    * @summary Generate VAS Worksheet
    * @description
@@ -41,60 +59,31 @@ export class VasWorksheetController extends WorksheetController {
    */
   async generateVasWorksheet(worksheetInterface: GenerateVasInterface): Promise<Worksheet> {
     const domain: Domain = worksheetInterface.domain
-    const referenceOrder: ReferenceOrderType = worksheetInterface.referenceOrder
+    const refOrder: ReferenceOrderType = worksheetInterface.referenceOrder
     const user: User = worksheetInterface.user
 
-    let bizplace: Bizplace
-    let worksheet: Partial<Worksheet> = {
-      domain,
-      name: WorksheetNoGenerator.vas(),
-      type: WORKSHEET_TYPE.VAS,
-      status: WORKSHEET_STATUS.DEACTIVATED,
-      creator: user,
-      updater: user
-    }
-
     let orderVASs: OrderVas[]
-    const relations: string[] = ['bizplace', 'orderVass']
 
-    if (referenceOrder instanceof ArrivalNotice) {
-      const arrivalNotice: ArrivalNotice = await this.findRefOrder(ArrivalNotice, referenceOrder, relations)
-      bizplace = arrivalNotice.bizplace
+    if (refOrder instanceof ArrivalNotice) {
+      const arrivalNotice: ArrivalNotice = await this.findRefOrder(ArrivalNotice, refOrder, ['orderVass'])
       orderVASs = arrivalNotice.orderVass
-    } else if (referenceOrder instanceof ReleaseGood) {
-      const releaseGood: ReleaseGood = await this.findRefOrder(ReleaseGood, referenceOrder, relations)
-      bizplace = releaseGood.bizplace
+    } else if (refOrder instanceof ReleaseGood) {
+      const releaseGood: ReleaseGood = await this.findRefOrder(ReleaseGood, refOrder, ['orderVass'])
       orderVASs = releaseGood.orderVASs
     } else {
-      const vasOrder: VasOrder = await this.findRefOrder(VasOrder, referenceOrder, relations)
-      bizplace = vasOrder.bizplace
+      const vasOrder: VasOrder = await this.findRefOrder(VasOrder, refOrder, ['orderVass'])
       orderVASs = vasOrder.orderVass
     }
 
-    worksheet = await this.createWorksheet(domain, bizplace, referenceOrder, WORKSHEET_TYPE.VAS, user)
-
-    const vasWorksheetDetails: Partial<WorksheetDetail>[] = orderVASs.map((targetVas: OrderVas) => {
-      return {
-        domain,
-        bizplace,
-        worksheet,
-        name: WorksheetNoGenerator.vasDetail(),
-        targetVas,
-        type: WORKSHEET_TYPE.VAS,
-        status: WORKSHEET_STATUS.DEACTIVATED,
-        creator: user,
-        updater: user
-      } as Partial<WorksheetDetail>
-    })
-    worksheet.worksheetDetails = await this.createWorksheetDetails(vasWorksheetDetails)
-
-    orderVASs.forEach((ordVas: OrderVas) => {
-      ordVas.status = ORDER_VAS_STATUS.READY_TO_PROCESS
-      ordVas.updater = user
-    })
-    await this.updateOrderTargets(OrderVas, orderVASs)
-
-    return worksheet as Worksheet
+    return await this.generateWorksheet(
+      domain,
+      user,
+      WORKSHEET_TYPE.VAS,
+      refOrder,
+      orderVASs,
+      refOrder.status,
+      ORDER_VAS_STATUS.READY_TO_PROCESS
+    )
   }
 
   async activateVAS(worksheetInterface: ActivateVASInterface): Promise<Worksheet> {
@@ -122,10 +111,57 @@ export class VasWorksheetController extends WorksheetController {
       vasOrder.status = ORDER_STATUS.PROCESSING
       vasOrder.updater = user
 
-      await this.updateRefOrder(VasOrder, vasOrder)
+      await this.updateRefOrder(vasOrder)
     }
 
-    await this.updateOrderTargets(OrderVas, targetVASs)
+    await this.updateOrderTargets(targetVASs)
     return await this.activateWorksheet(worksheet, worksheetDetails, worksheetInterface.vasWorksheetDetails, user)
+  }
+
+  async completeVAS(worksheetInterface: CompleteVASInterface): Promise<Worksheet> {
+    const domain: Domain = worksheetInterface.domain
+    const user: User = worksheetInterface.user
+    const orderNo: string = worksheetInterface.orderNo
+    const orderType: string = worksheetInterface.orderType
+
+    const ENTITY_MAP: { [key: string]: ArrivalNotice | ReleaseGood | VasOrder } = {
+      [ORDER_TYPES.ARRIVAL_NOTICE]: ArrivalNotice,
+      [ORDER_TYPES.RELEASE_OF_GOODS]: ReleaseGood,
+      [ORDER_TYPES.VAS_ORDER]: VasOrder
+    }
+    const refOrder: ReferenceOrderType = await this.findRefOrder(ENTITY_MAP[orderType], { domain, name: orderNo })
+    let worksheet: Worksheet = await this.findWorksheetByRefOrder(domain, refOrder, WORKSHEET_TYPE.VAS, [
+      'worksheetDetails',
+      'worksheetDetails.targetVas',
+      'worksheetDetails.targetVas.vas'
+    ])
+
+    const isPureVAS: boolean = refOrder instanceof VasOrder
+    if (isPureVAS) {
+      worksheet = await this.completWorksheet(worksheet, user, ORDER_STATUS.DONE)
+    }
+
+    // Do complete operation transactions if there it is
+    const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
+    const targetVASs: OrderVas[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetVas)
+
+    for (const targetVAS of targetVASs) {
+      const { issue }: { issue: string } = worksheetDetails.find(
+        (wsd: WorksheetDetail) => wsd.targetVas.id === targetVAS.id
+      )
+
+      if (targetVAS.operationGuide && !issue) {
+        await this.doOperationTransaction(targetVAS, user)
+      }
+    }
+
+    return worksheet
+  }
+
+  async doOperationTransaction(targetVAS: OrderVas, user: User): Promise<void> {
+    const operationGuide: string = targetVAS.vas?.operationGuide
+    if (operationGuide) {
+      await this.COMPLETE_TRX_MAP[operationGuide](this.trxMgr, targetVAS, user)
+    }
   }
 }

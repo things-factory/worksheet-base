@@ -1,7 +1,7 @@
 import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
-import { CycleCountWorksheetController } from 'server/controllers/cycle-count-worksheet-controller'
 import { EntityManager, getManager } from 'typeorm'
+import { CycleCountWorksheetController } from '../../../../controllers'
 import { Worksheet } from '../../../../entities'
 
 export const activateCycleCountResolver = {

@@ -1,7 +1,7 @@
 import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
-import { VasWorksheetController } from '../../../../controllers/vas-worksheet-controller'
+import { VasWorksheetController } from '../../../../controllers'
 import { WorksheetDetail } from '../../../../entities'
 
 export const activateVasResolver = {

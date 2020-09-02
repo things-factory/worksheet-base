@@ -1,13 +1,25 @@
 import { Role, User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, InventoryCheck, ReleaseGood, VasOrder } from '@things-factory/sales-base'
+import {
+  ArrivalNotice,
+  InventoryCheck,
+  OrderInventory,
+  OrderProduct,
+  OrderVas,
+  ORDER_INVENTORY_STATUS,
+  ORDER_PRODUCT_STATUS,
+  ORDER_VAS_STATUS,
+  ReleaseGood,
+  VasOrder
+} from '@things-factory/sales-base'
 import { Domain, sendNotification } from '@things-factory/shell'
 import { EntityManager, EntitySchema, FindOneOptions } from 'typeorm'
-import { WORKSHEET_STATUS } from '../constants'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
 import { WorksheetNoGenerator } from '../utils'
 
 export type ReferenceOrderType = ArrivalNotice | ReleaseGood | VasOrder | InventoryCheck
+export type OrderTargetTypes = OrderProduct | OrderInventory | OrderVas
 
 export interface BasicInterface {
   domain: Domain
@@ -70,14 +82,7 @@ export class WorksheetController {
     user: User,
     additionalProps: Partial<Worksheet> = {}
   ): Promise<Worksheet> {
-    let refOrderType: string = ''
-    if (refOrder instanceof ArrivalNotice) {
-      refOrderType = 'arrivalNotice'
-    } else if (refOrder instanceof ReleaseGood) {
-      refOrderType = 'releaseGood'
-    } else {
-      refOrderType = 'vasOrder'
-    }
+    let refOrderType: string = this.getRefOrderField(refOrder)
 
     const worksheet: Partial<Worksheet> = {
       domain,
@@ -109,7 +114,32 @@ export class WorksheetController {
    * @param {Partial<WorksheetDetail>[]} worksheetDetails
    * @returns {Promise<WorksheetDetail[]>}
    */
-  async createWorksheetDetails(worksheetDetails: Partial<WorksheetDetail>[]): Promise<WorksheetDetail[]> {
+  async createWorksheetDetails(
+    domain: Domain,
+    worksheet: Worksheet,
+    type: string,
+    orderTargets: OrderTargetTypes[],
+    user: User,
+    additionalProps: Partial<WorksheetDetail> = {}
+  ): Promise<WorksheetDetail[]> {
+    if (!worksheet.bizplace?.id) await this.findWorksheetById(worksheet.id, ['bizplace'])
+    const bizplace: Bizplace = worksheet.bizplace
+
+    const worksheetDetails: Partial<WorksheetDetail>[] = orderTargets.map((orderTarget: OrderTargetTypes) => {
+      const orderTargetField: string = this.getOrderTargetField(orderTarget)
+      return {
+        domain,
+        bizplace,
+        worksheet,
+        name: WorksheetNoGenerator.generate(type, true),
+        status: WORKSHEET_STATUS.DEACTIVATED,
+        [orderTargetField]: orderTarget,
+        creator: user,
+        updater: user,
+        ...additionalProps
+      }
+    })
+
     if (worksheetDetails.some((wsd: Partial<WorksheetDetail>) => wsd.id))
       throw new Error(this.ERROR_MSG.CREATE.ID_EXISTS)
     if (worksheetDetails.some((wsd: Partial<WorksheetDetail>) => !wsd.creator))
@@ -156,7 +186,17 @@ export class WorksheetController {
    * @param {any[]} orderTargets
    * @returns {Promise<any>}
    */
-  async updateOrderTargets(entitySchema: EntitySchema, orderTargets: any[]): Promise<any> {
+  async updateOrderTargets(orderTargets: OrderTargetTypes[], entitySchema?: EntitySchema): Promise<any> {
+    if (!entitySchema) {
+      if (orderTargets[0] instanceof OrderProduct) {
+        entitySchema = OrderProduct
+      } else if (orderTargets[0] instanceof OrderInventory) {
+        entitySchema = OrderInventory
+      } else if (orderTargets[0] instanceof OrderVas) {
+        entitySchema = OrderVas
+      }
+    }
+
     if (orderTargets.some((orderTarget: any) => !orderTarget.id)) throw new Error(this.ERROR_MSG.UPDATE.ID_NOT_EXISTS)
     if (orderTargets.some((orderTarget: any) => !orderTarget.updater?.id))
       throw new Error(this.ERROR_MSG.UPDATE.EMPTY_UPDATER)
@@ -175,11 +215,31 @@ export class WorksheetController {
    * @param {ReferenceOrderType} refOrder
    * @returns {Promise<any>}
    */
-  async updateRefOrder(entitySchema: EntitySchema, refOrder: ReferenceOrderType): Promise<any> {
+  async updateRefOrder(refOrder: ReferenceOrderType, entitySchema?: EntitySchema): Promise<any> {
+    if (!entitySchema) {
+      if (refOrder instanceof ArrivalNotice) {
+        entitySchema = ArrivalNotice
+      } else if (refOrder instanceof ReleaseGood) {
+        entitySchema = ReleaseGood
+      } else if (refOrder instanceof VasOrder) {
+        entitySchema = VasOrder
+      } else if (refOrder instanceof InventoryCheck) {
+        entitySchema = InventoryCheck
+      }
+    }
+
     if (!refOrder.id) throw new Error(this.ERROR_MSG.UPDATE.ID_NOT_EXISTS)
     if (!refOrder.updater?.id) throw new Error(this.ERROR_MSG.UPDATE.EMPTY_UPDATER)
 
     return await this.trxMgr.getRepository(entitySchema).save(refOrder)
+  }
+
+  async findWorksheetById(id: string, relations: string[] = ['worksheetDetails']): Promise<Worksheet> {
+    const worksheet: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne(id, { relations })
+
+    if (!worksheet) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(id))
+
+    return worksheet
   }
 
   async findWorksheetByNo(
@@ -232,6 +292,48 @@ export class WorksheetController {
     return worksheet
   }
 
+  async generateWorksheet(
+    domain: Domain,
+    user: User,
+    worksheetType: string,
+    refOrder: ReferenceOrderType,
+    orderTargets: OrderTargetTypes[],
+    refOrderStatus: string,
+    orderTargetStatus: string,
+    additionalProps: Partial<Worksheet> = {}
+  ): Promise<Worksheet> {
+    if (refOrder instanceof ArrivalNotice) {
+      refOrder = await this.findRefOrder(ArrivalNotice, refOrder, ['bizplace'])
+    } else if (refOrder instanceof ReleaseGood) {
+      refOrder = await this.findRefOrder(ReleaseGood, refOrder, ['bizplace'])
+    } else if (refOrder instanceof VasOrder) {
+      refOrder = await this.findRefOrder(VasOrder, refOrder, ['bizplace'])
+    } else if (refOrder instanceof InventoryCheck) {
+      refOrder = await this.findRefOrder(InventoryCheck, refOrder, ['bizplace'])
+    }
+
+    const bizplace: Bizplace = refOrder.bizplace
+    const worksheet: Worksheet = await this.createWorksheet(
+      domain,
+      bizplace,
+      refOrder,
+      worksheetType,
+      user,
+      additionalProps
+    )
+    orderTargets.forEach((orderTarget: OrderTargetTypes) => {
+      orderTarget.status = orderTargetStatus
+      orderTarget.updater = user
+    })
+    orderTargets = await this.updateOrderTargets(orderTargets)
+    worksheet.worksheetDetails = await this.createWorksheetDetails(domain, worksheet, worksheetType, orderTargets, user)
+
+    refOrder.status = refOrderStatus
+    await this.updateRefOrder(refOrder)
+
+    return worksheet
+  }
+
   async activateWorksheet(
     worksheet: Worksheet,
     worksheetDetails: WorksheetDetail[],
@@ -252,6 +354,71 @@ export class WorksheetController {
       updater: user
     })
     worksheet.worksheetDetails = await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetails)
+
+    return worksheet
+  }
+
+  async completWorksheet(worksheet: Worksheet, user: User, updatedRefOrderStatus?: string): Promise<Worksheet> {
+    worksheet.status = WORKSHEET_STATUS.DONE
+    worksheet.endedAt = new Date()
+    worksheet.updater = user
+    worksheet = await this.trxMgr.getRepository(Worksheet).save(worksheet)
+
+    const worksheetType: string = worksheet.type
+    const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
+
+    worksheetDetails.forEach((wsd: WorksheetDetail) => {
+      wsd.status = WORKSHEET_STATUS.DONE
+      wsd.updater = user
+    })
+    await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetails)
+
+    if (worksheetType === WORKSHEET_TYPE.UNLOADING) {
+      if (!worksheetDetails?.length || worksheetDetails.some((wsd: WorksheetDetail) => !wsd.targetProduct?.id)) {
+        worksheet = await this.findWorksheetById(worksheet.id, ['worksheetDetails', 'worksheetDetails.targetProduct'])
+      }
+
+      const targetProducts: OrderProduct[] = worksheet.worksheetDetails.map((wsd: WorksheetDetail) => {
+        let targetProduct: OrderProduct = wsd.targetProduct
+        targetProduct.status = ORDER_PRODUCT_STATUS.TERMINATED
+        targetProduct.updater = user
+        return targetProduct
+      })
+      await this.updateOrderTargets(targetProducts)
+    } else if (worksheetType === WORKSHEET_TYPE.VAS) {
+      if (!worksheetDetails?.length || worksheetDetails.some((wsd: WorksheetDetail) => !wsd.targetVas?.id)) {
+        worksheet = await this.findWorksheetById(worksheet.id, ['worksheetDetails', 'worksheetDetails.targetVas'])
+      }
+
+      const targetVASs: OrderVas[] = worksheet.worksheetDetails.map((wsd: WorksheetDetail) => {
+        let targetVAS: OrderVas = wsd.targetVas
+        targetVAS.status = ORDER_VAS_STATUS.TERMINATED
+        targetVAS.updater = user
+        return targetVAS
+      })
+
+      await this.updateOrderTargets(targetVASs)
+    } else {
+      if (!worksheetDetails?.length || worksheetDetails.some((wsd: WorksheetDetail) => !wsd.targetInventory?.id)) {
+        worksheet = await this.findWorksheetById(worksheet.id, ['worksheetDetails', 'worksheetDetails.targetInventory'])
+      }
+
+      const targetInventories: OrderInventory[] = worksheet.worksheetDetails.map((wsd: WorksheetDetail) => {
+        let targetInventory: OrderInventory = wsd.targetInventory
+        targetInventory.status = ORDER_INVENTORY_STATUS.TERMINATED
+        targetInventory.updater = user
+        return targetInventory
+      })
+
+      await this.updateOrderTargets(targetInventories)
+    }
+
+    if (updatedRefOrderStatus) {
+      const refOrder: ReferenceOrderType = await this.extractRefOrder(worksheet)
+      refOrder.status = updatedRefOrderStatus
+      refOrder.updater = user
+      await this.updateRefOrder(refOrder)
+    }
 
     return worksheet
   }
@@ -336,5 +503,51 @@ export class WorksheetController {
         message: JSON.stringify(message)
       })
     })
+  }
+
+  getRefOrderField(refOrder: ReferenceOrderType): string {
+    if (refOrder instanceof ArrivalNotice) {
+      return 'arrivalNotice'
+    } else if (refOrder instanceof ReleaseGood) {
+      return 'releaseGood'
+    } else if (refOrder instanceof VasOrder) {
+      return 'vasOrder'
+    } else {
+      throw new Error(
+        this.ERROR_MSG.VALIDITY.UNEXPECTED_FIELD_VALUE('refOrder', 'One of referece order type', refOrder)
+      )
+    }
+  }
+
+  getOrderTargetField(orderTarget: OrderTargetTypes) {
+    if (orderTarget instanceof OrderProduct) {
+      return 'orderProduct'
+    } else if (orderTarget instanceof OrderInventory) {
+      return 'orderInventory'
+    } else if (orderTarget instanceof OrderVas) {
+      return 'orderVas'
+    } else {
+      this.ERROR_MSG.VALIDITY.UNEXPECTED_FIELD_VALUE('orderTarget', 'One of order target type', orderTarget)
+    }
+  }
+
+  async extractRefOrder(worksheet: Worksheet): Promise<ReferenceOrderType> {
+    let refOrder: ReferenceOrderType =
+      worksheet.arrivalNotice || worksheet.releaseGood || worksheet.vasOrder || worksheet.inventoryCheck || null
+    if (!refOrder) {
+      const wsWithRefOrd: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne(worksheet.id, {
+        relations: ['arrivalNotice', 'releaseGood', 'vasOrder', 'inventoryCheck']
+      })
+
+      refOrder =
+        wsWithRefOrd.arrivalNotice ||
+        wsWithRefOrd.releaseGood ||
+        wsWithRefOrd.vasOrder ||
+        wsWithRefOrd.inventoryCheck ||
+        null
+      if (!refOrder) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(worksheet.id))
+    }
+
+    return refOrder
   }
 }

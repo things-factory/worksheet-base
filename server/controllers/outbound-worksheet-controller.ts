@@ -6,15 +6,22 @@ import { Inventory } from '@things-factory/warehouse-base'
 import { Equal, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
-import { WorksheetNoGenerator } from '../utils'
-import { GenerateVasInterface, VasWorksheetController } from './vas-worksheet-controller'
+import { VasWorksheetController } from './vas-worksheet-controller'
 import { BasicInterface } from './worksheet-controller'
 
 export interface GeneratePickingInterface extends BasicInterface {
   releaseGoodNo: string
 }
 
-export interface GenerateLoadingInterface extends BasicInterface {}
+export interface GenerateLoadingInterface extends BasicInterface {
+  releaseGoodNo: string
+  targetInventories: Partial<OrderInventory>[]
+}
+
+export interface GenerateReturningInterface extends BasicInterface {
+  releaseGoodNo: string
+  targetInventories: Partial<OrderInventory>[]
+}
 
 export interface ActivatePickingInterface extends BasicInterface {
   worksheetNo: string
@@ -31,6 +38,14 @@ export interface ActivateReturningInterface extends BasicInterface {
 }
 
 export interface CompletePickingInterface extends BasicInterface {
+  releaseGoodNo: string
+}
+
+export interface CompleteLoadingInterface extends BasicInterface {
+  releaseGoodNo: string
+}
+
+export interface CompleteReturningInterface extends BasicInterface {
   releaseGoodNo: string
 }
 
@@ -70,23 +85,16 @@ export class OutboundWorksheetController extends VasWorksheetController {
     const orderInventories: OrderInventory[] = releaseGood.orderInventories
     const orderVASs: OrderVas[] = releaseGood.orderVass
 
-    const worksheet: Worksheet = await this.createWorksheet(domain, bizplace, releaseGood, WORKSHEET_TYPE.PICKING, user)
+    let worksheet: Worksheet = await this.createWorksheet(domain, bizplace, releaseGood, WORKSHEET_TYPE.PICKING, user)
 
     if (orderInventories.every((oi: OrderInventory) => oi.inventory?.id) || releaseGood.crossDocking) {
-      const worksheetDetails: Partial<WorksheetDetail>[] = orderInventories.map((targetInventory: OrderInventory) => {
-        return {
-          domain,
-          bizplace,
-          worksheet,
-          name: WorksheetNoGenerator.pickingDetail(),
-          targetInventory,
-          type: WORKSHEET_TYPE.PICKING,
-          status: WORKSHEET_STATUS.DEACTIVATED,
-          creator: user,
-          updater: user
-        } as Partial<WorksheetDetail>
-      })
-      await this.createWorksheetDetails(worksheetDetails)
+      worksheet.worksheetDetails = await this.createWorksheetDetails(
+        domain,
+        worksheet,
+        WORKSHEET_TYPE.PICKING,
+        orderInventories,
+        user
+      )
 
       const inventories: Inventory[] = orderInventories.map((oi: OrderInventory) => {
         let inventory: Inventory = oi.inventory
@@ -105,25 +113,53 @@ export class OutboundWorksheetController extends VasWorksheetController {
           : ORDER_INVENTORY_STATUS.PENDING_SPLIT
       oi.updater = user
     })
-    await this.updateOrderTargets(OrderInventory, orderInventories)
+    await this.updateOrderTargets(orderInventories)
 
     if (orderVASs?.length > 0) {
-      await this.generateVasWorksheet({
-        domain,
-        user,
-        referenceOrder: releaseGood
-      } as GenerateVasInterface)
+      await this.generateVasWorksheet({ domain, user, referenceOrder: releaseGood })
     }
 
     releaseGood.status = ORDER_STATUS.READY_TO_PICK
     releaseGood.updater = user
-    await this.updateRefOrder(ReleaseGood, releaseGood)
+    await this.updateRefOrder(releaseGood)
 
     return worksheet
   }
 
   async generateLoadingWorksheet(worksheetInterface: GenerateLoadingInterface): Promise<Worksheet> {
-    return
+    const domain: Domain = worksheetInterface.domain
+    const user: User = worksheetInterface.user
+    const releaseGoodNo: string = worksheetInterface.releaseGoodNo
+
+    const releaseGood: ReleaseGood = await this.findRefOrder(ReleaseGood, { domain, name: releaseGoodNo }, ['bizplace'])
+    const targetInventories: OrderInventory[] = worksheetInterface.targetInventories
+    return await this.generateWorksheet(
+      domain,
+      user,
+      WORKSHEET_TYPE.LOADING,
+      releaseGood,
+      targetInventories,
+      ORDER_STATUS.LOADING,
+      ORDER_INVENTORY_STATUS.LOADING
+    )
+  }
+
+  async generateReturningWorksheet(worksheetInterface: GenerateReturningInterface): Promise<Worksheet> {
+    const domain: Domain = worksheetInterface.domain
+    const user: User = worksheetInterface.user
+    const releaseGoodNo: string = worksheetInterface.releaseGoodNo
+
+    const releaseGood: ReleaseGood = await this.findRefOrder(ReleaseGood, { domain, name: releaseGoodNo }, ['bizplace'])
+    const targetInventories: OrderInventory[] = worksheetInterface.targetInventories
+    return await this.generateWorksheet(
+      domain,
+      user,
+      WORKSHEET_TYPE.RETURN,
+      releaseGood,
+      targetInventories,
+      ORDER_STATUS.PARTIAL_RETURN,
+      ORDER_INVENTORY_STATUS.RETURNING
+    )
   }
 
   async activatePicking(worksheetInterface: ActivatePickingInterface): Promise<Worksheet> {
@@ -144,11 +180,11 @@ export class OutboundWorksheetController extends VasWorksheetController {
       targetInventory.updater = user
       return targetInventory
     })
-    this.updateOrderTargets(OrderInventory, targetInventories)
+    this.updateOrderTargets(targetInventories)
 
     let releaseGood: ReleaseGood = worksheet.releaseGood
     ;(releaseGood.status = ORDER_STATUS.PICKING), (releaseGood.updater = user)
-    this.updateRefOrder(ReleaseGood, releaseGood)
+    this.updateRefOrder(releaseGood)
 
     worksheet = await this.activateWorksheet(worksheet, worksheetDestails, [], user)
 
@@ -204,9 +240,9 @@ export class OutboundWorksheetController extends VasWorksheetController {
 
     releaseGood.status = ORDER_STATUS.LOADING
     releaseGood.updater = user
-    await this.updateRefOrder(ReleaseGood, releaseGood)
+    await this.updateRefOrder(releaseGood)
 
-    await this.updateOrderTargets(OrderInventory, targetInventories)
+    await this.updateOrderTargets(targetInventories)
     return await this.activateWorksheet(worksheet, worksheetDetails, worksheetInterface.loadingWorksheetDetails, user)
   }
 
@@ -228,11 +264,11 @@ export class OutboundWorksheetController extends VasWorksheetController {
       targetInventory.status = ORDER_INVENTORY_STATUS.RETURNING
       targetInventory.updater = user
     })
-    await this.updateOrderTargets(OrderInventory, targetInventories)
+    await this.updateOrderTargets(targetInventories)
     return await this.activateWorksheet(worksheet, worksheetDetails, worksheetInterface.returningWorksheetDetails, user)
   }
 
-  async completePicking(worksheetInterface: CompletePickingInterface): Promise<void> {
+  async completePicking(worksheetInterface: CompletePickingInterface): Promise<Worksheet> {
     const domain: Domain = worksheetInterface.domain
     const user: User = worksheetInterface.user
     const releaseGoodNo: string = worksheetInterface.releaseGoodNo
@@ -249,12 +285,46 @@ export class OutboundWorksheetController extends VasWorksheetController {
     ])
     this.checkWorksheetValidity(worksheet, { status: WORKSHEET_STATUS.EXECUTING })
 
-    const worksheetDestails: WorksheetDetail[] = worksheet.worksheetDetails
-    const targetInventories: OrderInventory[] = worksheetDestails.map((wsd: WorksheetDetail) => wsd.targetInventory)
+    return await this.completWorksheet(worksheet, user, ORDER_STATUS.LOADING)
+  }
 
-    // Filter out replaced inventories
-    const pickedTargetInventories: OrderInventory[] = targetInventories.filter(
-      (oi: OrderInventory) => (oi.status = ORDER_INVENTORY_STATUS.PICKED)
-    )
+  async completeLoading(worksheetInterface: CompleteLoadingInterface): Promise<Worksheet> {
+    const domain: Domain = worksheetInterface.domain
+    const user: User = worksheetInterface.user
+    const releaseGoodNo: string = worksheetInterface.releaseGoodNo
+
+    const releaseGood: ReleaseGood = await this.findRefOrder(ReleaseGood, {
+      domain,
+      name: releaseGoodNo,
+      status: ORDER_STATUS.LOADING
+    })
+
+    const worksheet: Worksheet = await this.findWorksheetByRefOrder(domain, releaseGood, WORKSHEET_TYPE.LOADING, [
+      'worksheetDestails',
+      'worksheetDestails.targetInventory'
+    ])
+    this.checkWorksheetValidity(worksheet, { status: WORKSHEET_STATUS.EXECUTING })
+
+    return await this.completWorksheet(worksheet, user, ORDER_STATUS.DONE)
+  }
+
+  async completeReturning(worksheetInterface: CompleteReturningInterface): Promise<Worksheet> {
+    const domain: Domain = worksheetInterface.domain
+    const user: User = worksheetInterface.user
+    const releaseGoodNo: string = worksheetInterface.releaseGoodNo
+
+    const releaseGood: ReleaseGood = await this.findRefOrder(ReleaseGood, {
+      domain,
+      name: releaseGoodNo,
+      status: ORDER_STATUS.PARTIAL_RETURN
+    })
+
+    const worksheet: Worksheet = await this.findWorksheetByRefOrder(domain, releaseGood, WORKSHEET_TYPE.RETURN, [
+      'worksheetDestails',
+      'worksheetDestails.targetInventory'
+    ])
+    this.checkWorksheetValidity(worksheet, { status: WORKSHEET_STATUS.EXECUTING })
+
+    return await this.completWorksheet(worksheet, user, ORDER_STATUS.DONE)
   }
 }

@@ -1,14 +1,15 @@
 import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
-import { InboundWorksheetController } from 'server/controllers/inbound-worksheet-controller'
 import { EntityManager, getManager } from 'typeorm'
+import { InboundWorksheetController } from '../../../../controllers/inbound-worksheet-controller'
 import { WorksheetDetail } from '../../../../entities'
 
 export const completeUnloadingResolver = {
   async completeUnloading(_: any, { arrivalNoticeNo, worksheetDetails }, context: any) {
     return await getManager().transaction(async (trxMgr: EntityManager) => {
-      const { domain, user, referer }: { domain: Domain; user: User; referer: string } = context.state
+      const { domain, user }: { domain: Domain; user: User } = context.state
       await completeUnloading(trxMgr, domain, user, arrivalNoticeNo, worksheetDetails)
+
       const worksheetController: InboundWorksheetController = new InboundWorksheetController(trxMgr)
       worksheetController.notifiyToOfficeAdmin(domain, {
         title: `Unloading Completed`,

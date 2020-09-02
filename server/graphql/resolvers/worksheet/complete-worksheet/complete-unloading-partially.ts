@@ -1,7 +1,7 @@
 import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
-import { InboundWorksheetController } from 'server/controllers/inbound-worksheet-controller'
 import { EntityManager, getManager } from 'typeorm'
+import { InboundWorksheetController } from '../../../../controllers/inbound-worksheet-controller'
 import { WorksheetDetail } from '../../../../entities'
 
 export const completeUnloadingPartiallyResolver = {

@@ -1,8 +1,8 @@
 import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
-import { InboundWorksheetController } from 'server/controllers/inbound-worksheet-controller'
 import { EntityManager, Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
+import { InboundWorksheetController } from '../../../../controllers'
 import { Worksheet, WorksheetDetail } from '../../../../entities'
 
 export const activatePutawayResolver = {

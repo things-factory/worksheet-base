@@ -1,7 +1,7 @@
 import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
-import { OutboundWorksheetController } from '../../../../controllers/outbound-worksheet-controller'
+import { OutboundWorksheetController } from '../../../../controllers'
 import { Worksheet } from '../../../../entities'
 
 export const activatePickingResolver = {

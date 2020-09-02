@@ -99,19 +99,7 @@ export const crossDockPickingResolver = {
           targetInventory = await trxMgr.getRepository(OrderInventory).save(targetInventory)
 
           const worksheetController: WorksheetController = new WorksheetController(trxMgr)
-          worksheetController.createWorksheetDetails([
-            {
-              domain,
-              bizplace,
-              worksheet,
-              name: WorksheetNoGenerator.pickingDetail(),
-              targetInventory,
-              type: WORKSHEET_TYPE.PICKING,
-              status: WORKSHEET_STATUS.DEACTIVATED,
-              creator: user,
-              updater: user
-            }
-          ])
+          worksheetController.createWorksheetDetails(domain, worksheet, WORKSHEET_TYPE.PICKING, [targetInventory], user)
         }
       } else {
         let { targetInventory: originOrdInv } = await trxMgr.getRepository(WorksheetDetail).findOne(originWSD.id, {

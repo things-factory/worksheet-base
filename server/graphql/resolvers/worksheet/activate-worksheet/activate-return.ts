@@ -1,7 +1,7 @@
 import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
-import { OutboundWorksheetController } from 'server/controllers/outbound-worksheet-controller'
 import { EntityManager, getManager } from 'typeorm'
+import { OutboundWorksheetController } from '../../../../controllers'
 import { Worksheet, WorksheetDetail } from '../../../../entities'
 
 export const activateReturnResolver = {
