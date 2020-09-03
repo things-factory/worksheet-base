@@ -1,7 +1,7 @@
 import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
-import { InboundWorksheetController } from '../../../../controllers/inbound-worksheet-controller'
+import { UnloadingWorksheetController } from '../../../../controllers'
 import { WorksheetDetail } from '../../../../entities'
 
 export const completeUnloadingPartiallyResolver = {
@@ -20,6 +20,6 @@ export async function completeUnloadingPartially(
   arrivalNoticeNo: string,
   unloadingWorksheetDetail: Partial<WorksheetDetail>
 ): Promise<void> {
-  const worksheetController: InboundWorksheetController = new InboundWorksheetController(trxMgr)
-  await worksheetController.completeUnloadingPartially({ domain, user, arrivalNoticeNo, unloadingWorksheetDetail })
+  const worksheetController: UnloadingWorksheetController = new UnloadingWorksheetController(trxMgr, domain, user)
+  await worksheetController.completeUnloadingPartially(arrivalNoticeNo, unloadingWorksheetDetail)
 }

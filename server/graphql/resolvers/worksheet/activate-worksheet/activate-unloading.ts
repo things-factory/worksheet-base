@@ -2,7 +2,7 @@ import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_TYPE } from '../../../../constants'
-import { InboundWorksheetController, UnloadingWorksheetDetail } from '../../../../controllers'
+import { UnloadingWorksheetController, UnloadingWorksheetDetail } from '../../../../controllers'
 import { Worksheet } from '../../../../entities'
 import { worksheetByOrderNo } from '../worksheet-by-order-no'
 import { activatePicking } from './activate-picking'
@@ -42,11 +42,6 @@ export async function activateUnloading(
   worksheetNo: string,
   unloadingWorksheetDetails: UnloadingWorksheetDetail[]
 ): Promise<Worksheet> {
-  const worksheetController: InboundWorksheetController = new InboundWorksheetController(trxMgr)
-  return await worksheetController.activateUnloading({
-    domain,
-    user,
-    worksheetNo,
-    unloadingWorksheetDetails
-  })
+  const worksheetController: UnloadingWorksheetController = new UnloadingWorksheetController(trxMgr, domain, user)
+  return await worksheetController.activateUnloading(worksheetNo, unloadingWorksheetDetails)
 }

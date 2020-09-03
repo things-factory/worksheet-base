@@ -2,7 +2,7 @@ import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
-import { OutboundWorksheetController } from '../../../../controllers'
+import { LoadingWorksheetController } from '../../../../controllers'
 import { Worksheet, WorksheetDetail } from '../../../../entities'
 
 export const activateLoadingResolver = {
@@ -49,11 +49,6 @@ export async function activateLoading(
   worksheetNo: string,
   loadingWorksheetDetails: Partial<WorksheetDetail>[]
 ): Promise<Worksheet> {
-  const worksheetController: OutboundWorksheetController = new OutboundWorksheetController(trxMgr)
-  return await worksheetController.activateLoading({
-    domain,
-    user,
-    worksheetNo,
-    loadingWorksheetDetails
-  })
+  const worksheetController: LoadingWorksheetController = new LoadingWorksheetController(trxMgr, domain, user)
+  return await worksheetController.activateLoading(worksheetNo, loadingWorksheetDetails)
 }

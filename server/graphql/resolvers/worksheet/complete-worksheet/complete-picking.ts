@@ -4,7 +4,7 @@ import { OrderInventory, ORDER_INVENTORY_STATUS, ReleaseGood } from '@things-fac
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_TYPE } from '../../../../constants'
-import { OutboundWorksheetController } from '../../../../controllers/outbound-worksheet-controller'
+import { LoadingWorksheetController, PickingWorksheetController } from '../../../../controllers/'
 import { WorksheetController } from '../../../../controllers/worksheet-controller'
 import { Worksheet, WorksheetDetail } from '../../../../entities'
 
@@ -16,8 +16,8 @@ export const completePickingResolver = {
       await completePicking(trxMgr, domain, user, releaseGoodNo)
 
       const bizplace: Bizplace = await getMyBizplace(user)
-      const worksheetController: WorksheetController = new WorksheetController(trxMgr)
-      await worksheetController.notifyToCustomer(domain, bizplace, {
+      const worksheetController: WorksheetController = new WorksheetController(trxMgr, domain, user)
+      await worksheetController.notifyToCustomer(bizplace, {
         title: `Picking has been completed`,
         message: `Items now are ready to be loaded`,
         url: context.header.referer
@@ -32,37 +32,30 @@ export async function completePicking(
   user: User,
   releaseGoodNo: string
 ): Promise<void> {
-  const worksheetController: OutboundWorksheetController = new OutboundWorksheetController(trxMgr)
-  const releaseGood: ReleaseGood = await worksheetController.findRefOrder(ReleaseGood, { domain, name: releaseGoodNo })
-  const worksheet: Worksheet = await worksheetController.findWorksheetByRefOrder(
+  const pickingWSCtrl: PickingWorksheetController = new PickingWorksheetController(trxMgr, domain, user)
+  const releaseGood: ReleaseGood = await pickingWSCtrl.findRefOrder(ReleaseGood, {
     domain,
-    releaseGood,
-    WORKSHEET_TYPE.PICKING,
-    ['worksheetDetails', 'worksheetDetails.targetInventories']
-  )
+    name: releaseGoodNo
+  })
+  const worksheet: Worksheet = await pickingWSCtrl.findWorksheetByRefOrder(releaseGood, WORKSHEET_TYPE.PICKING, [
+    'worksheetDetails',
+    'worksheetDetails.targetInventories'
+  ])
 
   const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
   const pickedTargetInventories: OrderInventory[] = worksheetDetails.map(
     (wsd: WorksheetDetail) => wsd.targetInventory.status === ORDER_INVENTORY_STATUS.PICKED
   )
 
-  await worksheetController.completePicking({ domain, user, releaseGoodNo })
-  let loadingWorksheet: Worksheet = await worksheetController.generateLoadingWorksheet({
-    domain,
-    user,
-    releaseGoodNo,
-    targetInventories: pickedTargetInventories
-  })
+  await pickingWSCtrl.completePicking(releaseGoodNo)
+
+  const loadingWSCtrl: LoadingWorksheetController = new LoadingWorksheetController(trxMgr, domain, user)
+  let loadingWorksheet: Worksheet = await loadingWSCtrl.generateLoadingWorksheet(releaseGoodNo, pickedTargetInventories)
 
   if (!loadingWorksheet.worksheetDetails?.length) {
-    loadingWorksheet = await worksheetController.findWorksheetById(loadingWorksheet.id)
+    loadingWorksheet = await pickingWSCtrl.findWorksheetById(loadingWorksheet.id)
   }
 
   const loadingWorksheetDetails: WorksheetDetail[] = loadingWorksheet.worksheetDetails
-  await worksheetController.activateLoading({
-    domain,
-    user,
-    worksheetNo: loadingWorksheet.name,
-    loadingWorksheetDetails
-  })
+  await loadingWSCtrl.activateLoading(loadingWorksheet.name, loadingWorksheetDetails)
 }

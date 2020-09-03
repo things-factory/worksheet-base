@@ -1,7 +1,7 @@
 import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
-import { InboundWorksheetController } from '../../../../controllers/inbound-worksheet-controller'
+import { UnloadingWorksheetController } from '../../../../controllers'
 import { WorksheetDetail } from '../../../../entities'
 
 export const completeUnloadingResolver = {
@@ -10,8 +10,8 @@ export const completeUnloadingResolver = {
       const { domain, user }: { domain: Domain; user: User } = context.state
       await completeUnloading(trxMgr, domain, user, arrivalNoticeNo, worksheetDetails)
 
-      const worksheetController: InboundWorksheetController = new InboundWorksheetController(trxMgr)
-      worksheetController.notifiyToOfficeAdmin(domain, {
+      const worksheetController: UnloadingWorksheetController = new UnloadingWorksheetController(trxMgr, domain, user)
+      worksheetController.notifiyToOfficeAdmin({
         title: `Unloading Completed`,
         message: `${arrivalNoticeNo} is ready for putaway`,
         url: context.header.referer
@@ -27,6 +27,6 @@ export async function completeUnloading(
   arrivalNoticeNo: string,
   unloadingWorksheetDetails: Partial<WorksheetDetail>[]
 ): Promise<void> {
-  const worksheetController: InboundWorksheetController = new InboundWorksheetController(trxMgr)
-  await worksheetController.completeUnloading({ domain, user, arrivalNoticeNo, unloadingWorksheetDetails })
+  const worksheetController: UnloadingWorksheetController = new UnloadingWorksheetController(trxMgr, domain, user)
+  await worksheetController.completeUnloading(arrivalNoticeNo, unloadingWorksheetDetails)
 }

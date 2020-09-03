@@ -1,7 +1,7 @@
 import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
-import { OutboundWorksheetController } from '../../../../controllers'
+import { ReturningWorksheetController } from '../../../../controllers'
 import { Worksheet, WorksheetDetail } from '../../../../entities'
 
 export const activateReturnResolver = {
@@ -19,6 +19,6 @@ export async function activateReturn(
   worksheetNo: string,
   returningWorksheetDetails: Partial<WorksheetDetail>[]
 ): Promise<Worksheet> {
-  const worksheetController: OutboundWorksheetController = new OutboundWorksheetController(trxMgr)
-  return await worksheetController.activateReturning({ domain, user, worksheetNo, returningWorksheetDetails })
+  const worksheetController: ReturningWorksheetController = new ReturningWorksheetController(trxMgr, domain, user)
+  return await worksheetController.activateReturning(worksheetNo, returningWorksheetDetails)
 }

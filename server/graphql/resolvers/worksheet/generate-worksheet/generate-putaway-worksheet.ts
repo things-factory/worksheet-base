@@ -4,7 +4,7 @@ import { Domain } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
-import { InboundWorksheetController } from '../../../../controllers/inbound-worksheet-controller'
+import { PutawayWorksheetController } from '../../../../controllers'
 import { Worksheet, WorksheetDetail } from '../../../../entities'
 
 export const generatePutawayWorksheetResolver = {
@@ -55,6 +55,6 @@ export async function generatePutawayWorksheet(
   arrivalNoticeNo: string,
   inventories: Inventory[]
 ): Promise<Worksheet> {
-  const worksheetController: InboundWorksheetController = new InboundWorksheetController(trxMgr)
-  return await worksheetController.generatePutawayWorksheet({ domain, user, arrivalNoticeNo, inventories })
+  const worksheetController: PutawayWorksheetController = new PutawayWorksheetController(trxMgr, domain, user)
+  return await worksheetController.generatePutawayWorksheet(arrivalNoticeNo, inventories)
 }

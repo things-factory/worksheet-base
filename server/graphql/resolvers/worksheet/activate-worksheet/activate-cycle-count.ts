@@ -19,6 +19,6 @@ export async function activateCycleCount(
   user: User,
   worksheetNo: string
 ): Promise<Worksheet> {
-  const worksheetController: CycleCountWorksheetController = new CycleCountWorksheetController(trxMgr)
-  return await worksheetController.activateCycleCount({ domain, user, worksheetNo })
+  const worksheetController: CycleCountWorksheetController = new CycleCountWorksheetController(trxMgr, domain, user)
+  return await worksheetController.activateCycleCount(worksheetNo)
 }

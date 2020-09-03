@@ -3,11 +3,7 @@ import { ArrivalNotice, ORDER_TYPES, ReleaseGood } from '@things-factory/sales-b
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_TYPE } from '../../../../constants'
-import {
-  InboundWorksheetController,
-  OutboundWorksheetController,
-  VasWorksheetController
-} from '../../../../controllers'
+import { LoadingWorksheetController, PutawayWorksheetController, VasWorksheetController } from '../../../../controllers'
 import { Worksheet, WorksheetDetail } from '../../../../entities'
 
 export const completeVasResolver = {
@@ -54,15 +50,11 @@ async function activatePutawayWorksheet(
   user: User,
   arrivalNotice: ArrivalNotice
 ): Promise<void> {
-  const worksheetController: InboundWorksheetController = new InboundWorksheetController(trxMgr)
-  const worksheet: Worksheet = await worksheetController.findWorksheetByRefOrder(
-    domain,
-    arrivalNotice,
-    WORKSHEET_TYPE.PUTAWAY
-  )
+  const worksheetController: PutawayWorksheetController = new PutawayWorksheetController(trxMgr, domain, user)
+  const worksheet: Worksheet = await worksheetController.findWorksheetByRefOrder(arrivalNotice, WORKSHEET_TYPE.PUTAWAY)
   const worksheetNo: string = worksheet.name
   const putawayWorksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
-  await worksheetController.activatePutaway({ domain, user, worksheetNo, putawayWorksheetDetails })
+  await worksheetController.activatePutaway(worksheetNo, putawayWorksheetDetails)
 }
 
 async function activateLoadingWorksheet(
@@ -71,13 +63,9 @@ async function activateLoadingWorksheet(
   user: User,
   releaseGood: ReleaseGood
 ): Promise<void> {
-  const worksheetController: OutboundWorksheetController = new OutboundWorksheetController(trxMgr)
-  const worksheet: Worksheet = await worksheetController.findWorksheetByRefOrder(
-    domain,
-    releaseGood,
-    WORKSHEET_TYPE.LOADING
-  )
+  const worksheetController: LoadingWorksheetController = new LoadingWorksheetController(trxMgr, domain, user)
+  const worksheet: Worksheet = await worksheetController.findWorksheetByRefOrder(releaseGood, WORKSHEET_TYPE.LOADING)
   const worksheetNo: string = worksheet.name
   const loadingWorksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
-  await worksheetController.activateLoading({ domain, user, worksheetNo, loadingWorksheetDetails })
+  await worksheetController.activateLoading(worksheetNo, loadingWorksheetDetails)
 }

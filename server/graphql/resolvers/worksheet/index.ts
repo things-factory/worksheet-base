@@ -37,9 +37,8 @@ import { undoLoading } from './undo-loading'
 import { undoPickingAssigmentResolver } from './undo-picking-assignment'
 import { undoPreunload } from './undo-preunload'
 import { undoPutaway } from './undo-putaway'
-import { undoUnloading } from './undo-unloading'
 import { undoVas } from './undo-vas'
-import { unload } from './unload'
+import { Mutations as UnloadingMutations } from './unload'
 import { unloadedInventories } from './unloaded-inventories'
 import { unloadingWorksheetResolver } from './unloading-worksheet'
 import { updateWorksheet } from './update-worksheet'
@@ -83,6 +82,7 @@ export const Mutation = {
   ...GenerateWorksheetMutations,
   ...ActivateWorksheetMutations,
   ...CompleteWorksheetMutations,
+  ...UnloadingMutations,
   ...updateWorksheet,
   ...createWorksheet,
   ...cycleCountAdjustment,
@@ -91,9 +91,7 @@ export const Mutation = {
   ...proceedEditedBatchResolver,
   ...preunload,
   ...undoPreunload,
-  ...unload,
   ...returning,
-  ...undoUnloading,
   ...undoPutaway,
   ...undoInspection,
   ...putaway,

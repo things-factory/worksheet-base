@@ -2,7 +2,7 @@ import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, Equal, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
-import { InboundWorksheetController } from '../../../../controllers'
+import { PutawayWorksheetController } from '../../../../controllers'
 import { Worksheet, WorksheetDetail } from '../../../../entities'
 
 export const activatePutawayResolver = {
@@ -46,11 +46,6 @@ export async function activatePutaway(
   worksheetNo: string,
   putawayWorksheetDetails: Partial<WorksheetDetail>[]
 ) {
-  const worksheetController: InboundWorksheetController = new InboundWorksheetController(trxMgr)
-  worksheetController.activatePutaway({
-    domain,
-    user,
-    worksheetNo,
-    putawayWorksheetDetails
-  })
+  const worksheetController: PutawayWorksheetController = new PutawayWorksheetController(trxMgr, domain, user)
+  worksheetController.activatePutaway(worksheetNo, putawayWorksheetDetails)
 }

@@ -12,11 +12,13 @@ import {
   ReleaseGood,
   VasOrder
 } from '@things-factory/sales-base'
+import { Product } from '@things-factory/product-base'
 import { Domain, sendNotification } from '@things-factory/shell'
-import { EntityManager, EntitySchema, FindOneOptions } from 'typeorm'
+import { Inventory, INVENTORY_STATUS, Location, Warehouse, InventoryNoGenerator } from '@things-factory/warehouse-base'
+import { EntityManager, EntitySchema, Equal, FindOneOptions, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
-import { WorksheetNoGenerator } from '../utils'
+import { WorksheetNoGenerator, generateInventoryHistory } from '../utils'
 
 export type ReferenceOrderType = ArrivalNotice | ReleaseGood | VasOrder | InventoryCheck
 export type OrderTargetTypes = OrderProduct | OrderInventory | OrderVas
@@ -33,9 +35,7 @@ export interface NotificationMsgInterface {
 }
 
 export class WorksheetController {
-  protected trxMgr: EntityManager
-
-  public readonly ERROR_MSG: Record<string, any> = {
+  public readonly ERROR_MSG = {
     FIND: {
       NO_RESULT: (condition: any) => `There's no results matched with condition ${condition}`
     },
@@ -51,7 +51,8 @@ export class WorksheetController {
     VALIDITY: {
       UNEXPECTED_FIELD_VALUE: (field: string, expectedValue: any, actualValue: any) => `
         Expected ${field} value is ${expectedValue} but got ${actualValue}
-      `
+      `,
+      DUPLICATED: (field: string, value: any) => `There is duplicated ${field} value (${value})`
     }
   }
 
@@ -59,39 +60,32 @@ export class WorksheetController {
     OFFICE_ADMIN: 'Office Admin'
   }
 
-  constructor(trxMgr: EntityManager) {
+  protected trxMgr: EntityManager
+  protected domain: Domain
+  protected user: User
+
+  constructor(trxMgr: EntityManager, domain: Domain, user: User) {
     this.trxMgr = trxMgr
+    this.domain = domain
+    this.user = user
   }
 
-  /**
-   * @summary Insert worksheet into worksheet table
-   * @description
-   * Insert an worksheet into worksheets table
-   * Because it's creating function passed worksheet shouldn't have id
-   * and should have creator & updater
-   * If passed param doesn't fit up those conditions it will throw an error
-   *
-   * @param {Partial<Worksheet>} worksheet
-   * @returns {Promise<Worksheet>}
-   */
   async createWorksheet(
-    domain: Domain,
     bizplace: Bizplace,
     refOrder: ReferenceOrderType,
     type: string,
-    user: User,
     additionalProps: Partial<Worksheet> = {}
   ): Promise<Worksheet> {
     let refOrderType: string = this.getRefOrderField(refOrder)
 
     const worksheet: Partial<Worksheet> = {
-      domain,
+      domain: this.domain,
       bizplace,
       name: WorksheetNoGenerator.generate(type),
       type,
       status: WORKSHEET_STATUS.DEACTIVATED,
-      creator: user,
-      updater: user,
+      creator: this.user,
+      updater: this.user,
       [refOrderType]: refOrder,
       ...additionalProps
     }
@@ -103,23 +97,10 @@ export class WorksheetController {
     return await this.trxMgr.getRepository(Worksheet).save(worksheet)
   }
 
-  /**
-   * @summary Insert worksheet details into worksheet details table
-   * @description
-   * Insert worksheetDetails into worksheet_details table
-   * Because it's creating function every passed worksheetDetails shouldn't have id
-   * and should have creator & updater
-   * If passed param doesn't fit up those conditions it will throw an error
-   *
-   * @param {Partial<WorksheetDetail>[]} worksheetDetails
-   * @returns {Promise<WorksheetDetail[]>}
-   */
   async createWorksheetDetails(
-    domain: Domain,
     worksheet: Worksheet,
     type: string,
     orderTargets: OrderTargetTypes[],
-    user: User,
     additionalProps: Partial<WorksheetDetail> = {}
   ): Promise<WorksheetDetail[]> {
     if (!worksheet.bizplace?.id) await this.findWorksheetById(worksheet.id, ['bizplace'])
@@ -128,14 +109,14 @@ export class WorksheetController {
     const worksheetDetails: Partial<WorksheetDetail>[] = orderTargets.map((orderTarget: OrderTargetTypes) => {
       const orderTargetField: string = this.getOrderTargetField(orderTarget)
       return {
-        domain,
+        domain: this.domain,
         bizplace,
         worksheet,
         name: WorksheetNoGenerator.generate(type, true),
         status: WORKSHEET_STATUS.DEACTIVATED,
         [orderTargetField]: orderTarget,
-        creator: user,
-        updater: user,
+        creator: this.user,
+        updater: this.user,
         ...additionalProps
       }
     })
@@ -242,13 +223,9 @@ export class WorksheetController {
     return worksheet
   }
 
-  async findWorksheetByNo(
-    domain: Domain,
-    worksheetNo: string,
-    relations: string[] = ['worksheetDetails']
-  ): Promise<Worksheet> {
+  async findWorksheetByNo(worksheetNo: string, relations: string[] = ['worksheetDetails']): Promise<Worksheet> {
     const worksheet: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne({
-      where: { domain, name: worksheetNo },
+      where: { domain: this.domain, name: worksheetNo },
       relations
     })
 
@@ -258,12 +235,11 @@ export class WorksheetController {
   }
 
   async findWorksheetByRefOrder(
-    domain: Domain,
     refOrder: ReferenceOrderType,
     type: string,
     relations: string[] = ['worksheetDetails']
   ): Promise<Worksheet> {
-    let condition: FindOneOptions = { where: { domain, type }, relations }
+    let condition: FindOneOptions = { where: { domain: this.domain, type }, relations }
     if (refOrder instanceof ArrivalNotice) {
       condition.where['arrivalNotice'] = refOrder
     } else if (refOrder instanceof ReleaseGood) {
@@ -280,21 +256,24 @@ export class WorksheetController {
     return worksheet
   }
 
-  async findActivatableWorksheet(
-    domain: Domain,
-    worksheetNo: string,
-    type: string,
-    relations: string[]
-  ): Promise<Worksheet> {
-    const worksheet: Worksheet = await this.findWorksheetByNo(domain, worksheetNo, relations)
-    this.checkWorksheetValidity(worksheet, { type, status: WORKSHEET_STATUS.DEACTIVATED })
+  async findActivatableWorksheet(worksheetNo: string, type: string, relations: string[]): Promise<Worksheet> {
+    const worksheet: Worksheet = await this.findWorksheetByNo(worksheetNo, relations)
+    this.checkRecordValidity(worksheet, { type, status: WORKSHEET_STATUS.DEACTIVATED })
 
     return worksheet
   }
 
+  async findWorksheetDetailByName(worksheetDetailName: string, relations?: string[]): Promise<WorksheetDetail> {
+    const worksheetDetail: WorksheetDetail = await this.trxMgr.getRepository(WorksheetDetail).findOne({
+      where: { domain: this.domain, name: worksheetDetailName },
+      relations
+    })
+
+    if (!worksheetDetail) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(worksheetDetailName))
+    return worksheetDetail
+  }
+
   async generateWorksheet(
-    domain: Domain,
-    user: User,
     worksheetType: string,
     refOrder: ReferenceOrderType,
     orderTargets: OrderTargetTypes[],
@@ -313,20 +292,13 @@ export class WorksheetController {
     }
 
     const bizplace: Bizplace = refOrder.bizplace
-    const worksheet: Worksheet = await this.createWorksheet(
-      domain,
-      bizplace,
-      refOrder,
-      worksheetType,
-      user,
-      additionalProps
-    )
+    const worksheet: Worksheet = await this.createWorksheet(bizplace, refOrder, worksheetType, additionalProps)
     orderTargets.forEach((orderTarget: OrderTargetTypes) => {
       orderTarget.status = orderTargetStatus
-      orderTarget.updater = user
+      orderTarget.updater = this.user
     })
     orderTargets = await this.updateOrderTargets(orderTargets)
-    worksheet.worksheetDetails = await this.createWorksheetDetails(domain, worksheet, worksheetType, orderTargets, user)
+    worksheet.worksheetDetails = await this.createWorksheetDetails(worksheet, worksheetType, orderTargets)
 
     refOrder.status = refOrderStatus
     await this.updateRefOrder(refOrder)
@@ -337,8 +309,7 @@ export class WorksheetController {
   async activateWorksheet(
     worksheet: Worksheet,
     worksheetDetails: WorksheetDetail[],
-    changedWorksheetDetails: Partial<WorksheetDetail>[],
-    user: User
+    changedWorksheetDetails: Partial<WorksheetDetail>[]
   ): Promise<Worksheet> {
     if (!worksheet.id || worksheetDetails.some((wsd: WorksheetDetail) => !wsd.id)) {
       throw new Error(this.ERROR_MSG.UPDATE.ID_NOT_EXISTS)
@@ -346,22 +317,22 @@ export class WorksheetController {
 
     worksheet.status = WORKSHEET_STATUS.EXECUTING
     worksheet.startedAt = new Date()
-    worksheet.updater = user
+    worksheet.updater = this.user
     worksheet = await this.trxMgr.getRepository(Worksheet).save(worksheet)
 
     worksheetDetails = this.renewWorksheetDetails(worksheetDetails, changedWorksheetDetails, {
       status: WORKSHEET_STATUS.EXECUTING,
-      updater: user
+      updater: this.user
     })
     worksheet.worksheetDetails = await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetails)
 
     return worksheet
   }
 
-  async completWorksheet(worksheet: Worksheet, user: User, updatedRefOrderStatus?: string): Promise<Worksheet> {
+  async completWorksheet(worksheet: Worksheet, updatedRefOrderStatus?: string): Promise<Worksheet> {
     worksheet.status = WORKSHEET_STATUS.DONE
     worksheet.endedAt = new Date()
-    worksheet.updater = user
+    worksheet.updater = this.user
     worksheet = await this.trxMgr.getRepository(Worksheet).save(worksheet)
 
     const worksheetType: string = worksheet.type
@@ -369,7 +340,7 @@ export class WorksheetController {
 
     worksheetDetails.forEach((wsd: WorksheetDetail) => {
       wsd.status = WORKSHEET_STATUS.DONE
-      wsd.updater = user
+      wsd.updater = this.user
     })
     await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetails)
 
@@ -381,7 +352,7 @@ export class WorksheetController {
       const targetProducts: OrderProduct[] = worksheet.worksheetDetails.map((wsd: WorksheetDetail) => {
         let targetProduct: OrderProduct = wsd.targetProduct
         targetProduct.status = ORDER_PRODUCT_STATUS.TERMINATED
-        targetProduct.updater = user
+        targetProduct.updater = this.user
         return targetProduct
       })
       await this.updateOrderTargets(targetProducts)
@@ -393,12 +364,17 @@ export class WorksheetController {
       const targetVASs: OrderVas[] = worksheet.worksheetDetails.map((wsd: WorksheetDetail) => {
         let targetVAS: OrderVas = wsd.targetVas
         targetVAS.status = ORDER_VAS_STATUS.TERMINATED
-        targetVAS.updater = user
+        targetVAS.updater = this.user
         return targetVAS
       })
 
       await this.updateOrderTargets(targetVASs)
-    } else {
+    } else if (
+      worksheetType === WORKSHEET_TYPE.PUTAWAY ||
+      worksheetType === WORKSHEET_TYPE.PICKING ||
+      worksheetType === WORKSHEET_TYPE.LOADING ||
+      worksheetType === WORKSHEET_TYPE.RETURN
+    ) {
       if (!worksheetDetails?.length || worksheetDetails.some((wsd: WorksheetDetail) => !wsd.targetInventory?.id)) {
         worksheet = await this.findWorksheetById(worksheet.id, ['worksheetDetails', 'worksheetDetails.targetInventory'])
       }
@@ -406,7 +382,7 @@ export class WorksheetController {
       const targetInventories: OrderInventory[] = worksheet.worksheetDetails.map((wsd: WorksheetDetail) => {
         let targetInventory: OrderInventory = wsd.targetInventory
         targetInventory.status = ORDER_INVENTORY_STATUS.TERMINATED
-        targetInventory.updater = user
+        targetInventory.updater = this.user
         return targetInventory
       })
 
@@ -416,7 +392,7 @@ export class WorksheetController {
     if (updatedRefOrderStatus) {
       const refOrder: ReferenceOrderType = await this.extractRefOrder(worksheet)
       refOrder.status = updatedRefOrderStatus
-      refOrder.updater = user
+      refOrder.updater = this.user
       await this.updateRefOrder(refOrder)
     }
 
@@ -443,21 +419,21 @@ export class WorksheetController {
     return changedWSDs.find((changedWSD: Partial<WorksheetDetail>) => changedWSD.name === originWSDName)
   }
 
-  checkWorksheetValidity(worksheet: Worksheet, conditions: Record<string, any>): void {
+  checkRecordValidity(record: Record<string, any>, conditions: Record<string, any>): void {
     for (let field in conditions) {
       let isValid: boolean = false
       if (typeof conditions[field] === 'function') {
-        isValid = conditions[field](worksheet[field])
+        isValid = conditions[field](record[field])
       } else {
-        isValid = conditions[field] === worksheet[field]
+        isValid = conditions[field] === record[field]
       }
 
       if (!isValid)
-        throw new Error(this.ERROR_MSG.VALIDITY.UNEXPECTED_FIELD_VALUE(field, conditions[field], worksheet[field]))
+        throw new Error(this.ERROR_MSG.VALIDITY.UNEXPECTED_FIELD_VALUE(field, conditions[field], record[field]))
     }
   }
 
-  async notifiyToOfficeAdmin(domain: Domain, message: NotificationMsgInterface): Promise<void> {
+  async notifiyToOfficeAdmin(message: NotificationMsgInterface): Promise<void> {
     const users: User[] = await this.trxMgr
       .getRepository('users_roles')
       .createQueryBuilder('ur')
@@ -468,7 +444,7 @@ export class WorksheetController {
           .select('role.id')
           .from(Role, 'role')
           .where('role.name = :roleName', { roleName: this.ROLE_NAMES.OFFICE_ADMIN })
-          .andWhere('role.domain_id = :domainId', { domainId: domain.id })
+          .andWhere('role.domain_id = :domainId', { domainId: this.domain.id })
           .getQuery()
         return 'ur.roles_id IN ' + subQuery
       })
@@ -477,7 +453,7 @@ export class WorksheetController {
     this.notifyToUsers(users, message)
   }
 
-  async notifyToCustomer(domain: Domain, bizplace: Bizplace, message: NotificationMsgInterface): Promise<void> {
+  async notifyToCustomer(bizplace: Bizplace, message: NotificationMsgInterface): Promise<void> {
     const users: any[] = await this.trxMgr
       .getRepository('bizplaces_users')
       .createQueryBuilder('bu')
@@ -549,5 +525,50 @@ export class WorksheetController {
     }
 
     return refOrder
+  }
+
+  async checkPalletDuplication(palletId: string): Promise<void> {
+    const duplicatedPalletCnt: number = await this.trxMgr.getRepository(Inventory).count({
+      domain: this.domain,
+      palletId,
+      status: Not(Equal(INVENTORY_STATUS.TERMINATED))
+    })
+
+    if (duplicatedPalletCnt) throw new Error(this.ERROR_MSG.VALIDITY.DUPLICATED('Pallet ID', palletId))
+  }
+
+  calcTotalInvWeight(qty: number, weight: number): number {
+    return Math.round(qty * weight * 100) / 100
+  }
+
+  async modifyInventory(
+    inventory: Partial<Inventory>,
+    referencOrder: ReferenceOrderType,
+    changedQty: number,
+    changedWeight: number,
+    transactionType?: string
+  ): Promise<Inventory> {
+    inventory = this.setStamp(inventory)
+    inventory = await this.trxMgr.getRepository(Inventory).save(inventory)
+
+    if (transactionType) {
+      generateInventoryHistory(
+        inventory,
+        referencOrder,
+        transactionType,
+        changedQty,
+        changedWeight,
+        this.user,
+        this.trxMgr
+      )
+    }
+  }
+
+  setStamp(record: Record<string, any>): Record<string, any> {
+    if (!record.domain) record.domain = this.domain
+    if (!record.id && !record.creator) record.creator = this.user
+    if (!record.updater) record.updater = this.user
+
+    return record
   }
 }

@@ -1,7 +1,7 @@
 import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
-import { OutboundWorksheetController } from '../../../../controllers'
+import { PickingWorksheetController } from '../../../../controllers'
 import { Worksheet } from '../../../../entities'
 
 export const activatePickingResolver = {
@@ -19,6 +19,6 @@ export async function activatePicking(
   user: User,
   worksheetNo: string
 ): Promise<Worksheet> {
-  const worksheetController: OutboundWorksheetController = new OutboundWorksheetController(trxMgr)
-  return await worksheetController.activatePicking({ domain, user, worksheetNo })
+  const worksheetController: PickingWorksheetController = new PickingWorksheetController(trxMgr, domain, user)
+  return await worksheetController.activatePicking(worksheetNo)
 }

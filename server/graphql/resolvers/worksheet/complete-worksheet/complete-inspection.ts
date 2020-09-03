@@ -2,7 +2,7 @@ import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../../constants'
-import { CycleCountWorksheetController } from '../../../../controllers/cycle-count-worksheet-controller'
+import { CycleCountWorksheetController } from '../../../../controllers'
 import { WorksheetController } from '../../../../controllers/worksheet-controller'
 import { Worksheet } from '../../../../entities'
 
@@ -16,9 +16,9 @@ export const completeInspectionResolver = {
         worksheet.status === WORKSHEET_STATUS.DONE
           ? `Inventories are checked successfully.`
           : `There are inventories needed to be reviewed. `
-      const worksheetController: WorksheetController = new WorksheetController(trxMgr)
+      const worksheetController: WorksheetController = new WorksheetController(trxMgr, domain, user)
 
-      await worksheetController.notifiyToOfficeAdmin(domain, {
+      await worksheetController.notifiyToOfficeAdmin({
         title: `Inventory check has been completed`,
         message,
         url: context.header.referer
@@ -33,6 +33,6 @@ export async function completeCycleCount(
   user: User,
   inventoryCheckNo: string
 ): Promise<Worksheet> {
-  const worksheetController: CycleCountWorksheetController = new CycleCountWorksheetController(trxMgr)
-  return await worksheetController.completeCycleCount({ domain, user, inventoryCheckNo })
+  const worksheetController: CycleCountWorksheetController = new CycleCountWorksheetController(trxMgr, domain, user)
+  return await worksheetController.completeCycleCount(inventoryCheckNo)
 }

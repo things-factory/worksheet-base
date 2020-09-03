@@ -20,6 +20,6 @@ export async function activateVas(
   worksheetNo: string,
   vasWorksheetDetails: Partial<WorksheetDetail>[]
 ) {
-  const worksheetController: VasWorksheetController = new VasWorksheetController(trxMgr)
-  return await worksheetController.activateVAS({ domain, user, worksheetNo, vasWorksheetDetails })
+  const worksheetController: VasWorksheetController = new VasWorksheetController(trxMgr, domain, user)
+  return await worksheetController.activateVAS(worksheetNo, vasWorksheetDetails)
 }

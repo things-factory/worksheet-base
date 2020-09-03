@@ -2,7 +2,7 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
-import { OutboundWorksheetController } from '../../../../controllers/outbound-worksheet-controller'
+import { ReturningWorksheetController } from '../../../../controllers'
 import { WorksheetController } from '../../../../controllers/worksheet-controller'
 import { Worksheet } from '../../../../entities'
 
@@ -12,13 +12,13 @@ export const completeReturnResolver = {
       const { domain, user }: { domain: Domain; user: User } = context.state
       let worksheet: Worksheet = await completeReturn(trxMgr, domain, user, releaseGoodNo)
 
-      const worksheetController: WorksheetController = new WorksheetController(trxMgr)
+      const worksheetController: WorksheetController = new WorksheetController(trxMgr, domain, user)
       if (!worksheet.bizplace?.id) {
         worksheet = await worksheetController.findWorksheetById(worksheet.id, ['bizplace'])
       }
 
       const bizplace: Bizplace = worksheet.bizplace
-      await worksheetController.notifyToCustomer(domain, bizplace, {
+      await worksheetController.notifyToCustomer(bizplace, {
         title: `Stock has been returned to storage`,
         message: `${releaseGoodNo} is done`,
         url: context.header.referer
@@ -33,6 +33,6 @@ export async function completeReturn(
   user: User,
   releaseGoodNo: string
 ): Promise<Worksheet> {
-  const worksheetController: OutboundWorksheetController = new OutboundWorksheetController(trxMgr)
-  return await worksheetController.completeReturning({ domain, user, releaseGoodNo })
+  const worksheetController: ReturningWorksheetController = new ReturningWorksheetController(trxMgr, domain, user)
+  return await worksheetController.completeReturning(releaseGoodNo)
 }

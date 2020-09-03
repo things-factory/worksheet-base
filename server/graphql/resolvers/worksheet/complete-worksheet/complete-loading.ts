@@ -3,7 +3,7 @@ import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } fro
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_TYPE } from '../../../../constants'
-import { OutboundWorksheetController } from '../../../../controllers/outbound-worksheet-controller'
+import { LoadingWorksheetController, ReturningWorksheetController } from '../../../../controllers'
 import { Worksheet, WorksheetDetail } from '../../../../entities'
 
 export const completeLoadingResolver = {
@@ -21,25 +21,23 @@ export async function completeLoading(
   user: User,
   releaseGoodNo: string
 ): Promise<void> {
-  const worksheetController: OutboundWorksheetController = new OutboundWorksheetController(trxMgr)
+  const worksheetController: LoadingWorksheetController = new LoadingWorksheetController(trxMgr, domain, user)
   const releaseGood: ReleaseGood = await worksheetController.findRefOrder(ReleaseGood, {
     domain,
     name: releaseGoodNo,
     status: ORDER_STATUS.LOADING
   })
-  const worksheet: Worksheet = await worksheetController.findWorksheetByRefOrder(
-    domain,
-    releaseGood,
-    WORKSHEET_TYPE.LOADING,
-    ['worksheetDetails', 'worksheetDetails.targetInventory']
-  )
+  const worksheet: Worksheet = await worksheetController.findWorksheetByRefOrder(releaseGood, WORKSHEET_TYPE.LOADING, [
+    'worksheetDetails',
+    'worksheetDetails.targetInventory'
+  ])
   const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
   const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
   const remainInventories: OrderInventory[] = targetInventories.filter(
     (targetInventory: OrderInventory) => targetInventory.status === ORDER_INVENTORY_STATUS.LOADED
   )
 
-  await worksheetController.completeLoading({ domain, user, releaseGoodNo })
+  await worksheetController.completeLoading(releaseGoodNo)
 
   if (remainInventories.length) {
     await createReturnWorksheet(trxMgr, domain, user, releaseGoodNo, remainInventories)
@@ -54,11 +52,6 @@ export async function createReturnWorksheet(
   releaseGoodNo: string,
   orderInventories: OrderInventory[]
 ): Promise<Worksheet> {
-  const worksheetController: OutboundWorksheetController = new OutboundWorksheetController(trxMgr)
-  return await worksheetController.generateReturningWorksheet({
-    domain,
-    user,
-    releaseGoodNo,
-    targetInventories: orderInventories
-  })
+  const worksheetController: ReturningWorksheetController = new ReturningWorksheetController(trxMgr, domain, user)
+  return await worksheetController.generateReturningWorksheet(releaseGoodNo, orderInventories)
 }

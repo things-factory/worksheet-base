@@ -2,7 +2,7 @@ import { User } from '@things-factory/auth-base'
 import { ArrivalNotice, generateGoodsReceivalNote } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
-import { InboundWorksheetController } from '../../../../controllers/inbound-worksheet-controller'
+import { PutawayWorksheetController } from '../../../../controllers'
 import { Worksheet } from '../../../../entities'
 
 export const completePutawayResolver = {
@@ -20,8 +20,8 @@ export async function completePutaway(
   user: User,
   arrivalNoticeNo: string
 ): Promise<void> {
-  const worksheetController: InboundWorksheetController = new InboundWorksheetController(trxMgr)
-  let worksheet: Worksheet = await worksheetController.completePutaway({ domain, user, arrivalNoticeNo })
+  const worksheetController: PutawayWorksheetController = new PutawayWorksheetController(trxMgr, domain, user)
+  let worksheet: Worksheet = await worksheetController.completePutaway(arrivalNoticeNo)
 
   /**
    * 4. Generate the Goods Received Note straight away
