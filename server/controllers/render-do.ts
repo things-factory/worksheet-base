@@ -117,12 +117,15 @@ export async function renderDO({ domain: domainName, doNo }) {
         product_batch: inventory.batchId,
         product_qty: targetInventory.releaseQty,
         product_weight: targetInventory.releaseWeight,
-        remark: targetInventory.remark
+        remark: targetInventory.remark,
+        cross_docking: targetInventory.crossDocking
       }
     })
     .reduce((newItem, item) => {
       var foundItem = newItem.find(
-        newItem => newItem.product_name === item.product_name && newItem.product_batch === item.product_batch
+        newItem => newItem.product_name === item.product_name &&
+        newItem.product_batch === item.product_batch &&
+        newItem.cross_docking === item.cross_docking
       )
       if (!foundItem) {
         foundItem = {
@@ -131,14 +134,19 @@ export async function renderDO({ domain: domainName, doNo }) {
           product_batch: item.product_batch,
           product_qty: item.product_qty,
           product_weight: item.product_weight,
-          remark: 1
+          remark: 1,
+          cross_docking: item.cross_docking
         }
 
         newItem.push(foundItem)
         return newItem
       } else {
         return newItem.map(ni => {
-          if (ni.product_name === item.product_name && ni.product_batch === item.product_batch) {
+          if (
+            ni.product_name === item.product_name &&
+            ni.product_batch === item.product_batch &&
+            ni.cross_docking === item.cross_docking
+            ) {
             return {
               ...ni,
               remark: ni.remark + 1,
@@ -177,7 +185,9 @@ export async function renderDO({ domain: domainName, doNo }) {
       return {
         ...prod,
         list_no: idx + 1,
-        remark: prod.remark > 1 ? `${prod.remark} PALLETS` : `${prod.remark} PALLET`
+        remark: prod.cross_docking ?
+          prod.remark > 1 ? `${prod.remark} PALLETS [C/D]` : `${prod.remark} PALLET [C/D]` :
+          prod.remark > 1 ? `${prod.remark} PALLETS` : `${prod.remark} PALLET`
       }
     })
   } //.. make data from do
