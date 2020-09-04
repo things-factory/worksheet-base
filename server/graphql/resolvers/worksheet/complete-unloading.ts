@@ -3,8 +3,11 @@ import {
   ArrivalNotice,
   generateGoodsReceivalNote,
   OrderProduct,
+  OrderInventory,
   ORDER_PRODUCT_STATUS,
-  ORDER_STATUS
+  ORDER_INVENTORY_STATUS,
+  ORDER_STATUS,
+  ORDER_TYPES
 } from '@things-factory/sales-base'
 import { Domain, sendNotification } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
@@ -30,15 +33,6 @@ export const completeUnloading = {
 
       if (!arrivalNotice) throw new Error(`ArrivalNotice doesn't exists.`)
 
-      if(arrivalNotice.crossDocking) {
-        // Picking worksheet for cross docking should be completed before complete it
-        // Find picking worksheet
-        const executingPickingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-          where: { domain, releaseGood: arrivalNotice.releaseGood, type: WORKSHEET_TYPE.PICKING, status: Not(Equal(WORKSHEET_STATUS.DONE))}
-        })
-        if(executingPickingWorksheet) throw new Error(`Picking should be completed before complete unloading for cross docking.`)
-      }
-
       /**
        * 2. Validation for non-approved order products
        *    - If there's non approved order product (status: READY_TO_APPROVED)
@@ -55,14 +49,62 @@ export const completeUnloading = {
           type: WORKSHEET_TYPE.UNLOADING,
           arrivalNotice
         },
-        relations: ['bizplace', 'bufferLocation', 'worksheetDetails', 'worksheetDetails.targetProduct']
+        relations: ['bizplace', 'bufferLocation', 'worksheetDetails', 'worksheetDetails.targetProduct', 'worksheetDetails.targetProduct.product']
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists.`)
+      let allPicked = []
       let foundWorksheetDetails: WorksheetDetail[] = foundWorksheet.worksheetDetails
       let targetProducts: OrderProduct[] = foundWorksheetDetails.map(
         (foundWSD: WorksheetDetail) => foundWSD.targetProduct
       )
+
+      /** CROSS DOCKING **
+       * If the cross docking item is not yet picked, need to finish picking first
+       * If the picking is done and released all inbound items, putaway worksheet will not be generated
+       *    - find the picking worksheet that is done
+       *    - get all order inventories item
+       *    - need to total up the qty and weight 
+       *    - compare product_id, batch_no, packing_type, release_qty and release_weight of order inventories with order products
+       *    - check worksheet_details for picking if it is terminated
+       */
+
+      if (arrivalNotice.crossDocking) {
+        const donePickingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+          where: { domain, releaseGood: arrivalNotice.releaseGood, type: WORKSHEET_TYPE.PICKING, status: Equal(WORKSHEET_STATUS.DONE) },
+          relations: ['bizplace', 'worksheetDetails', 'worksheetDetails.targetInventory', 'worksheetDetails.targetInventory.product']
+        })
+
+        if (donePickingWorksheet) {
+          const donePickingWSD: WorksheetDetail[] = donePickingWorksheet.worksheetDetails
+          const targetInventories: OrderInventory[] = donePickingWSD.map(
+            (doneWSD: WorksheetDetail) => doneWSD.targetInventory
+          )
+          
+          targetProducts.forEach((targetProduct: OrderProduct) => {
+            targetInventories.forEach((targetInventory: OrderInventory) => {
+              if (
+                // since release order in cross docking will only release by product,
+                // we can use these parameters to check
+                targetInventory.product.id === targetProduct.product.id &&
+                targetInventory.packingType === targetProduct.packingType &&
+                targetInventory.batchId === targetProduct.batchId
+              ) {
+                if (
+                  targetInventory.releaseQty === targetProduct.actualPackQty &&
+                  targetInventory.releaseWeight === (targetProduct.actualPackQty * targetProduct.weight)
+                )
+                  allPicked.push(true)
+                else
+                  allPicked.push(false)
+              }
+            })
+          })
+        }
+        // throw error if the picking worksheet is still executing
+        else throw new Error(`Picking should be completed before complete unloading for cross docking.`)
+
+      }
 
       /**
        * Validation for partial unloaded pallets
@@ -168,22 +210,40 @@ export const completeUnloading = {
         }
       })
 
-      const putawayWorksheet: Worksheet = await generatePutawayWorksheet(
-        domain,
-        arrivalNotice,
-        inventories,
-        user,
-        trxMgr
-      )
+      let arrivalNoticeStatus
 
-      // Activate it if putaway worksheet is deactivated
-      if (putawayWorksheet.status === WORKSHEET_STATUS.DEACTIVATED) {
-        await activatePutaway(putawayWorksheet.name, putawayWorksheet.worksheetDetails, domain, user, trxMgr)
+      // if there is unpicked item, need to generate putaway worksheet
+      if (allPicked.length == 0 || allPicked.includes(false)) {
+        const putawayWorksheet: Worksheet = await generatePutawayWorksheet(
+          domain,
+          arrivalNotice,
+          inventories,
+          user,
+          trxMgr
+        )
+
+        // Activate it if putaway worksheet is deactivated
+        if (putawayWorksheet.status === WORKSHEET_STATUS.DEACTIVATED) {
+          await activatePutaway(putawayWorksheet.name, putawayWorksheet.worksheetDetails, domain, user, trxMgr)
+        }
+        arrivalNoticeStatus = ORDER_STATUS.PUTTING_AWAY
+
       }
+      else {
+        // since there's no putaway worksheet is generated, then need to generate GRN
+        await generateGoodsReceivalNote(
+          { refNo: arrivalNotice.name, customer: arrivalNotice.bizplace.id },
+          context.state.domain,
+          context.state.user,
+          trxMgr
+        )
 
-      // Update status of arrival notice to PUTTING_AWAY
+        arrivalNoticeStatus = ORDER_STATUS.DONE
+      }
+      
+      // Update status of arrival notice 
       arrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({ where: { domain, id: arrivalNotice.id } })
-      arrivalNotice.status = ORDER_STATUS.PUTTING_AWAY
+      arrivalNotice.status = arrivalNoticeStatus
       arrivalNotice.updater = user
       await trxMgr.getRepository(ArrivalNotice).save(arrivalNotice)
 
