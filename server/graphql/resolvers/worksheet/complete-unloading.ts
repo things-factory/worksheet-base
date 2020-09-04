@@ -97,6 +97,16 @@ export const completeUnloading = {
                   allPicked.push(true)
                 else
                   allPicked.push(false)
+              } 
+              // need to check if the there is order product without release qty and weight
+              // which means it will go to the inventory
+              else if (
+                targetProduct.releaseQty === null ||
+                targetProduct.releaseQty === 0 ||
+                targetProduct.releaseWeight === null ||
+                targetProduct.releaseWeight === 0
+              ) {
+                allPicked.push(false)
               }
             })
           })
