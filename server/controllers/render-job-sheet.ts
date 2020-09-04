@@ -144,6 +144,7 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
     .groupBy('inv.id')
     .addGroupBy('product.name')
     .addGroupBy('do2.own_collection')
+    .addOrderBy('product.name')
 
   const invItems: any[] = await query.getRawMany()
 
