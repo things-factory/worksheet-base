@@ -48,7 +48,8 @@ export async function executePicking(
       'targetInventory.inventory.bizplace',
       'targetInventory.inventory.product',
       'targetInventory.inventory.warehouse',
-      'targetInventory.inventory.location'
+      'targetInventory.inventory.location',
+      'targetInventory.inventory.reusablePallet'
     ]
   })
   if (!worksheetDetail) throw new Error(`Worksheet Details doesn't exists`)

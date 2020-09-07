@@ -18,15 +18,24 @@ export const generatePalletIdResolver = {
     let results = []
 
     // 2. get worksheet detail
-    let ids = targets.map((target) => target.id)
+    let ids = targets.map(target => target.id)
 
     // - getRepository using In(array) to pass the value to defined variable
     const foundWorksheetDetails: WorksheetDetail[] = await getRepository(WorksheetDetail).find({
       where: {
         domain: context.state.domain,
-        id: In(ids),
+        id: In(ids)
       },
-      relations: ['domain', 'bizplace', 'worksheet', 'worker', 'targetProduct', 'targetProduct.product'],
+      relations: [
+        'domain',
+        'bizplace',
+        'worksheet',
+        'worker',
+        'targetProduct',
+        'targetProduct.product',
+        'targetVas',
+        'targetVas.targetProduct'
+      ]
     })
 
     // 3. from worksheet detail get product name, product type, batchid, packing type, bizplace
@@ -39,21 +48,39 @@ export const generatePalletIdResolver = {
           if (foundWSD.id === targets[idx].id) {
             // 4. generate pallet id based on print qty > call generateId resolver
             for (let i = 0; i < targets[idx].printQty; i++) {
-              const generatedPalletId = await generateId({
-                domain: context.state.domain,
-                type: 'pallet_id',
-                seed: {
-                  batchId: foundWSD.targetProduct.batchId,
-                  date: date,
-                },
-              })
-
-              // 5. map all data to be returned
-              results.push({
-                ...foundWSD.targetProduct,
-                palletId: generatedPalletId,
-                bizplace: foundWSD.bizplace,
-              })
+              if (foundWSD.type === 'VAS') {
+                const generatedPalletId = await generateId({
+                  domain: context.state.domain,
+                  type: 'pallet_id',
+                  seed: {
+                    batchId: foundWSD.targetVas.targetBatchId,
+                    date: date
+                  }
+                })
+                // 5. map all data to be returned
+                results.push({
+                  product: foundWSD.targetVas.targetProduct,
+                  bizplace: foundWSD.bizplace,
+                  batchId: foundWSD.targetVas.targetBatchId,
+                  packingType: foundWSD.targetVas.packingType,
+                  palletId: generatedPalletId
+                })
+              } else {
+                const generatedPalletId = await generateId({
+                  domain: context.state.domain,
+                  type: 'pallet_id',
+                  seed: {
+                    batchId: foundWSD.targetProduct.batchId,
+                    date: date
+                  }
+                })
+                // 5. map all data to be returned
+                results.push({
+                  ...foundWSD.targetProduct,
+                  palletId: generatedPalletId,
+                  bizplace: foundWSD.bizplace
+                })
+              }
             }
           }
         }
@@ -61,5 +88,5 @@ export const generatePalletIdResolver = {
     }
 
     return results
-  },
+  }
 }
