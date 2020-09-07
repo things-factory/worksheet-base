@@ -22,7 +22,7 @@ import {
   Pallet,
   Warehouse
 } from '@things-factory/warehouse-base'
-import { Equal, In, Not } from 'typeorm'
+import { Equal, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../constants'
 import { Worksheet, WorksheetDetail } from '../../entities'
 import { VasWorksheetController } from '../vas/vas-worksheet-controller'
@@ -65,19 +65,69 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     return worksheet
   }
 
+  async preunload(
+    worksheetDetailName: string,
+    adjustedBatchId: string,
+    passedPalletQty: number,
+    palletQty: number
+  ): Promise<void> {
+    let worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
+      worksheetDetailName,
+      WORKSHEET_TYPE.UNLOADING,
+      ['targetProduct']
+    )
+
+    let targetProduct: OrderProduct = worksheetDetail.targetProduct
+    const isPalletQtyChanged: boolean = passedPalletQty !== palletQty
+    if (isPalletQtyChanged) targetProduct.adjustedPalletQty = passedPalletQty
+    targetProduct.updater = this.user
+
+    if (adjustedBatchId) {
+      targetProduct.adjustedBatchId = adjustedBatchId
+      targetProduct.status = ORDER_PRODUCT_STATUS.PENDING_APPROVAL
+    } else {
+      targetProduct.status = ORDER_PRODUCT_STATUS.INSPECTED
+    }
+    await this.updateOrderTargets([targetProduct])
+
+    worksheetDetail.status = WORKSHEET_STATUS.INSPECTED
+    worksheetDetail.updater = this.user
+    await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
+  }
+
+  async undoPreunload(worksheetDetailName: string): Promise<void> {
+    let worksheetDetail: WorksheetDetail = await this.findWorksheetDetailByName(worksheetDetailName, ['targetProduct'])
+    this.checkRecordValidity(worksheetDetail, { status: WORKSHEET_STATUS.INSPECTED })
+
+    let targetProduct: OrderProduct = worksheetDetail.targetProduct
+    targetProduct.status = ORDER_PRODUCT_STATUS.READY_TO_UNLOAD
+    targetProduct.adjustedBatchId = null
+    targetProduct.adjustedPalletQty = null
+    targetProduct.updater = this.user
+    await this.updateOrderTargets([targetProduct])
+
+    worksheetDetail.status = WORKSHEET_STATUS.DEACTIVATED
+    worksheetDetail.updater = this.user
+    await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
+  }
+
   async unload(worksheetDetailName: string, inventory: Partial<Inventory>): Promise<void> {
     const palletId: string = inventory.palletId
     this.checkPalletDuplication(palletId)
 
-    const worksheetDetail: WorksheetDetail = await this.findWorksheetDetailByName(worksheetDetailName, [
-      'bizplace',
-      'worksheet',
-      'worksheet.arrivalNotice',
-      'worksheet.bufferLocation',
-      'worksheet.bufferLocation.warehouse',
-      'targetProduct',
-      'targetProduct.product'
-    ])
+    const worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
+      worksheetDetailName,
+      WORKSHEET_TYPE.UNLOADING,
+      [
+        'bizplace',
+        'worksheet',
+        'worksheet.arrivalNotice',
+        'worksheet.bufferLocation',
+        'worksheet.bufferLocation.warehouse',
+        'targetProduct',
+        'targetProduct.product'
+      ]
+    )
 
     const bizplace: Bizplace = worksheetDetail.bizplace
     const worksheet: Worksheet = worksheetDetail.worksheet
@@ -125,15 +175,21 @@ export class UnloadingWorksheetController extends VasWorksheetController {
   }
 
   async undoUnload(worksheetDetailName: string, palletId: string): Promise<void> {
-    const worksheetDetail: WorksheetDetail = await this.trxMgr.getRepository(WorksheetDetail).findOne({
-      where: {
-        domain: this.domain,
-        name: worksheetDetailName,
-        status: In([WORKSHEET_STATUS.EXECUTING, WORKSHEET_STATUS.PARTIALLY_UNLOADED])
-      },
-      relations: ['targetProduct', 'worksheet', 'worksheet.arrivalNotice']
+    const worksheetDetail: WorksheetDetail = await this.findWorksheetDetailByName(worksheetDetailName, [
+      'targetProduct',
+      'worksheet',
+      'worksheet.arrivalNotice'
+    ])
+    this.checkRecordValidity(worksheetDetail, {
+      status: (status: string) => {
+        const availableStatus: string[] = [WORKSHEET_STATUS.EXECUTING, WORKSHEET_STATUS.PARTIALLY_UNLOADED]
+        if (availableStatus.indexOf(status) < 0) {
+          throw new Error(
+            this.ERROR_MSG.VALIDITY.UNEXPECTED_FIELD_VALUE('status', 'Executing or Partially Unloaded', status)
+          )
+        }
+      }
     })
-    if (!worksheetDetail) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(worksheetDetailName))
 
     const worksheet: Worksheet = worksheetDetail.worksheet
     const arrivalNotice: ArrivalNotice = worksheet.arrivalNotice

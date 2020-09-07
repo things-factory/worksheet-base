@@ -1,6 +1,6 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { OrderInventory, OrderVas, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
-import { Inventory } from '@things-factory/warehouse-base'
+import { Inventory, INVENTORY_STATUS, INVENTORY_TRANSACTION_TYPE, Location } from '@things-factory/warehouse-base'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../constants'
 import { Worksheet, WorksheetDetail } from '../../entities'
 import { VasWorksheetController } from '../vas/vas-worksheet-controller'
@@ -96,6 +96,116 @@ export class PickingWorksheetController extends VasWorksheetController {
     }
 
     return worksheet
+  }
+
+  async undoPickingAssigment(
+    worksheetNo: string,
+    batchId: string,
+    productId: string,
+    packingType: string
+  ): Promise<void> {
+    const worksheet: Worksheet = await this.findWorksheetByNo(worksheetNo, [
+      'worksheetDetails',
+      'worksheetDetails.targetInventory',
+      'worksheetDetails.targetInventory.product',
+      'worksheetDetails.targetInventory.inventory'
+    ])
+    const worksheetDestails: WorksheetDetail[] = worksheet.worksheetDetails.filter(
+      (wsd: WorksheetDetail) =>
+        wsd.targetInventory.batchId === batchId &&
+        wsd.targetInventory.product?.id === productId &&
+        wsd.targetInventory.packingType === packingType
+    )
+
+    let worksheetDetailIds: string[] = []
+    let targetInventoryIds: string[] = []
+
+    for (const worksheetDetail of worksheetDestails) {
+      worksheetDetailIds.push(worksheetDetail.id)
+      const targetInventory: OrderInventory = worksheetDetail.targetInventory
+      targetInventoryIds.push(targetInventory.id)
+
+      let inventory: Inventory = worksheetDetail.targetInventory.inventory
+      inventory.lockedQty -= targetInventory.releaseQty
+      inventory.lockedWeight -= targetInventory.releaseWeight
+      inventory.updater = this.user
+      await this.trxMgr.getRepository(Inventory).save(inventory)
+    }
+
+    await this.trxMgr.getRepository(WorksheetDetail).delete(worksheetDetailIds)
+    await this.trxMgr.getRepository(OrderInventory).delete(targetInventoryIds)
+  }
+
+  async picking(
+    worksheetDetailName: string,
+    palletId: string,
+    locationName: string,
+    releaseQty: number
+  ): Promise<void> {
+    let worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
+      worksheetDetailName,
+      WORKSHEET_TYPE.PICKING,
+      [
+        'worksheet',
+        'worksheet.releaseGood',
+        'targetInventory',
+        'targetInventory.inventory',
+        'targetInventory.inventory.location'
+      ]
+    )
+    const releaseGood: ReleaseGood = worksheetDetail.worksheet.releaseGood
+    let targetInventory: OrderInventory = worksheetDetail.targetInventory
+    let inventory: Inventory = targetInventory.inventory
+    if (inventory.palletId !== palletId)
+      throw new Error(this.ERROR_MSG.VALIDITY.UNEXPECTED_FIELD_VALUE('Pallet ID', palletId, inventory.palletId))
+
+    const leftQty: number = inventory.qty - releaseQty
+    if (leftQty < 0) {
+      throw new Error(this.ERROR_MSG.VALIDITY.CANT_PROCEED_STEP_BY('picking', `quantity can't exceed limitation`))
+    }
+
+    targetInventory.status = ORDER_INVENTORY_STATUS.PICKED
+    targetInventory.updater = this.user
+    await this.updateOrderTargets([targetInventory])
+
+    inventory.qty -= targetInventory.releaseQty
+    inventory.weight = Math.round((inventory.weight - targetInventory.releaseWeight) * 100) / 100
+    inventory.lockedQty = 0
+    inventory.lockedWeight = 0
+    inventory = this.modifyInventory(
+      inventory,
+      releaseGood,
+      -targetInventory.releaseQty,
+      -targetInventory.releaseWeight,
+      INVENTORY_TRANSACTION_TYPE.PICKING
+    )
+
+    worksheetDetail.status = WORKSHEET_STATUS.DONE
+    worksheetDetail.updater = this.user
+    await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
+
+    if (leftQty === 0) {
+      inventory.status = INVENTORY_STATUS.TERMINATED
+      await this.modifyInventory(inventory, releaseGood, 0, 0, INVENTORY_TRANSACTION_TYPE.TERMINATED)
+    }
+
+    const fromLocation: Location = targetInventory.inventory.location
+    if (locationName) {
+      const toLocation: Location = await this.trxMgr.getRepository(
+        Location.findRefOrder({
+          where: { domain: this.domain, name: locationName },
+          relations: ['warehouse']
+        })
+      )
+      if (!toLocation) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(locationName))
+
+      if (fromLocation.id !== toLocation.id) {
+        inventory.location = toLocation
+        inventory.warehouse = toLocation.warehouse
+        inventory.zone = toLocation.zone
+        inventory = await this.modifyInventory(inventory, releaseGood, 0, 0, INVENTORY_TRANSACTION_TYPE.RELOCATE)
+      }
+    }
   }
 
   async completePicking(releaseGoodNo: string): Promise<Worksheet> {

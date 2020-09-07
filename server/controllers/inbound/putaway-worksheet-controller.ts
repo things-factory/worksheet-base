@@ -3,11 +3,20 @@ import {
   ArrivalNotice,
   OrderInventory,
   OrderNoGenerator,
+  ORDER_INVENTORY_STATUS,
   ORDER_PRODUCT_STATUS,
   ORDER_STATUS,
   ORDER_TYPES
 } from '@things-factory/sales-base'
-import { Inventory, INVENTORY_STATUS, Location } from '@things-factory/warehouse-base'
+import {
+  Inventory,
+  INVENTORY_STATUS,
+  INVENTORY_TRANSACTION_TYPE,
+  Location,
+  LOCATION_TYPE,
+  Pallet,
+  Warehouse
+} from '@things-factory/warehouse-base'
 import { Equal, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../constants'
 import { Worksheet, WorksheetDetail } from '../../entities'
@@ -138,5 +147,161 @@ export class PutawayWorksheetController extends VasWorksheetController {
     ])
     await switchLocationStatus(this.domain, putawayWorksheet.bufferLocation, this.user, this.trxMgr)
     return await this.completWorksheet(putawayWorksheet, ORDER_STATUS.DONE)
+  }
+
+  async putaway(worksheetDetailName: string, palletId: string, locationName: string): Promise<void> {
+    const reusablePallet: Pallet = await this.trxMgr.getRepository(Pallet).findOne({
+      where: { domain: this.domain, name: palletId }
+    })
+
+    if (reusablePallet) {
+      await this.putawayPallets(worksheetDetailName, reusablePallet, locationName)
+    } else {
+      await this.putawayPallet(worksheetDetailName, palletId, locationName)
+    }
+  }
+
+  async putawayPallets(worksheetDetailName: string, reusablePallet: Pallet, locationName: string): Promise<void> {
+    const worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
+      worksheetDetailName,
+      WORKSHEET_TYPE.PUTAWAY,
+      [
+        'worksheet',
+        'worksheet.arrivalNotice',
+        'worksheet.worksheetDetails',
+        'worksheet.worksheetDetails.targetInventory',
+        'worksheet.worksheetDetails.targetInventory.inventory'
+      ]
+    )
+
+    const worksheet: Worksheet = worksheetDetail.worksheet
+    const arrivalNotice: ArrivalNotice = worksheet.arrivalNotice
+    const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
+    const inventories: Inventory[] = await this.trxMgr.getRepository(Inventory).find({
+      where: {
+        domain: this.domain,
+        reusablePallet,
+        refOrderId: arrivalNotice.id,
+        status: In([INVENTORY_STATUS.PUTTING_AWAY, INVENTORY_STATUS.UNLOADED])
+      }
+    })
+
+    for (let inventory of inventories) {
+      const worksheetDetail: WorksheetDetail = worksheetDetails.find(
+        (wsd: WorksheetDetail) => wsd.targetInventory.inventory.name === inventory.name
+      )
+
+      let targetInventory: OrderInventory = worksheetDetail.targetInventory
+      inventory = targetInventory.inventory
+
+      let location: Location = await this.trxMgr.getRepository(Location).findOne({
+        where: { domain: this.domain, name: locationName, type: In([LOCATION_TYPE.SHELF, LOCATION_TYPE.BUFFER]) },
+        relations: ['warehouse']
+      })
+      if (!location) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(locationName))
+      const warehouse: Warehouse = location.warehouse
+      const zone: string = location.zone
+
+      inventory.location = location
+      inventory.status = INVENTORY_STATUS.STORED
+      inventory.warehouse = warehouse
+      inventory.zone = zone
+      await this.modifyInventory(inventory, arrivalNotice, 0, 0, INVENTORY_TRANSACTION_TYPE.PUTAWAY)
+
+      targetInventory.status = ORDER_INVENTORY_STATUS.TERMINATED
+      targetInventory.updater = this.user
+      await this.updateOrderTargets([targetInventory])
+
+      worksheetDetail.status = WORKSHEET_STATUS.DONE
+      worksheetDetail.updater = this.user
+      await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
+    }
+  }
+
+  async putawayPallet(worksheetDetailName: string, palletId: string, locationName: string): Promise<void> {
+    const worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
+      worksheetDetailName,
+      WORKSHEET_TYPE.PUTAWAY,
+      ['worksheet', 'worksheet.arrivalNotice', 'targetInventory', 'targetInventory.inventory']
+    )
+
+    const worksheet: Worksheet = worksheetDetail.worksheet
+    const arrivalNotice: ArrivalNotice = worksheet.arrivalNotice
+    let targetInventory: OrderInventory = worksheetDetail.targetInventory
+    let inventory: Inventory = targetInventory.inventory
+
+    if (inventory.palletId !== palletId) {
+      throw new Error(this.ERROR_MSG.VALIDITY.UNEXPECTED_FIELD_VALUE('palletId', palletId, inventory.palletId))
+    }
+
+    const location: Location = await this.trxMgr.getRepository(Location).findOne({
+      where: { domain: this.domain, name: locationName, type: In([LOCATION_TYPE.SHELF, LOCATION_TYPE.BUFFER]) },
+      relations: ['warehouse']
+    })
+    if (!location) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(locationName))
+    const warehouse: Warehouse = location.warehouse
+    const zone: string = warehouse.zone
+
+    inventory.location = location
+    inventory.status = INVENTORY_STATUS.STORED
+    inventory.warehouse = warehouse
+    inventory.zone = zone
+    await this.modifyInventory(inventory, arrivalNotice, 0, 0, INVENTORY_TRANSACTION_TYPE.PUTAWY)
+
+    targetInventory.status = ORDER_INVENTORY_STATUS.TERMINATED
+    targetInventory.updater = this.user
+    await this.updateOrderTargets([targetInventory])
+
+    worksheetDetail.status = WORKSHEET_STATUS.DONE
+    worksheetDetail.updater = this.user
+    await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
+  }
+
+  async undoPutaway(worksheetDetailName: string, palletId: string): Promise<void> {
+    let worksheetDetail: WorksheetDetail = await this.findWorksheetDetailByName(worksheetDetailName, [
+      'worksheet',
+      'worksheet.arrivalNotice',
+      'targetInventory',
+      'targetInventory.inventory'
+    ])
+    this.checkRecordValidity(worksheetDetail, { status: WORKSHEET_STATUS.DONE })
+
+    const worksheet: Worksheet = worksheetDetail.worksheet
+    const arrivalNotice: ArrivalNotice = worksheet.arrivalNotice
+    const targetInventory: OrderInventory = worksheetDetail.targetInventory
+    let inventory: Inventory = await this.trxMgr.getRepository(Inventory).findOne({
+      where: { domain: this.domain, palletId }
+    })
+    await this.checkReleaseTarget(inventory)
+
+    const bufferLocation: Location = await this.trxMgr.getRepository(Location).findOne({
+      where: { domain: this.domain, name: worksheetDetail.fromLocation.name }
+    })
+    inventory.location = bufferLocation
+    inventory.status = INVENTORY_STATUS.UNLOADED
+    await this.modifyInventory(inventory, arrivalNotice, 0, 0, INVENTORY_TRANSACTION_TYPE.UNDO_PUTAWAY)
+
+    targetInventory.status = ORDER_PRODUCT_STATUS.PUTTING_AWAY
+    targetInventory.updater = this.user
+    await this.updateOrderTargets([targetInventory])
+
+    worksheetDetail.status = WORKSHEET_STATUS.EXECUTING
+    worksheetDetail.updater = this.user
+    await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
+  }
+
+  private async checkReleaseTarget(inventory: Inventory): Promise<void> {
+    const releaseTargetInventory: OrderInventory = await this.trxMgr.getRepository(OrderInventory).findOne({
+      where: {
+        domain: this.domain,
+        type: ORDER_TYPES.RELEASE_OF_GOODS,
+        inventory
+      }
+    })
+
+    if (releaseTargetInventory)
+      throw new Error(
+        this.ERROR_MSG.VALIDITY.CANT_PROCEED_STEP_BY('undo putaway', 'this pallet ID has been selected for releasing')
+      )
   }
 }

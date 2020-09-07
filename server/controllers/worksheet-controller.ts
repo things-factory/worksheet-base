@@ -12,13 +12,12 @@ import {
   ReleaseGood,
   VasOrder
 } from '@things-factory/sales-base'
-import { Product } from '@things-factory/product-base'
 import { Domain, sendNotification } from '@things-factory/shell'
-import { Inventory, INVENTORY_STATUS, Location, Warehouse, InventoryNoGenerator } from '@things-factory/warehouse-base'
+import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { EntityManager, EntitySchema, Equal, FindOneOptions, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
-import { WorksheetNoGenerator, generateInventoryHistory } from '../utils'
+import { generateInventoryHistory, WorksheetNoGenerator } from '../utils'
 
 export type ReferenceOrderType = ArrivalNotice | ReleaseGood | VasOrder | InventoryCheck
 export type OrderTargetTypes = OrderProduct | OrderInventory | OrderVas
@@ -52,7 +51,8 @@ export class WorksheetController {
       UNEXPECTED_FIELD_VALUE: (field: string, expectedValue: any, actualValue: any) => `
         Expected ${field} value is ${expectedValue} but got ${actualValue}
       `,
-      DUPLICATED: (field: string, value: any) => `There is duplicated ${field} value (${value})`
+      DUPLICATED: (field: string, value: any) => `There is duplicated ${field} value (${value})`,
+      CANT_PROCEED_STEP_BY: (step: string, reason: string) => `Can't proceed to ${step} it because ${reason}`
     }
   }
 
@@ -261,6 +261,30 @@ export class WorksheetController {
     this.checkRecordValidity(worksheet, { type, status: WORKSHEET_STATUS.DEACTIVATED })
 
     return worksheet
+  }
+
+  async findExecutableWorksheetDetailByName(
+    worksheetDetailName: string,
+    type: string,
+    relations: string[] = []
+  ): Promise<WorksheetDetail> {
+    const worksheetDetail: WorksheetDetail = await this.findWorksheetDetailByName(worksheetDetailName, relations)
+    this.checkRecordValidity(worksheetDetail, { type, status: WORKSHEET_STATUS.EXECUTING })
+
+    return worksheetDetail
+  }
+
+  async findWorksheetDetail(condition: Record<string, any>, relations?: string[]): Promise<WorksheetDetail> {
+    const worksheetDetail: WorksheetDetail = await this.trxMgr.getRepository(WorksheetDetail).findOne({
+      where: {
+        domain: this.domain,
+        ...condition
+      },
+      relations
+    })
+
+    if (!worksheetDetail) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(condition))
+    return worksheetDetail
   }
 
   async findWorksheetDetailByName(worksheetDetailName: string, relations?: string[]): Promise<WorksheetDetail> {
