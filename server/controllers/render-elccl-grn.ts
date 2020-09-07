@@ -110,28 +110,72 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
     await trxMgr.query(
       `
       create temp table tmp as(
-        select invh.* from reduced_inventory_histories invh 
+        select invh.*, invh2.ref_order_id as release_order_id, invh2.qty as release_qty, invh.qty as inbound_qty, 
+        invh.qty + invh2.qty as remaining_qty, invh2.weight as release_weight, invh.weight as inbound_weight, 
+        invh.weight + invh2.weight as remaining_weight
+        from reduced_inventory_histories invh 
+        left join reduced_inventory_histories invh2 on 
+          invh2.domain_id = invh.domain_id and 
+          invh2.pallet_id = invh.pallet_id and 
+          invh2.seq = invh.seq + 1 and 
+          invh2.transaction_type='PICKING'
         where invh.ref_order_id is not null and invh.ref_order_id::uuid = $1 and invh.transaction_type = $2
-      )   
+      )
     `,
       [foundGAN.id, TRANSACTION_TYPE.UNLOADING]
     )
 
-    invItems = await trxMgr.query(
-      `          
-      select main.product_id, main.batch_id, main.packing_type, sum(main.qty) as total_qty, sum(main.weight) as total_weight ,p2.name as product_name, p2.description as product_description,
-      sum(case when main.reusable_pallet_id is null then 1 else 0 end) as pallet_count,
-      sum(case when main.reusable_pallet_id is not null then main.qty else 0 end) as mixed_count 
-      from tmp main
-      inner join locations l2 on l2.id::varchar = main.location_id
-      inner join products p2 on p2.id::varchar = main.product_id
-      left join (select location_id, count(*) as cnt from tmp group by location_id) sec on sec.location_id = main.location_id and sec.cnt > 1
-      group by main.product_id, main.batch_id, main.packing_type, p2.name, p2.description
+    await trxMgr.query(
+      `
+      create temp table tmp2 as(
+        select id,seq,ref_order_id,order_no,"name",pallet_id,batch_id,product_id,warehouse_id,location_id,"zone",order_ref_no,packing_type,unit,qty,
+        opening_qty,weight,opening_weight,description,status,transaction_type,created_at,updated_at,domain_id,bizplace_id,creator_id,updater_id,
+        reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, inbound_qty as loose_amt, release_weight, inbound_weight,remaining_weight, inbound_weight as loose_wgt, null as remarks
+        from tmp where release_qty > 0 or release_qty is null
+        union all 
+        select id,seq,ref_order_id,order_no,"name",pallet_id,batch_id,product_id,warehouse_id,location_id,"zone",order_ref_no,packing_type,unit,qty,
+        opening_qty,weight,opening_weight,description,status,transaction_type,created_at,updated_at,domain_id,bizplace_id,creator_id,updater_id,
+        reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, remaining_qty as loose_amt, release_weight, inbound_weight,remaining_weight, remaining_weight as loose_wgt, null as remarks
+        from tmp where release_qty < 0 and remaining_qty > 0
+        union all 
+        select id,seq,ref_order_id,order_no,"name",pallet_id,batch_id,product_id,warehouse_id,location_id,"zone",order_ref_no,packing_type,unit,qty,
+        opening_qty,weight,opening_weight,description,status,transaction_type,created_at,updated_at,domain_id,bizplace_id,creator_id,updater_id,
+        reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, -release_qty as loose_amt, release_weight,inbound_weight,remaining_weight, -release_weight as loose_wgt, '[C/D]' as remarks
+        from tmp where release_qty < 0
+      )
     `
     )
 
-    trxMgr.query(`
-      drop table tmp
+    invItems = await trxMgr.query(
+    `          
+    select main.product_id, main.batch_id, main.packing_type, sum(main.loose_amt) as total_qty, sum(main.loose_wgt) as total_weight,
+    p2.name as product_name, p2.description as product_description, 
+    sum(case when main.reusable_pallet_id is null then 1 else 0 end) as pallet_count,
+    concat(
+      case when sum(case when main.reusable_pallet_id is null then 1 else 0 end) > 0 then concat(sum(case when main.reusable_pallet_id is null then 1 else 0 end)::varchar, ' PALLET(S) ' ) else '' end,
+      case when string_agg(plt.perc, ', ') is null then '' else string_agg(plt.perc, ', ') end,
+      case when main.remarks is null then '' else concat(' ' ,main.remarks) end 
+    )as remarks
+    from tmp2 main
+    inner join products p2 on p2.id::varchar = main.product_id
+    left join (
+      select concat(round((x.qty/y.loose_total)::numeric, 2), ' ', y.pallet_name) as perc,
+      x.* from tmp as x
+      left join (
+        select plt.name as pallet_name, dt.reusable_pallet_id, sum(qty) as loose_total from tmp as dt 
+        inner join pallets plt on plt.id = dt.reusable_pallet_id and plt.domain_id = dt.domain_id
+        where dt.reusable_pallet_id is not null
+        group by plt.name, dt.reusable_pallet_id
+      ) as y on y.reusable_pallet_id = x.reusable_pallet_id
+    ) plt on plt.reusable_pallet_id = main.reusable_pallet_id and 
+    plt.product_id = main.product_id and plt.batch_id = main.batch_id and 
+    plt.packing_type = main.packing_type --and main.remarks is null
+    group by main.product_id, main.batch_id, main.packing_type, main.remarks, p2.name, p2.description
+    `
+    )
+
+    await trxMgr.query(`
+      drop table tmp, tmp2
     `)
   })
 
@@ -155,18 +199,19 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
     product_list: invItems.map((item, idx) => {
       return {
         list_no: idx + 1,
-        product_name: `${item.product_name}(${item.product_description})`,
+        product_name: `${item.product_name} (${item.product_description})`,
         product_type: item.packing_type,
         product_batch: item.batch_id,
         product_qty: item.total_qty,
         product_weight: item.total_weight,
         unit_weight: Math.round((item.total_weight / item.total_qty) * 100) / 100,
         pallet_qty: item.pallet_count,
-        remark:
-          item.pallet_count < 1
-            ? '' + (item.mixed_count ? `${item.mixed_count} ${item.packing_type}` : '')
-            : (item.pallet_count > 1 ? `${item.pallet_count} PALLETS` : `${item.pallet_count} PALLET`) +
-              (item.mixed_count ? `, ${item.mixed_count} ${item.packing_type}` : '')
+        remark: item.remarks
+        // remark:
+        //   item.pallet_count < 1
+        //     ? '' + (item.loose_remarks ? `${item.loose_remarks}` : '')
+        //     : (item.pallet_count > 1 ? `${item.pallet_count} PALLETS` : `${item.pallet_count} PALLET`) +
+        //       (item.loose_remarks ? `, ${item.loose_remarks}` : '')
       }
     })
   }
