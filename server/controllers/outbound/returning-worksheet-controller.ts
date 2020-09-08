@@ -1,4 +1,5 @@
 import { OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS, ReleaseGood } from '@things-factory/sales-base'
+import { Inventory, INVENTORY_STATUS, INVENTORY_TRANSACTION_TYPE, Location } from '@things-factory/warehouse-base'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../constants'
 import { Worksheet, WorksheetDetail } from '../../entities'
 import { VasWorksheetController } from '../vas/vas-worksheet-controller'
@@ -41,6 +42,62 @@ export class ReturningWorksheetController extends VasWorksheetController {
     })
     await this.updateOrderTargets(targetInventories)
     return await this.activateWorksheet(worksheet, worksheetDetails, returningWorksheetDetails)
+  }
+
+  async returning(worksheetDetailName: string, palletId: string, toLocationName: string): Promise<void> {
+    let worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
+      worksheetDetailName,
+      WORKSHEET_TYPE.RETURN,
+      ['worksheet', 'worksheet.releaseGood', 'targetInventory', 'targetInventory.inventory']
+    )
+
+    const worksheet: Worksheet = worksheetDetail.worksheet
+    const releaseGood: ReleaseGood = worksheet.releaseGood
+    let targetInventory: OrderInventory = worksheetDetail.targetInventory
+    let inventory: Inventory = targetInventory.inventory
+
+    const originLocation: Location = inventory.location
+    const originPalletId: string = inventory.palletId
+
+    const toLocation: Location = await this.trxMgr.getRepository(Location).findOne({
+      where: { domain: this.domain, name: toLocationName },
+      relations: ['warehouse']
+    })
+    if (!toLocation) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(toLocationName))
+
+    const isPalletDiff: boolean = originPalletId !== palletId
+    if (isPalletDiff) {
+      throw new Error(this.ERROR_MSG.VALIDITY.CANT_PROCEED_STEP_BY('return', 'pallet ID is not matched'))
+    }
+
+    inventory.qty += targetInventory.releaseQty
+    inventory.weight += targetInventory.releaseWeight
+    inventory.status = INVENTORY_STATUS.STORED
+
+    const isLocationChanged: boolean = originLocation.id !== toLocation.id
+    if (isLocationChanged) {
+      inventory.location = toLocation
+      inventory.warehouse = toLocation.warehouse
+      inventory.zone = toLocation.zone
+    }
+
+    await this.transactionInventory(
+      inventory,
+      releaseGood,
+      targetInventory.releaseQty,
+      targetInventory.releaseWeight,
+      INVENTORY_TRANSACTION_TYPE.RETURN
+    )
+
+    // update status of order inventory
+    targetInventory.status = ORDER_INVENTORY_STATUS.TERMINATED
+    targetInventory.updater = this.user
+    await this.updateOrderTargets([targetInventory])
+
+    // update status of worksheet detail (EXECUTING => DONE)
+    worksheetDetail.status = WORKSHEET_STATUS.DONE
+    worksheetDetail.updater = this.user
+    await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
   }
 
   async completeReturning(releaseGoodNo: string): Promise<Worksheet> {

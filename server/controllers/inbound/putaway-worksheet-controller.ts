@@ -206,7 +206,7 @@ export class PutawayWorksheetController extends VasWorksheetController {
       inventory.status = INVENTORY_STATUS.STORED
       inventory.warehouse = warehouse
       inventory.zone = zone
-      await this.modifyInventory(inventory, arrivalNotice, 0, 0, INVENTORY_TRANSACTION_TYPE.PUTAWAY)
+      await this.transactionInventory(inventory, arrivalNotice, 0, 0, INVENTORY_TRANSACTION_TYPE.PUTAWAY)
 
       targetInventory.status = ORDER_INVENTORY_STATUS.TERMINATED
       targetInventory.updater = this.user
@@ -246,7 +246,7 @@ export class PutawayWorksheetController extends VasWorksheetController {
     inventory.status = INVENTORY_STATUS.STORED
     inventory.warehouse = warehouse
     inventory.zone = zone
-    await this.modifyInventory(inventory, arrivalNotice, 0, 0, INVENTORY_TRANSACTION_TYPE.PUTAWY)
+    await this.transactionInventory(inventory, arrivalNotice, 0, 0, INVENTORY_TRANSACTION_TYPE.PUTAWY)
 
     targetInventory.status = ORDER_INVENTORY_STATUS.TERMINATED
     targetInventory.updater = this.user
@@ -279,7 +279,7 @@ export class PutawayWorksheetController extends VasWorksheetController {
     })
     inventory.location = bufferLocation
     inventory.status = INVENTORY_STATUS.UNLOADED
-    await this.modifyInventory(inventory, arrivalNotice, 0, 0, INVENTORY_TRANSACTION_TYPE.UNDO_PUTAWAY)
+    await this.transactionInventory(inventory, arrivalNotice, 0, 0, INVENTORY_TRANSACTION_TYPE.UNDO_PUTAWAY)
 
     targetInventory.status = ORDER_PRODUCT_STATUS.PUTTING_AWAY
     targetInventory.updater = this.user

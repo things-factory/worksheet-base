@@ -1,19 +1,19 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import {
-  ORDER_TYPES,
   OrderInventory,
   OrderNoGenerator,
   ORDER_INVENTORY_STATUS,
+  ORDER_TYPES,
   ReleaseGood
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, Location, LOCATION_STATUS } from '@things-factory/warehouse-base'
+import { Inventory } from '@things-factory/warehouse-base'
 import { getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils'
-import { executePicking } from './picking'
+import { picking } from './picking/picking'
 
 export const replacePickingPalletsResolver = {
   async replacePickingPallets(_: any, { worksheetDetailName, inventories, returnLocation }, context: any) {
@@ -99,7 +99,7 @@ export const replacePickingPalletsResolver = {
           })
 
           // 6. execute picking transaction
-          await executePicking(wsd.name, inventory.palletId, returnLocation, inventory.qty, domain, user, trxMgr)
+          await picking(trxMgr, domain, user, wsd.name, inventory.palletId, returnLocation, inventory.qty)
         })
       )
     })

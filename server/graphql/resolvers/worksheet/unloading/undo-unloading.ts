@@ -1,7 +1,7 @@
 import { User } from '@things-factory/auth-base'
 import { Domain } from '@things-factory/shell'
-import { UnloadingWorksheetController } from 'server/controllers'
 import { EntityManager, getManager } from 'typeorm'
+import { UnloadingWorksheetController } from '../../../../controllers'
 
 export const undoUnloadingResolver = {
   async undoUnloading(_: any, { worksheetDetailName, palletId }, context: any) {

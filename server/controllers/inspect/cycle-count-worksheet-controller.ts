@@ -6,8 +6,8 @@ import {
   ORDER_INVENTORY_STATUS,
   ORDER_STATUS
 } from '@things-factory/sales-base'
-import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
-import { In } from 'typeorm'
+import { Inventory, INVENTORY_STATUS, Location } from '@things-factory/warehouse-base'
+import { Equal, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../constants'
 import { Worksheet, WorksheetDetail } from '../../entities'
 import { WorksheetController } from '../worksheet-controller'
@@ -87,6 +87,65 @@ export class CycleCountWorksheetController extends WorksheetController {
     await this.updateRefOrder(cycleCount)
     await this.updateOrderTargets(targetInventories)
     return await this.activateWorksheet(worksheet, worksheetDetails, [])
+  }
+
+  async inspecting(
+    worksheetDetailName: string,
+    palletId: string,
+    locationName: string,
+    inspectedQty: number
+  ): Promise<void> {
+    let worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
+      worksheetDetailName,
+      WORKSHEET_TYPE.CYCLE_COUNT,
+      ['targetInventory', 'targetInventory.inventory', 'targetInventory.inventory.location']
+    )
+
+    let targetInventory: OrderInventory = worksheetDetail.targetInventory
+    let inventory: Inventory = targetInventory.inventory
+    const beforeLocation: Location = inventory.location
+    const currentLocation: Location = await this.trxMgr.getRepository(Location).findOne({
+      where: { domain: this.domain, name: locationName }
+    })
+    if (!currentLocation) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(locationName))
+
+    if (inventory.palletId !== palletId)
+      throw new Error(this.ERROR_MSG.VALIDITY.CANT_PROCEED_STEP_BY('inspect', 'pallet ID is invalid'))
+
+    if (beforeLocation.name !== currentLocation.name || inspectedQty !== inventory.qty) {
+      worksheetDetail.status = WORKSHEET_STATUS.NOT_TALLY
+      targetInventory.status = ORDER_INVENTORY_STATUS.NOT_TALLY
+    } else {
+      worksheetDetail.status = WORKSHEET_STATUS.DONE
+      targetInventory.status = ORDER_INVENTORY_STATUS.INSPECTED
+    }
+
+    worksheetDetail.updater = this.user
+    await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
+
+    targetInventory.inspectedLocation = currentLocation
+    targetInventory.inspectedQty = inspectedQty
+    targetInventory.updater = this.user
+    await this.updateOrderTargets([targetInventory])
+  }
+
+  async undoInspection(worksheetDetailName: string): Promise<void> {
+    let worksheetDetail: WorksheetDetail = await this.findWorksheetDetail(
+      { domain: this.domain, name: worksheetDetailName, status: Not(Equal(WORKSHEET_STATUS.EXECUTING)) },
+      ['targetInventory']
+    )
+
+    let targetInventory: OrderInventory = worksheetDetail.targetInventory
+    targetInventory.inspectedLocaiton = null
+    targetInventory.inspectedQty = null
+    targetInventory.inspectedWeight = null
+    targetInventory.status = ORDER_INVENTORY_STATUS.INSPECTING
+    targetInventory.updater = this.user
+    await this.updateOrderTargets([targetInventory])
+
+    worksheetDetail.status = WORKSHEET_STATUS.EXECUTING
+    worksheetDetail.updater = this.user
+    await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
   }
 
   async completeCycleCount(inventoryCheckNo: string): Promise<Worksheet> {

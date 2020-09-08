@@ -4,8 +4,8 @@ import { EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_TYPE } from '../../../../constants'
 import { UnloadingWorksheetController, UnloadingWorksheetDetail } from '../../../../controllers'
 import { Worksheet } from '../../../../entities'
+import { activatePicking } from '../picking/activate-picking'
 import { worksheetByOrderNo } from '../worksheet-by-order-no'
-import { activatePicking } from './activate-picking'
 
 export const activateUnloadingResolver = {
   async activateUnloading(_: any, { worksheetNo, unloadingWorksheetDetails }, context: any) {

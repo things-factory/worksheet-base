@@ -7,8 +7,7 @@ import { EntityManager, getManager, In, SelectQueryBuilder } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetController } from '../../../controllers/worksheet-controller'
 import { Worksheet, WorksheetDetail } from '../../../entities'
-import { WorksheetNoGenerator } from '../../../utils'
-import { executePicking } from './picking'
+import { picking } from './picking/picking'
 
 export const crossDockPickingResolver = {
   async crossDockPicking(
@@ -98,8 +97,8 @@ export const crossDockPickingResolver = {
           targetInventory.updater = user
           targetInventory = await trxMgr.getRepository(OrderInventory).save(targetInventory)
 
-          const worksheetController: WorksheetController = new WorksheetController(trxMgr)
-          worksheetController.createWorksheetDetails(domain, worksheet, WORKSHEET_TYPE.PICKING, [targetInventory], user)
+          const worksheetController: WorksheetController = new WorksheetController(trxMgr, domain, user)
+          worksheetController.createWorksheetDetails(worksheet, WORKSHEET_TYPE.PICKING, [targetInventory])
         }
       } else {
         let { targetInventory: originOrdInv } = await trxMgr.getRepository(WorksheetDetail).findOne(originWSD.id, {
@@ -124,15 +123,7 @@ export const crossDockPickingResolver = {
         }
       }
 
-      await executePicking(
-        worksheetDetailName,
-        inventory.palletId,
-        inventory.location.name,
-        releaseQty,
-        domain,
-        user,
-        trxMgr
-      )
+      await picking(trxMgr, domain, user, worksheetDetailName, inventory.palletId, inventory.location.name, releaseQty)
     })
   }
 }

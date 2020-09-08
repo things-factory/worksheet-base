@@ -159,7 +159,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     newInventory.location = location
     newInventory.zone = zone
     newInventory.status = INVENTORY_STATUS.UNLOADED
-    newInventory = await this.modifyInventory(
+    newInventory = await this.transactionInventory(
       newInventory,
       arrivalNotice,
       newInventory.qty,
@@ -217,7 +217,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     inventory.qty = 0
     inventory.weight = 0
     inventory.updater = this.user
-    inventory = await this.modifyInventory(
+    inventory = await this.transactionInventory(
       inventory,
       arrivalNotice,
       -inventory.qty,

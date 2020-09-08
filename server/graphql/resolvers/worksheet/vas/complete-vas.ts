@@ -22,8 +22,8 @@ export async function completeVAS(
   orderNo: string,
   orderType: string
 ): Promise<Worksheet> {
-  const worksheetController: VasWorksheetController = new VasWorksheetController(trxMgr)
-  let worksheet: Worksheet = await worksheetController.completeVAS({ domain, user, orderNo, orderType })
+  const worksheetController: VasWorksheetController = new VasWorksheetController(trxMgr, domain, user)
+  let worksheet: Worksheet = await worksheetController.completeVAS(orderNo, orderType)
 
   if (orderType === ORDER_TYPES.ARRIVAL_NOTICE) {
     if (!worksheet.worksheetDetails?.length || !worksheet.arrivalNotice?.id) {

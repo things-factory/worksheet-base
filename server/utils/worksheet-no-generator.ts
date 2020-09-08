@@ -1,5 +1,5 @@
-import { WORKSHEET_TYPE } from 'server/constants'
 import uuid from 'uuid/v4'
+import { WORKSHEET_TYPE } from '../constants'
 
 export class WorksheetNoGenerator {
   static generate(type: string, isDetail: boolean = false): string {

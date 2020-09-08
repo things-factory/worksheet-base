@@ -11,7 +11,6 @@ import {
   VasOrder
 } from '@things-factory/sales-base'
 import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
-import { WorksheetNoGenerator } from 'server/utils'
 import { EntityManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../constants'
 import { Worksheet, WorksheetDetail } from '../../entities'
@@ -59,7 +58,6 @@ export class VasWorksheetController extends WorksheetController {
       .getRepository(WorksheetDetail)
       .findByIds(worksheetDetailIds, {
         relations: [
-          'bizplace',
           'worksheet',
           'targetVas',
           'targetVas.arrivalNotice',
@@ -74,6 +72,7 @@ export class VasWorksheetController extends WorksheetController {
     let seq: number = 0
 
     for (let worksheetDetail of worksheetDetails) {
+      const worksheet: Worksheet = worksheetDetail.worksheet
       const targetVAS: OrderVas = worksheetDetail.targetVas
 
       let newWorksheetDetail: Partial<WorksheetDetail> = Object.assign({}, worksheetDetail)
@@ -95,14 +94,7 @@ export class VasWorksheetController extends WorksheetController {
         newTargetVAS.updater = this.user
         newTargetVAS = await this.trxMgr.getRepository(OrderVas).save(newTargetVAS)
 
-        newWorksheetDetail.domain = this.domain
-        newWorksheetDetail.name = WorksheetNoGenerator.generate(WORKSHEET_TYPE.VAS, true)
-        newWorksheetDetail.seq = seq
-        newWorksheetDetail.targetVas = newTargetVAS
-        newWorksheetDetail.creator = this.user
-        newWorksheetDetail.updater = this.user
-        await this.trxMgr.getRepository(WorksheetDetail).save(newWorksheetDetail)
-
+        await this.createWorksheetDetails(worksheet, WORKSHEET_TYPE.VAS, [newTargetVAS])
         seq++
       }
 
@@ -174,27 +166,20 @@ export class VasWorksheetController extends WorksheetController {
 
       const remainQty: number = totalTargetQty - inventory.qty
       if (remainQty > 0) {
-        let copiedOV: OrderVas = Object.assign({}, targetVAS)
-        delete copiedOV.id
-        copiedOV.domain = this.domain
-        copiedOV.bizplace = bizplace
-        copiedOV.name = OrderNoGenerator.orderVas()
-        copiedOV.qty = remainQty
-        copiedOV.creator = this.user
-        copiedOV.updater = this.user
-        copiedOV = await this.trxMgr.getRepository(OrderVas).save(copiedOV)
+        let newTargetVAS: Partial<OrderVas> = Object.assign({}, targetVAS)
+        delete newTargetVAS.id
+        newTargetVAS.domain = this.domain
+        newTargetVAS.bizplace = bizplace
+        newTargetVAS.name = OrderNoGenerator.orderVas()
+        newTargetVAS.qty = remainQty
+        newTargetVAS.creator = this.user
+        newTargetVAS.updater = this.user
+        newTargetVAS = await this.trxMgr.getRepository(OrderVas).save(newTargetVAS)
 
         // Create new worksheet detail
-        let copiedWSD: WorksheetDetail = Object.assign({}, foundWorksheetDetail)
-        delete copiedWSD.id
-        copiedWSD.domain = this.domain
-        copiedWSD.bizplace = bizplace
-        copiedWSD.name = WorksheetNoGenerator.vasDetail()
-        copiedWSD.targetVas = copiedOV
-        copiedWSD.creator = this.user
-        copiedWSD.updater = this.user
-
-        await this.trxMgr.getRepository(WorksheetDetail).save(copiedWSD)
+        await this.createWorksheetDetails(worksheet, WORKSHEET_TYPE.VAS, [newTargetVAS], {
+          status: foundWorksheetDetail.status
+        })
       }
     }
 

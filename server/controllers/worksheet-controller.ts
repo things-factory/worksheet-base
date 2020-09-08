@@ -2,6 +2,7 @@ import { Role, User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import {
   ArrivalNotice,
+  DeliveryOrder,
   InventoryCheck,
   OrderInventory,
   OrderProduct,
@@ -19,7 +20,7 @@ import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
 import { generateInventoryHistory, WorksheetNoGenerator } from '../utils'
 
-export type ReferenceOrderType = ArrivalNotice | ReleaseGood | VasOrder | InventoryCheck
+export type ReferenceOrderType = ArrivalNotice | ReleaseGood | VasOrder | InventoryCheck | DeliveryOrder
 export type OrderTargetTypes = OrderProduct | OrderInventory | OrderVas
 
 export interface BasicInterface {
@@ -565,27 +566,29 @@ export class WorksheetController {
     return Math.round(qty * weight * 100) / 100
   }
 
-  async modifyInventory(
+  async updateInventory(inventory: Partial<Inventory> | Partial<Inventory>[]): Promise<Inventory> {
+    inventory = this.setStamp(inventory)
+    return await this.trxMgr.getRepository(Inventory).save(inventory)
+  }
+
+  async transactionInventory(
     inventory: Partial<Inventory>,
     referencOrder: ReferenceOrderType,
     changedQty: number,
     changedWeight: number,
-    transactionType?: string
+    transactionType: string
   ): Promise<Inventory> {
-    inventory = this.setStamp(inventory)
-    inventory = await this.trxMgr.getRepository(Inventory).save(inventory)
+    inventory = await this.updateInventory(inventory)
 
-    if (transactionType) {
-      generateInventoryHistory(
-        inventory,
-        referencOrder,
-        transactionType,
-        changedQty,
-        changedWeight,
-        this.user,
-        this.trxMgr
-      )
-    }
+    generateInventoryHistory(
+      inventory,
+      referencOrder,
+      transactionType,
+      changedQty,
+      changedWeight,
+      this.user,
+      this.trxMgr
+    )
   }
 
   setStamp(record: Record<string, any>): Record<string, any> {
