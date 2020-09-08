@@ -49,7 +49,13 @@ export const completeUnloading = {
           type: WORKSHEET_TYPE.UNLOADING,
           arrivalNotice
         },
-        relations: ['bizplace', 'bufferLocation', 'worksheetDetails', 'worksheetDetails.targetProduct', 'worksheetDetails.targetProduct.product']
+        relations: [
+          'bizplace',
+          'bufferLocation',
+          'worksheetDetails',
+          'worksheetDetails.targetProduct',
+          'worksheetDetails.targetProduct.product'
+        ]
       })
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists.`)
@@ -64,15 +70,25 @@ export const completeUnloading = {
        * If the picking is done and released all inbound items, putaway worksheet will not be generated
        *    - find the picking worksheet that is done
        *    - get all order inventories item
-       *    - need to total up the qty and weight 
+       *    - need to total up the qty and weight
        *    - compare product_id, batch_no, packing_type, release_qty and release_weight of order inventories with order products
        *    - check worksheet_details for picking if it is terminated
        */
 
       if (arrivalNotice.crossDocking) {
         const donePickingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-          where: { domain, releaseGood: arrivalNotice.releaseGood, type: WORKSHEET_TYPE.PICKING, status: Equal(WORKSHEET_STATUS.DONE) },
-          relations: ['bizplace', 'worksheetDetails', 'worksheetDetails.targetInventory', 'worksheetDetails.targetInventory.product']
+          where: {
+            domain,
+            releaseGood: arrivalNotice.releaseGood,
+            type: WORKSHEET_TYPE.PICKING,
+            status: Equal(WORKSHEET_STATUS.DONE)
+          },
+          relations: [
+            'bizplace',
+            'worksheetDetails',
+            'worksheetDetails.targetInventory',
+            'worksheetDetails.targetInventory.product'
+          ]
         })
 
         if (donePickingWorksheet) {
@@ -80,7 +96,7 @@ export const completeUnloading = {
           const targetInventories: OrderInventory[] = donePickingWSD.map(
             (doneWSD: WorksheetDetail) => doneWSD.targetInventory
           )
-          
+
           targetProducts.forEach((targetProduct: OrderProduct) => {
             targetInventories.forEach((targetInventory: OrderInventory) => {
               if (
@@ -92,12 +108,11 @@ export const completeUnloading = {
               ) {
                 if (
                   targetInventory.releaseQty === targetProduct.actualPackQty &&
-                  targetInventory.releaseWeight === (targetProduct.actualPackQty * targetProduct.weight)
+                  targetInventory.releaseWeight === targetProduct.actualPackQty * targetProduct.weight
                 )
                   allPicked.push(true)
-                else
-                  allPicked.push(false)
-              } 
+                else allPicked.push(false)
+              }
               // need to check if the there is order product without release qty and weight
               // which means it will go to the inventory
               else if (
@@ -113,7 +128,6 @@ export const completeUnloading = {
         }
         // throw error if the picking worksheet is still executing
         else throw new Error(`Picking should be completed before complete unloading for cross docking.`)
-
       }
 
       /**
@@ -141,7 +155,7 @@ export const completeUnloading = {
         )
         if (worksheetDetail && worksheetDetail.issue) {
           foundWSD.issue = worksheetDetail.issue
-        
+
           targetProducts = targetProducts.map((targetProduct: OrderProduct) => {
             if (foundWSD.targetProduct.id === targetProduct.id) {
               return {
@@ -237,21 +251,19 @@ export const completeUnloading = {
           await activatePutaway(putawayWorksheet.name, putawayWorksheet.worksheetDetails, domain, user, trxMgr)
         }
         arrivalNoticeStatus = ORDER_STATUS.PUTTING_AWAY
-
-      }
-      else {
-        // since there's no putaway worksheet is generated, then need to generate GRN
-        await generateGoodsReceivalNote(
-          { refNo: arrivalNotice.name, customer: arrivalNotice.bizplace.id },
-          context.state.domain,
-          context.state.user,
-          trxMgr
-        )
-
+      } else {
         arrivalNoticeStatus = ORDER_STATUS.DONE
       }
-      
-      // Update status of arrival notice 
+
+      // generate GRN
+      await generateGoodsReceivalNote(
+        { refNo: arrivalNotice.name, customer: arrivalNotice.bizplace.id },
+        context.state.domain,
+        context.state.user,
+        trxMgr
+      )
+
+      // Update status of arrival notice
       arrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({ where: { domain, id: arrivalNotice.id } })
       arrivalNotice.status = arrivalNoticeStatus
       arrivalNotice.updater = user

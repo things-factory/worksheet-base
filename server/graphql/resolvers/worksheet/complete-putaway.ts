@@ -163,16 +163,6 @@ export const completePutaway = {
           updater: context.state.user
         })
       }
-
-      /**
-       * 4. Generate the Goods Received Note straight away
-       */
-      await generateGoodsReceivalNote(
-        { refNo: arrivalNotice.name, customer: foundPutawayWorksheet.bizplace.id },
-        context.state.domain,
-        context.state.user,
-        trxMgr
-      )
     })
   }
 }
