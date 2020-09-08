@@ -171,6 +171,7 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
     plt.product_id = main.product_id and plt.batch_id = main.batch_id and 
     plt.packing_type = main.packing_type --and main.remarks is null
     group by main.product_id, main.batch_id, main.packing_type, main.remarks, p2.name, p2.description
+    order by product_name, remarks
     `
     )
 
@@ -207,11 +208,6 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
         unit_weight: Math.round((item.total_weight / item.total_qty) * 100) / 100,
         pallet_qty: item.pallet_count,
         remark: item.remarks
-        // remark:
-        //   item.pallet_count < 1
-        //     ? '' + (item.loose_remarks ? `${item.loose_remarks}` : '')
-        //     : (item.pallet_count > 1 ? `${item.pallet_count} PALLETS` : `${item.pallet_count} PALLET`) +
-        //       (item.loose_remarks ? `, ${item.loose_remarks}` : '')
       }
     })
   }
