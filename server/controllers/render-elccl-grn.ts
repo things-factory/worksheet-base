@@ -147,7 +147,7 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
     )
 
     invItems = await trxMgr.query(
-    `          
+      `          
     select main.product_id, main.batch_id, main.packing_type, sum(main.loose_amt) as total_qty, sum(main.loose_wgt) as total_weight,
     p2.name as product_name, p2.description as product_description, 
     sum(case when main.reusable_pallet_id is null then 1 else 0 end) as pallet_count,
@@ -196,7 +196,7 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
     ref_no: ownRefNo ? `${foundGAN.name} / ${foundGAN.refNo}` : `${foundGAN.name}`,
     received_date: DateTimeConverter.date(foundWS.endedAt),
     truck_no: foundGAN.truckNo || '',
-    container_no: foundGAN.containerNo || '',
+    container_no: foundGAN?.containerNo ? foundGAN.containerNo : foundGAN.deliveryOrderNo,
     product_list: invItems.map((item, idx) => {
       return {
         list_no: idx + 1,
