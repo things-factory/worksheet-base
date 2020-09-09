@@ -28,7 +28,7 @@ export class PickingWorksheetController extends VasWorksheetController {
     const orderInventories: OrderInventory[] = releaseGood.orderInventories
     const orderVASs: OrderVas[] = releaseGood.orderVass
 
-    let worksheet: Worksheet = await this.createWorksheet(bizplace, releaseGood, WORKSHEET_TYPE.PICKING)
+    let worksheet: Worksheet = await this.createWorksheet(releaseGood, WORKSHEET_TYPE.PICKING)
 
     if (orderInventories.every((oi: OrderInventory) => oi.inventory?.id) || releaseGood.crossDocking) {
       worksheet.worksheetDetails = await this.createWorksheetDetails(

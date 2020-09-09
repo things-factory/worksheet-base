@@ -137,7 +137,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     const product: Product = targetProduct.product
     const packingType: string = targetProduct.packingType
     const qty: number = inventory.qty
-    const weight: number = this.calcTotalInvWeight(qty, targetProduct.weight)
+    const weight: number = Math.round(qty * inventory.weight * 100) / 100
     const location: Location = worksheet.bufferLocation
     const warehouse: Warehouse = location.warehouse
     const zone: string = location.zone

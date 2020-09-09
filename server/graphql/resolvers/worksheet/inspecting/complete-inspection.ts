@@ -18,7 +18,7 @@ export const completeInspectionResolver = {
           : `There are inventories needed to be reviewed. `
       const worksheetController: WorksheetController = new WorksheetController(trxMgr, domain, user)
 
-      await worksheetController.notifiyToOfficeAdmin({
+      await worksheetController.notifyToOfficeAdmin({
         title: `Inventory check has been completed`,
         message,
         url: context.header.referer

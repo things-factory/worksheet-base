@@ -11,7 +11,7 @@ export const completeUnloadingResolver = {
       await completeUnloading(trxMgr, domain, user, arrivalNoticeNo, worksheetDetails)
 
       const worksheetController: UnloadingWorksheetController = new UnloadingWorksheetController(trxMgr, domain, user)
-      worksheetController.notifiyToOfficeAdmin({
+      worksheetController.notifyToOfficeAdmin({
         title: `Unloading Completed`,
         message: `${arrivalNoticeNo} is ready for putaway`,
         url: context.header.referer

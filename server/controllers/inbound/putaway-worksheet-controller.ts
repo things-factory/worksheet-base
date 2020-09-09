@@ -48,7 +48,7 @@ export class PutawayWorksheetController extends VasWorksheetController {
     let wsdStatus: string = WORKSHEET_STATUS.DEACTIVATED // Default status of worksheet is DEACTIVATED
     if (!worksheet) {
       // If it's not exists create new putaway worksheet
-      worksheet = await this.createWorksheet(bizplace, arrivalNotice, WORKSHEET_TYPE.PUTAWAY, { bufferLocation })
+      worksheet = await this.createWorksheet(arrivalNotice, WORKSHEET_TYPE.PUTAWAY, { bufferLocation })
     } else {
       // If there is putaway worksheet. It means unloading is completed partially.
       // So status of newly created worksheet details and order inventories should be changed to

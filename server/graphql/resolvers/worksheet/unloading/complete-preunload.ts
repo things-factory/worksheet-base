@@ -11,7 +11,7 @@ export const completePreunloadResolver = {
       await completePreunload(trxMgr, domain, user, arrivalNoticeNo)
 
       const worksheetController: WorksheetController = new WorksheetController(trxMgr, domain, user)
-      worksheetController.notifiyToOfficeAdmin({
+      worksheetController.notifyToOfficeAdmin({
         title: `Pending Adjustment for ${arrivalNoticeNo}`,
         message: `Pending process for batch id adjustments`,
         url: context.header.referer
