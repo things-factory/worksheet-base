@@ -94,6 +94,16 @@ export const Mutation = /* GraphQL */ `
     vasWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
+  assignPickingInventories (
+    worksheetNo: String!
+    batchId: String!
+    productId: String!
+    packingType: String!
+    worksheetDetails: [NewWorksheetDetail]
+  ): Boolean
+
+  worksheetDetailsByProductGroup(worksheetNo: String!, batchId: String!, productName: String!, packingType: String!): WorksheetDetailList
+
   activatePicking (
     worksheetNo: String!
   ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
