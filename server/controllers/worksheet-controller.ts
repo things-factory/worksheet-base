@@ -30,9 +30,9 @@ export enum ReferenceOrderFields {
 }
 
 export enum OrderTargetFields {
-  OrderProduct = 'orderProduct',
-  OrderInventory = 'orderInventory',
-  OrderVas = 'orderVas'
+  OrderProduct = 'targetProduct',
+  OrderInventory = 'targetInventory',
+  OrderVas = 'targetVas'
 }
 
 export interface BasicInterface {
@@ -61,9 +61,8 @@ export class WorksheetController {
       EMPTY_UPDATER: 'Cannot update without updater'
     },
     VALIDITY: {
-      UNEXPECTED_FIELD_VALUE: (field: string, expectedValue: any, actualValue: any) => `
-        Expected ${field} value is ${expectedValue} but got ${actualValue}
-      `,
+      UNEXPECTED_FIELD_VALUE: (field: string, expectedValue: any, actualValue: any) =>
+        `Expected ${field} value is ${expectedValue} but got ${actualValue}`,
       DUPLICATED: (field: string, value: any) => `There is duplicated ${field} value (${value})`,
       CANT_PROCEED_STEP_BY: (step: string, reason: string) => `Can't proceed to ${step} it because ${reason}`
     }
@@ -119,6 +118,7 @@ export class WorksheetController {
     condition: Partial<ReferenceOrderType>,
     relations?: string[]
   ): Promise<ReferenceOrderType> {
+    condition = this.tidyConditions(condition)
     let findOption: FindOneOptions = { where: condition }
     if (relations?.length > 0) findOption.relations = relations
 
@@ -136,6 +136,7 @@ export class WorksheetController {
    * ex) findWorksheet(condition, ['arrivalNotice', 'releaseGood'])
    */
   async findWorksheet(condition: Record<string, any>, relations: string[] = ['worksheetDetails']): Promise<Worksheet> {
+    condition = this.tidyConditions(condition)
     const worksheet: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne({
       where: {
         domain: this.domain,
@@ -252,6 +253,7 @@ export class WorksheetController {
    * ex) findWorksheetDetail(condition, ['worksheet'])
    */
   async findWorksheetDetail(condition: Record<string, any>, relations?: string[]): Promise<WorksheetDetail> {
+    condition = this.tidyConditions(condition)
     const worksheetDetail: WorksheetDetail = await this.trxMgr.getRepository(WorksheetDetail).findOne({
       where: {
         domain: this.domain,
@@ -354,6 +356,7 @@ export class WorksheetController {
         bizplace,
         worksheet,
         name: WorksheetNoGenerator.generate(type, true),
+        type,
         status: WORKSHEET_STATUS.DEACTIVATED,
         [orderTargetField]: orderTarget,
         creator: this.user,
@@ -435,16 +438,6 @@ export class WorksheetController {
     orderTargetStatus: string,
     additionalProps: Partial<Worksheet> = {}
   ): Promise<Worksheet> {
-    if (refOrder instanceof ArrivalNotice) {
-      refOrder = await this.findRefOrder(ArrivalNotice, refOrder, ['bizplace'])
-    } else if (refOrder instanceof ReleaseGood) {
-      refOrder = await this.findRefOrder(ReleaseGood, refOrder, ['bizplace'])
-    } else if (refOrder instanceof VasOrder) {
-      refOrder = await this.findRefOrder(VasOrder, refOrder, ['bizplace'])
-    } else if (refOrder instanceof InventoryCheck) {
-      refOrder = await this.findRefOrder(InventoryCheck, refOrder, ['bizplace'])
-    }
-
     const worksheet: Worksheet = await this.createWorksheet(refOrder, worksheetType, additionalProps)
 
     orderTargets.forEach((orderTarget: OrderTargetTypes) => {
@@ -515,7 +508,7 @@ export class WorksheetController {
     worksheet = await this.findWorksheet(worksheet, [
       'worksheetDetails',
       'worksheetDetails.targetProduct',
-      'worksheeDetails.targetInventory',
+      'worksheetDetails.targetInventory',
       'worksheetDetails.targetVas'
     ])
 
@@ -741,13 +734,18 @@ export class WorksheetController {
     if (duplicatedPalletCnt) throw new Error(this.ERROR_MSG.VALIDITY.DUPLICATED('Pallet ID', palletId))
   }
 
+  async createInventory(inventory: Partial<Inventory> | Partial<Inventory>[]): Promise<Inventory | Inventory[]> {
+    inventory = this.setStamp(inventory)
+    return await this.trxMgr.getRepository(Inventory).save(inventory)
+  }
+
   /**
    * @summary Update inventory record
    * @description It will update inventory after set a stamp (domain, updater)
    * The special point of this function is that this changes won't generate inventory history
    * If you want to generate inventory history automatically you would better to use transactionInventory function
    */
-  async updateInventory(inventory: Partial<Inventory> | Partial<Inventory>[]): Promise<Inventory> {
+  async updateInventory(inventory: Partial<Inventory> | Partial<Inventory>[]): Promise<Inventory | Inventory[]> {
     if (!inventory.id) throw new Error(this.ERROR_MSG.UPDATE.ID_NOT_EXISTS)
     inventory = this.setStamp(inventory)
     return await this.trxMgr.getRepository(Inventory).save(inventory)
@@ -765,7 +763,11 @@ export class WorksheetController {
     changedWeight: number,
     transactionType: string
   ): Promise<Inventory> {
-    inventory = await this.updateInventory(inventory)
+    if (inventory.id) {
+      inventory = await this.updateInventory(inventory)
+    } else {
+      inventory = await this.createInventory(inventory)
+    }
 
     generateInventoryHistory(
       inventory,
@@ -776,6 +778,8 @@ export class WorksheetController {
       this.user,
       this.trxMgr
     )
+
+    return inventory
   }
 
   /**
@@ -811,5 +815,13 @@ export class WorksheetController {
 
     const { bizplace }: { bizplace: Bizplace } = await this.findRefOrder(entitySchema, refOrder, ['bizplace'])
     return bizplace
+  }
+
+  tidyConditions(record: Record<string, any>): Record<string, any> {
+    Object.keys(record).forEach((key: string) => {
+      if (record[key] === null || record[key] instanceof Date) delete record[key]
+    })
+
+    return record
   }
 }

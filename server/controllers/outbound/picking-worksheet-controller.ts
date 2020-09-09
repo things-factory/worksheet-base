@@ -22,9 +22,8 @@ export class PickingWorksheetController extends VasWorksheetController {
         name: releaseGoodNo,
         status: ORDER_STATUS.PENDING_RECEIVE
       },
-      ['bizplace', 'orderInventories', 'orderInventories.inventory', 'orderVass']
+      ['orderInventories', 'orderInventories.inventory', 'orderVass']
     )
-    const bizplace: Bizplace = releaseGood.bizplace
     const orderInventories: OrderInventory[] = releaseGood.orderInventories
     const orderVASs: OrderVas[] = releaseGood.orderVass
 
@@ -90,10 +89,12 @@ export class PickingWorksheetController extends VasWorksheetController {
 
     worksheet = await this.activateWorksheet(worksheet, worksheetDetails, [])
 
-    const vasWorksheet: Worksheet = await this.findWorksheetByRefOrder(releaseGood, WORKSHEET_TYPE.VAS)
-    if (vasWorksheet) {
-      await this.activateVAS(vasWorksheet.name, vasWorksheet.worksheetDetails)
-    }
+    try {
+      const vasWorksheet: Worksheet = await this.findWorksheetByRefOrder(releaseGood, WORKSHEET_TYPE.VAS)
+      if (vasWorksheet) {
+        await this.activateVAS(vasWorksheet.name, vasWorksheet.worksheetDetails)
+      }
+    } catch (e) {}
 
     const pendingSplitOIs: OrderInventory[] = await this.trxMgr.getRepository(OrderInventory).find({
       where: { domain: this.domain, releaseGood, status: ORDER_INVENTORY_STATUS.PENDING_SPLIT }

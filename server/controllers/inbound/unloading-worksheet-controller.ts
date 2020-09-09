@@ -137,7 +137,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     const product: Product = targetProduct.product
     const packingType: string = targetProduct.packingType
     const qty: number = inventory.qty
-    const weight: number = Math.round(qty * inventory.weight * 100) / 100
+    const weight: number = Math.round(qty * targetProduct.weight * 100) / 100
     const location: Location = worksheet.bufferLocation
     const warehouse: Warehouse = location.warehouse
     const zone: string = location.zone
@@ -155,6 +155,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     if (inventory.reusablePallet?.id) {
       newInventory.reusablePallet = await this.trxMgr.getRepository(Pallet).findOne(inventory.reusablePallet.id)
     }
+    newInventory.orderProductId = targetProduct.id
     newInventory.warehouse = warehouse
     newInventory.location = location
     newInventory.zone = zone
@@ -167,7 +168,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
       INVENTORY_TRANSACTION_TYPE.UNLOADING
     )
 
-    targetProduct.actualPackQty++
+    targetProduct.actualPalletQty++
     targetProduct.actualPackQty += qty
     targetProduct.status = ORDER_PRODUCT_STATUS.UNLOADED
     targetProduct.updater = this.user
@@ -188,6 +189,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
             this.ERROR_MSG.VALIDITY.UNEXPECTED_FIELD_VALUE('status', 'Executing or Partially Unloaded', status)
           )
         }
+        return true
       }
     })
 
@@ -268,10 +270,12 @@ export class UnloadingWorksheetController extends VasWorksheetController {
 
     worksheet = await this.activateWorksheet(worksheet, worksheetDetails, unloadingWorksheetDetails)
 
-    const vasWorksheet: Worksheet = await this.findWorksheetByRefOrder(arrivalNotice, WORKSHEET_TYPE.VAS)
-    if (vasWorksheet) {
-      await this.activateVAS(vasWorksheet.name, vasWorksheet.worksheetDetails)
-    }
+    try {
+      const vasWorksheet: Worksheet = await this.findWorksheetByRefOrder(arrivalNotice, WORKSHEET_TYPE.VAS)
+      if (vasWorksheet) {
+        await this.activateVAS(vasWorksheet.name, vasWorksheet.worksheetDetails)
+      }
+    } catch (e) {}
 
     return worksheet
   }
@@ -307,7 +311,10 @@ export class UnloadingWorksheetController extends VasWorksheetController {
       throw new Error(`There's non-approved order products`)
     }
 
-    let worksheet: Worksheet = await this.findWorksheetByRefOrder(arrivalNotice, WORKSHEET_TYPE.UNLOADING)
+    let worksheet: Worksheet = await this.findWorksheetByRefOrder(arrivalNotice, WORKSHEET_TYPE.UNLOADING, [
+      'worksheetDetails',
+      'worksheetDetails.targetProduct'
+    ])
     this.checkRecordValidity(worksheet, { status: WORKSHEET_STATUS.EXECUTING })
 
     const partiallyUnloadedCnt: number = await this.trxMgr.getRepository(Inventory).count({

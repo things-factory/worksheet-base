@@ -27,11 +27,7 @@ export class PutawayWorksheetController extends VasWorksheetController {
   async generatePutawayWorksheet(arrivalNoticeNo: string, inventories: Inventory[]): Promise<Worksheet> {
     let arrivalNotice: ArrivalNotice = await this.findRefOrder(
       ArrivalNotice,
-      {
-        domain: this.domain,
-        name: arrivalNoticeNo,
-        status: ORDER_STATUS.ARRIVED
-      },
+      { domain: this.domain, name: arrivalNoticeNo },
       ['bizplace']
     )
 
@@ -42,7 +38,10 @@ export class PutawayWorksheetController extends VasWorksheetController {
     const bufferLocation: Location = unloadingWorksheet.bufferLocation
 
     // Check whether putaway worksheet is exists or not
-    let worksheet: Worksheet = await this.findWorksheetByRefOrder(arrivalNotice, WORKSHEET_TYPE.PUTAWAY)
+    let worksheet: Worksheet
+    try {
+      worksheet = await this.findWorksheetByRefOrder(arrivalNotice, WORKSHEET_TYPE.PUTAWAY)
+    } catch (e) {}
 
     let oiStatus: string = ORDER_PRODUCT_STATUS.UNLOADED // Default status of order inventories is UNLOADED
     let wsdStatus: string = WORKSHEET_STATUS.DEACTIVATED // Default status of worksheet is DEACTIVATED
@@ -66,18 +65,18 @@ export class PutawayWorksheetController extends VasWorksheetController {
       inventory.updater = this.user
       inventory = await this.trxMgr.getRepository(Inventory).save(inventory)
 
-      let targetInventory: OrderInventory = {
-        domain: this.domain,
-        bizplace,
-        name: OrderNoGenerator.orderInventory(),
-        status: oiStatus,
-        type: ORDER_TYPES.ARRIVAL_NOTICE,
-        arrivalNotice,
-        inventory,
-        creator: this.user,
-        updater: this.user
-      }
+      let targetInventory: OrderInventory = new OrderInventory()
+      targetInventory.domain = this.domain
+      targetInventory.bizplace = bizplace
+      targetInventory.name = OrderNoGenerator.orderInventory()
+      targetInventory.status = oiStatus
+      targetInventory.type = ORDER_TYPES.ARRIVAL_NOTICE
+      targetInventory.arrivalNotice
+      targetInventory.inventory
+      targetInventory.creator = this.user
+      targetInventory.updater = this.user
       targetInventory = await this.trxMgr.getRepository(OrderInventory).save(targetInventory)
+
       worksheet.worksheetDetails = await this.createWorksheetDetails(
         worksheet,
         WORKSHEET_TYPE.PUTAWAY,
