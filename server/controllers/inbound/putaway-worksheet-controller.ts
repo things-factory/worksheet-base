@@ -71,8 +71,8 @@ export class PutawayWorksheetController extends VasWorksheetController {
       targetInventory.name = OrderNoGenerator.orderInventory()
       targetInventory.status = oiStatus
       targetInventory.type = ORDER_TYPES.ARRIVAL_NOTICE
-      targetInventory.arrivalNotice
-      targetInventory.inventory
+      targetInventory.arrivalNotice = arrivalNotice
+      targetInventory.inventory = inventory
       targetInventory.creator = this.user
       targetInventory.updater = this.user
       targetInventory = await this.trxMgr.getRepository(OrderInventory).save(targetInventory)
@@ -81,7 +81,7 @@ export class PutawayWorksheetController extends VasWorksheetController {
         worksheet,
         WORKSHEET_TYPE.PUTAWAY,
         [targetInventory],
-        { status: wsdStatus }
+        { status: wsdStatus, fromLocation: bufferLocation }
       )
     }
 
@@ -245,7 +245,7 @@ export class PutawayWorksheetController extends VasWorksheetController {
     inventory.status = INVENTORY_STATUS.STORED
     inventory.warehouse = warehouse
     inventory.zone = zone
-    await this.transactionInventory(inventory, arrivalNotice, 0, 0, INVENTORY_TRANSACTION_TYPE.PUTAWY)
+    await this.transactionInventory(inventory, arrivalNotice, 0, 0, INVENTORY_TRANSACTION_TYPE.PUTAWAY)
 
     targetInventory.status = ORDER_INVENTORY_STATUS.TERMINATED
     targetInventory.updater = this.user
@@ -261,7 +261,8 @@ export class PutawayWorksheetController extends VasWorksheetController {
       'worksheet',
       'worksheet.arrivalNotice',
       'targetInventory',
-      'targetInventory.inventory'
+      'targetInventory.inventory',
+      'fromLocation'
     ])
     this.checkRecordValidity(worksheetDetail, { status: WORKSHEET_STATUS.DONE })
 
