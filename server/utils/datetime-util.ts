@@ -15,4 +15,25 @@ export class DateTimeConverter {
     }
     return unloadDate
   }
+
+  static datetime(dateTime) {
+    let unloadDate = ''
+    if (dateTime) {
+      const datetime = Number(dateTime)
+      const timezoneOffset = new Date(datetime).getTimezoneOffset() * 60000
+      const newUnloadDate = new Date(datetime - timezoneOffset).toISOString().slice(0, -1)
+
+      var dateTimeParts: any = newUnloadDate.split('T')
+
+      //handle date parts
+      var dateParts = dateTimeParts[0].split('-')
+      var newDate = DateTimeConverter.date(dateParts)
+
+      //handle time part
+      var timeParts = dateTimeParts[1].slice(0, -7)
+
+      unloadDate = newDate + ' ' + timeParts
+    }
+    return unloadDate
+  }
 }
