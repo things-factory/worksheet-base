@@ -38,7 +38,7 @@ export class VasWorksheetController extends WorksheetController {
       orderVASs = arrivalNotice.orderVass
     } else if (referenceOrder instanceof ReleaseGood) {
       const releaseGood: ReleaseGood = await this.findRefOrder(ReleaseGood, referenceOrder, ['orderVass'])
-      orderVASs = releaseGood.orderVASs
+      orderVASs = releaseGood.orderVass
     } else {
       const vasOrder: VasOrder = await this.findRefOrder(VasOrder, referenceOrder, ['orderVass'])
       orderVASs = vasOrder.orderVass
@@ -342,7 +342,7 @@ export class VasWorksheetController extends WorksheetController {
       [ORDER_TYPES.RELEASE_OF_GOODS]: ReleaseGood,
       [ORDER_TYPES.VAS_ORDER]: VasOrder
     }
-    const refOrder: ReferenceOrderType = await this.findRefOrder(ENTITY_MAP[orderType], {
+    let refOrder: ReferenceOrderType = await this.findRefOrder(ENTITY_MAP[orderType], {
       domain: this.domain,
       name: orderNo
     })
@@ -354,7 +354,8 @@ export class VasWorksheetController extends WorksheetController {
 
     const isPureVAS: boolean = refOrder instanceof VasOrder
     if (isPureVAS) {
-      worksheet = await this.completWorksheet(worksheet, ORDER_STATUS.DONE)
+      refOrder.status = ORDER_STATUS.DONE
+      await this.updateRefOrder(refOrder)
     }
 
     // Do complete operation transactions if there it is
@@ -371,6 +372,7 @@ export class VasWorksheetController extends WorksheetController {
       }
     }
 
+    worksheet = await this.completWorksheet(worksheet, ORDER_STATUS.DONE)
     return worksheet
   }
 

@@ -238,14 +238,13 @@ export class PickingWorksheetController extends VasWorksheetController {
     }
 
     targetInventory.status = ORDER_INVENTORY_STATUS.PICKED
-    targetInventory.updater = this.user
     await this.updateOrderTargets([targetInventory])
 
     inventory.qty -= targetInventory.releaseQty
     inventory.weight = Math.round((inventory.weight - targetInventory.releaseWeight) * 100) / 100
     inventory.lockedQty = 0
     inventory.lockedWeight = 0
-    inventory = this.transactionInventory(
+    inventory = await this.transactionInventory(
       inventory,
       releaseGood,
       -targetInventory.releaseQty,
@@ -264,12 +263,11 @@ export class PickingWorksheetController extends VasWorksheetController {
 
     const fromLocation: Location = targetInventory.inventory.location
     if (locationName) {
-      const toLocation: Location = await this.trxMgr.getRepository(
-        Location.findRefOrder({
-          where: { domain: this.domain, name: locationName },
-          relations: ['warehouse']
-        })
-      )
+      const toLocation: Location = await this.trxMgr.getRepository(Location).findOne({
+        where: { domain: this.domain, name: locationName },
+        relations: ['warehouse']
+      })
+
       if (!toLocation) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(locationName))
 
       if (fromLocation.id !== toLocation.id) {
