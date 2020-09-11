@@ -42,9 +42,11 @@ export async function activatePicking(
   /**
    * 2. Update status of picking worksheet details (status: DEACTIVATED => EXECUTING)
    */
-  foundWSDs = foundWSDs.map((wsd: WorksheetDetail) => {
-    return { ...wsd, status: WORKSHEET_STATUS.EXECUTING, updater: user }
-  })
+  foundWSDs = foundWSDs
+    .filter(x => x.type == 'DEACTIVATED')
+    .map((wsd: WorksheetDetail) => {
+      return { ...wsd, status: WORKSHEET_STATUS.EXECUTING, updater: user }
+    })
   await trxMgr.getRepository(WorksheetDetail).save(foundWSDs)
 
   /**
