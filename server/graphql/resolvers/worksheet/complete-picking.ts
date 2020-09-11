@@ -49,32 +49,60 @@ export const completePicking = {
         updater: context.state.user
       })
 
-      // 3. create loading worksheet
-      const loadingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).save({
-        domain: context.state.domain,
-        releaseGood,
-        bizplace: customerBizplace,
-        name: WorksheetNoGenerator.loading(),
-        type: WORKSHEET_TYPE.LOADING,
-        status: WORKSHEET_STATUS.DEACTIVATED,
-        creator: context.state.user,
-        updater: context.state.user
-      })
-
-      // 2) Create loading worksheet details
-      let loadingWorksheetDetails = pickedtargetInv.map((targetInventory: OrderInventory) => {
-        return {
-          domain: context.state.domain,
-          bizplace: customerBizplace,
-          worksheet: loadingWorksheet,
-          name: WorksheetNoGenerator.loadingDetail(),
-          targetInventory,
+      // Find Existing Loading Worksheet if any
+      let existLoadingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+        where: {
+          releaseGood,
           type: WORKSHEET_TYPE.LOADING,
-          status: WORKSHEET_STATUS.DEACTIVATED,
-          creator: context.state.user,
-          updater: context.state.user
+          status: WORKSHEET_STATUS.DEACTIVATED
         }
       })
+
+      // 3. create loading worksheet
+      const loadingWorksheet: Worksheet = existLoadingWorksheet
+        ? existLoadingWorksheet
+        : await trxMgr.getRepository(Worksheet).save({
+            domain: context.state.domain,
+            releaseGood,
+            bizplace: customerBizplace,
+            name: WorksheetNoGenerator.loading(),
+            type: WORKSHEET_TYPE.LOADING,
+            status: WORKSHEET_STATUS.DEACTIVATED,
+            creator: context.state.user,
+            updater: context.state.user
+          })
+
+      // 2) Create loading worksheet details
+      let loadingWorksheetDetails = await Promise.all(
+        pickedtargetInv.map(async (targetInventory: OrderInventory) => {
+          let existingLoadingWorksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
+            where: {
+              domain: context.state.domain,
+              worksheet: loadingWorksheet,
+              targetInventory,
+              type: WORKSHEET_TYPE.LOADING
+            }
+          })
+
+          return existingLoadingWorksheetDetail
+            ? {
+                ...existingLoadingWorksheetDetail,
+                status: WORKSHEET_STATUS.DEACTIVATED
+              }
+            : {
+                domain: context.state.domain,
+                bizplace: customerBizplace,
+                worksheet: loadingWorksheet,
+                name: WorksheetNoGenerator.loadingDetail(),
+                targetInventory,
+                type: WORKSHEET_TYPE.LOADING,
+                status: WORKSHEET_STATUS.DEACTIVATED,
+                creator: context.state.user,
+                updater: context.state.user
+              }
+        })
+      )
+
       loadingWorksheetDetails = await trxMgr.getRepository(WorksheetDetail).save(loadingWorksheetDetails)
 
       await activateLoading(
