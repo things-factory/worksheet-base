@@ -1,0 +1,24 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.WORKSHEET_TYPE = {
+    UNLOADING: 'UNLOADING',
+    PUTAWAY: 'PUTAWAY',
+    VAS: 'VAS',
+    PICKING: 'PICKING',
+    LOADING: 'LOADING',
+    CYCLE_COUNT: 'CYCLE_COUNT',
+    RETURN: 'RETURN'
+};
+exports.WORKSHEET_STATUS = {
+    DEACTIVATED: 'DEACTIVATED',
+    EXECUTING: 'EXECUTING',
+    NOT_TALLY: 'NOT_TALLY',
+    ADJUSTED: 'ADJUSTED',
+    PENDING_APPROVAL: 'PENDING_APPROVAL',
+    INSPECTED: 'INSPECTED',
+    PENDING_ADJUSTMENT: 'PENDING_ADJUSTMENT',
+    PARTIALLY_UNLOADED: 'PARTIALLY_UNLOADED',
+    DONE: 'DONE',
+    REPLACED: 'REPLACED'
+};
+//# sourceMappingURL=worksheet.js.map
