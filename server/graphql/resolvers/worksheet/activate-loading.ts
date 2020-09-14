@@ -101,7 +101,9 @@ export async function activateLoading(
 
   const customerBizplace: Bizplace = foundWorksheet.bizplace
   const foundWSDs: WorksheetDetail[] = foundWorksheet.worksheetDetails
-  let targetInventories: OrderInventory[] = foundWSDs.map((foundWSD: WorksheetDetail) => foundWSD.targetInventory)
+  let targetInventories: OrderInventory[] = foundWSDs
+    .filter(x => x.status == 'DEACTIVATED')
+    .map((foundWSD: WorksheetDetail) => foundWSD.targetInventory)
 
   /**
    * 2. Update description and status of loading worksheet details (status: DEACTIVATED => EXECUTING)

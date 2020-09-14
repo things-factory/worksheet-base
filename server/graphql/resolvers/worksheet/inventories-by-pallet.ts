@@ -7,7 +7,7 @@ import { getRepository, In, SelectQueryBuilder } from 'typeorm'
 export const inventoriesByPalletResolver = {
   async inventoriesByPallet(_: any, { filters, pagination, sortings, locationSortingRules }, context: any) {
     const params = { filters, pagination }
-    const permittedBizplaceIds: string[] = await getPermittedBizplaceIds(context.state.domain, context.state.user)
+    let permittedBizplaceIds: string[] = await getPermittedBizplaceIds(context.state.domain, context.state.user)
 
     if (!params.filters.find((filter: any) => filter.name === 'bizplace')) {
       params.filters.push({
@@ -16,6 +16,9 @@ export const inventoriesByPalletResolver = {
         value: permittedBizplaceIds,
         relation: true
       })
+    } else {
+      permittedBizplaceIds = params.filters.find(filter => filter.name === 'bizplace').value
+      params.filters.find(filter => filter.name === 'bizplace').relation = true
     }
 
     const qb: SelectQueryBuilder<Inventory> = getRepository(Inventory).createQueryBuilder('iv')
