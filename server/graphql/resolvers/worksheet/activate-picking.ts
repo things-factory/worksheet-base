@@ -36,17 +36,15 @@ export async function activatePicking(
   })
 
   if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
-  let foundWSDs: WorksheetDetail[] = foundWorksheet.worksheetDetails
+  let foundWSDs: WorksheetDetail[] = foundWorksheet.worksheetDetails.filter(x => x.status == 'DEACTIVATED')
   let targetInventories: OrderInventory[] = foundWSDs.map((foundWSD: WorksheetDetail) => foundWSD.targetInventory)
 
   /**
    * 2. Update status of picking worksheet details (status: DEACTIVATED => EXECUTING)
    */
-  foundWSDs = foundWSDs
-    .filter(x => x.status == 'DEACTIVATED')
-    .map((wsd: WorksheetDetail) => {
-      return { ...wsd, status: WORKSHEET_STATUS.EXECUTING, updater: user }
-    })
+  foundWSDs = foundWSDs.map((wsd: WorksheetDetail) => {
+    return { ...wsd, status: WORKSHEET_STATUS.EXECUTING, updater: user }
+  })
   await trxMgr.getRepository(WorksheetDetail).save(foundWSDs)
 
   /**
