@@ -9,9 +9,9 @@ import {
 } from '@things-factory/sales-base'
 import { Inventory, INVENTORY_TRANSACTION_TYPE } from '@things-factory/warehouse-base'
 import { Equal, Not } from 'typeorm'
-import { generateInventoryHistory } from '../../../../utils'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../constants'
 import { Worksheet, WorksheetDetail } from '../../entities'
+import { generateInventoryHistory } from '../../utils'
 import { VasWorksheetController } from '../vas/vas-worksheet-controller'
 
 export class LoadingWorksheetController extends VasWorksheetController {
@@ -63,7 +63,7 @@ export class LoadingWorksheetController extends VasWorksheetController {
     releaseGood.updater = this.user
     await this.updateRefOrder(releaseGood)
 
-    await this.updateOrderTargets(targetInventories)
+    await this.updateOrderTargets([targetInventories])
     return await this.activateWorksheet(worksheet, worksheetDetails, loadingWorksheetDetails)
   }
 
@@ -102,7 +102,7 @@ export class LoadingWorksheetController extends VasWorksheetController {
         // Change status of order inventory
         targetInventory.status = ORDER_INVENTORY_STATUS.LOADED
         targetInventory.updater = this.user
-        targetInventory = await this.updateOrderTargets(targetInventory)
+        await this.updateOrderTargets([targetInventory])
       } else if (loadedQty < pickedQty) {
         const remainQty: number = pickedQty - loadedQty
         const loadedWeight: number = parseFloat(((targetInventory.releaseWeight / pickedQty) * loadedQty).toFixed(2))
@@ -112,7 +112,7 @@ export class LoadingWorksheetController extends VasWorksheetController {
         targetInventory.releaseQty = loadedQty
         targetInventory.releaseWeight = loadedWeight
         targetInventory.updater = this.user
-        targetInventory = await this.updateOrderTargets(targetInventory)
+        await this.updateOrderTargets([targetInventory])
 
         worksheetDetail.status = WORKSHEET_STATUS.DONE
         worksheetDetail.updater = this.user
@@ -130,7 +130,7 @@ export class LoadingWorksheetController extends VasWorksheetController {
         newTargetInventory.releaseWeight = remainWeight
         newTargetInventory.creator = this.user
         newTargetInventory.updater = this.user
-        newTargetInventory = await this.updateOrderTargets(newTargetInventory)
+        newTargetInventory = await this.trxMgr.getRepository(OrderInventory).save(newTargetInventory)
 
         await this.createWorksheetDetails(worksheet, WORKSHEET_TYPE.LOADING, [newTargetInventory], {
           status: WORKSHEET_STATUS.EXECUTING
@@ -150,16 +150,17 @@ export class LoadingWorksheetController extends VasWorksheetController {
   }
 
   async undoLoading(deliveryOrder: Partial<DeliveryOrder>, palletIds: string[]): Promise<void> {
-    deliveryOrder = await this.findRefOrder(DeliveryOrder, deliveryOrder, [
-      'releaseGood',
-      'orderInventories',
-      'orderInventories.inventory'
+    deliveryOrder = await this.findRefOrder(DeliveryOrder, { id: deliveryOrder.id, domain: this.domain }, [
+      'releaseGood'
     ])
 
     const releaseGood: ReleaseGood = deliveryOrder.releaseGood
 
+    const targetInventories: OrderInventory[] = await this.trxMgr.getRepository(OrderInventory).find({
+      where: { domain: this.domain, deliveryOrder, status: ORDER_INVENTORY_STATUS.LOADED },
+      relations: ['inventory']
+    })
     // Filter out inventories which is included palletIds list.
-    const targetInventories: OrderInventory[] = deliveryOrder.orderInventories
     let undoTargetOrderInventories: OrderInventory[] = targetInventories.filter(
       (targetInventory: OrderInventory) =>
         targetInventory.status === ORDER_INVENTORY_STATUS.LOADED &&
@@ -202,7 +203,7 @@ export class LoadingWorksheetController extends VasWorksheetController {
       } else {
         // Update undo target inventory
         undoTargetOrderInventory.status = ORDER_INVENTORY_STATUS.LOADING
-        undoTargetOrderInventory = await this.updateOrderTargets([undoTargetOrderInventory])
+        await this.updateOrderTargets([undoTargetOrderInventory])
 
         // Update worksheet detail to be able to load
         let undoTargetWorksheetDetail: WorksheetDetail = await this.findWorksheetDetail({
@@ -224,7 +225,7 @@ export class LoadingWorksheetController extends VasWorksheetController {
     // to check whether there's more order inventories
     // If thres' no more remove delivery order
     if (targetInventories.length === undoTargetOrderInventories.length) {
-      await this.trxMgr.getRepository(OrderInventory).delete(deliveryOrder.id)
+      await this.trxMgr.getRepository(DeliveryOrder).delete(deliveryOrder.id)
     }
   }
 
@@ -236,8 +237,8 @@ export class LoadingWorksheetController extends VasWorksheetController {
     })
 
     const worksheet: Worksheet = await this.findWorksheetByRefOrder(releaseGood, WORKSHEET_TYPE.LOADING, [
-      'worksheetDestails',
-      'worksheetDestails.targetInventory'
+      'worksheetDetails',
+      'worksheetDetails.targetInventory'
     ])
     this.checkRecordValidity(worksheet, { status: WORKSHEET_STATUS.EXECUTING })
 
