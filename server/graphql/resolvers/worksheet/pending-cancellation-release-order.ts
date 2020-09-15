@@ -9,16 +9,16 @@ import {
   OrderInventory,
   DeliveryOrder,
   OrderVas,
-  ReleaseGood,
+  ReleaseGood
 } from '@things-factory/sales-base'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const pendingCancellationReleaseOrder = {
   async pendingCancellationReleaseOrder(_: any, { name }, context: any) {
-    return await getManager().transaction(async (trxMgr) => {
+    return await getManager().transaction(async trxMgr => {
       const foundRO: ReleaseGood = await trxMgr.getRepository(ReleaseGood).findOne({
         where: { domain: context.state.domain, name },
-        relations: ['bizplace', 'orderInventories', 'orderVass'],
+        relations: ['bizplace', 'orderInventories', 'orderVass']
       })
 
       if (!foundRO) throw new Error(`Release good order doesn't exists.`)
@@ -36,7 +36,7 @@ export const pendingCancellationReleaseOrder = {
           return {
             ...orderInv,
             status: ORDER_INVENTORY_STATUS.PENDING_REVERSE,
-            updater: context.state.user,
+            updater: context.state.user
           }
         })
         await trxMgr.getRepository(OrderInventory).save(pickedOIs)
@@ -52,7 +52,7 @@ export const pendingCancellationReleaseOrder = {
             return {
               ...targetOI,
               status: ORDER_INVENTORY_STATUS.PENDING_CANCEL,
-              updater: context.state.user,
+              updater: context.state.user
             }
           })
         await trxMgr.getRepository(OrderInventory).save(pickingOIs)
@@ -63,7 +63,7 @@ export const pendingCancellationReleaseOrder = {
             return {
               ...targetOI,
               status: ORDER_INVENTORY_STATUS.PENDING_REVERSE,
-              updater: context.state.user,
+              updater: context.state.user
             }
           })
         await trxMgr.getRepository(OrderInventory).save(pickedOIs)
@@ -75,7 +75,7 @@ export const pendingCancellationReleaseOrder = {
           return {
             ...orderVas,
             status: ORDER_VAS_STATUS.PENDING_CANCEL,
-            updater: context.state.user,
+            updater: context.state.user
           }
         })
         await trxMgr.getRepository(OrderVas).save(foundOVs)
@@ -85,16 +85,16 @@ export const pendingCancellationReleaseOrder = {
         let pickedWSD: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
           where: {
             domain: context.state.domain,
-            targetInventory: In(pickedOIs.map((oi) => oi.id)),
-            status: ORDER_INVENTORY_STATUS.DONE,
-          },
+            targetInventory: In(pickedOIs.map(oi => oi.id)),
+            status: ORDER_INVENTORY_STATUS.DONE
+          }
         })
 
         pickedWSD = pickedWSD.map((wsd: WorksheetDetail) => {
           return {
             ...wsd,
             status: ORDER_INVENTORY_STATUS.PENDING_CANCEL,
-            updater: context.state.user,
+            updater: context.state.user
           }
         })
         await trxMgr.getRepository(WorksheetDetail).save(pickedWSD)
@@ -102,10 +102,10 @@ export const pendingCancellationReleaseOrder = {
         let replacedWSD: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
           where: {
             domain: context.state.domain,
-            targetInventory: In(pickedOIs.map((oi) => oi.id)),
-            status: ORDER_INVENTORY_STATUS.REPLACED,
+            targetInventory: In(pickedOIs.map(oi => oi.id)),
+            status: ORDER_INVENTORY_STATUS.REPLACED
           },
-          relations: ['targetInventory'],
+          relations: ['targetInventory']
         })
 
         if (replacedWSD && replacedWSD.length) {
@@ -114,7 +114,7 @@ export const pendingCancellationReleaseOrder = {
             return {
               ...oi,
               status: ORDER_INVENTORY_STATUS.REPLACED,
-              updater: context.state.user,
+              updater: context.state.user
             }
           })
           await trxMgr.getRepository(OrderInventory).save(replacedOI)
@@ -123,14 +123,14 @@ export const pendingCancellationReleaseOrder = {
 
       if (pickingOIs && pickingOIs.length) {
         let pickingWSD: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
-          where: { domain: context.state.domain, targetInventory: In(pickingOIs.map((oi) => oi.id)) },
+          where: { domain: context.state.domain, targetInventory: In(pickingOIs.map(oi => oi.id)) }
         })
 
         pickingWSD = pickingWSD.map((wsd: WorksheetDetail) => {
           return {
             ...wsd,
             status: ORDER_INVENTORY_STATUS.PENDING_CANCEL,
-            updater: context.state.user,
+            updater: context.state.user
           }
         })
         await trxMgr.getRepository(WorksheetDetail).save(pickingWSD)
@@ -140,29 +140,29 @@ export const pendingCancellationReleaseOrder = {
       let foundWS: Worksheet[] = await trxMgr.getRepository(Worksheet).find({
         where: {
           domain: context.state.domain,
-          releaseGood: foundRO,
-        },
+          releaseGood: foundRO
+        }
       })
 
       foundWS = foundWS.map((ws: Worksheet) => {
         return {
           ...ws,
           status: ORDER_INVENTORY_STATUS.PENDING_CANCEL,
-          updater: context.state.user,
+          updater: context.state.user
         }
       })
       await trxMgr.getRepository(Worksheet).save(foundWS)
 
       // find DO and change status to pending cancel
       let foundDO: DeliveryOrder[] = await trxMgr.getRepository(DeliveryOrder).find({
-        where: { domain: context.state.domain, releaseGood: foundRO },
+        where: { domain: context.state.domain, releaseGood: foundRO }
       })
 
       foundDO = foundDO.map((deliveryOrder: DeliveryOrder) => {
         return {
           ...deliveryOrder,
           status: ORDER_STATUS.PENDING_CANCEL,
-          updater: context.state.user,
+          updater: context.state.user
         }
       })
       await trxMgr.getRepository(DeliveryOrder).save(foundDO)
@@ -170,7 +170,7 @@ export const pendingCancellationReleaseOrder = {
       await trxMgr.getRepository(ReleaseGood).save({
         ...foundRO,
         status: ORDER_STATUS.PENDING_CANCEL,
-        updater: context.state.user,
+        updater: context.state.user
       })
 
       // notification logics
@@ -179,7 +179,7 @@ export const pendingCancellationReleaseOrder = {
         .getRepository('users_roles')
         .createQueryBuilder('ur')
         .select('ur.users_id', 'id')
-        .where((qb) => {
+        .where(qb => {
           const subQuery = qb
             .subQuery()
             .select('role.id')
@@ -196,17 +196,17 @@ export const pendingCancellationReleaseOrder = {
         const msg = {
           title: `${foundRO.name} cancellation`,
           message: `${customerBizplace.name} is requesting to cancel order`,
-          url: context.header.referer,
+          url: context.header.referer
         }
-        users.forEach((user) => {
+        users.forEach(user => {
           sendNotification({
             receiver: user.id,
-            message: JSON.stringify(msg),
+            message: JSON.stringify(msg)
           })
         })
       }
 
       return
     })
-  },
+  }
 }

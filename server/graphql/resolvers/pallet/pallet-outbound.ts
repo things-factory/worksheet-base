@@ -1,7 +1,6 @@
-import { getManager, getRepository, In } from 'typeorm'
-import { Pallet, PalletHistory } from '@things-factory/warehouse-base'
-import { Bizplace } from '@things-factory/biz-base'
 import { ReleaseGood } from '@things-factory/sales-base'
+import { Pallet, PalletHistory } from '@things-factory/warehouse-base'
+import { getManager, getRepository, In } from 'typeorm'
 
 export const palletOutbound = {
   async palletOutbound(_: any, { refOrderNo, patches }, context: any) {

@@ -6,7 +6,7 @@ import { Inventory, Location, Pallet, PALLET_TYPES, Warehouse } from '@things-fa
 import { EntityManager, getManager } from 'typeorm'
 import { WorksheetDetail } from '../../../../../entities'
 import { checkPalletDuplication, checkPalletIdenticallity } from '../../../../../utils'
-import { executeVas } from '../../execute-vas'
+import { executeVas } from '../../vas/execute-vas'
 import {
   assignInventory,
   getCurrentAmount,
