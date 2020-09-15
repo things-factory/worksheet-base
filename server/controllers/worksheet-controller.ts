@@ -14,7 +14,7 @@ import {
   VasOrder
 } from '@things-factory/sales-base'
 import { Domain, sendNotification } from '@things-factory/shell'
-import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
+import { Inventory, Pallet, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { EntityManager, EntitySchema, Equal, FindOneOptions, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
@@ -732,6 +732,15 @@ export class WorksheetController {
     })
 
     if (duplicatedPalletCnt) throw new Error(this.ERROR_MSG.VALIDITY.DUPLICATED('Pallet ID', palletId))
+
+    const duplicatedReusablePalletCnt: number = await this.trxMgr.getRepository(Pallet).count({
+      where: {
+        domain: this.domain,
+        name: palletId
+      }
+    })
+
+    if (duplicatedReusablePalletCnt) throw new Error(this.ERROR_MSG.VALIDITY.DUPLICATED('Pallet ID', palletId))
   }
 
   async createInventory(inventory: Partial<Inventory> | Partial<Inventory>[]): Promise<Inventory | Inventory[]> {

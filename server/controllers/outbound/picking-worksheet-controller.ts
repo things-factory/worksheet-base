@@ -36,14 +36,16 @@ export class PickingWorksheetController extends VasWorksheetController {
         orderInventories
       )
 
-      const inventories: Inventory[] = orderInventories.map((oi: OrderInventory) => {
-        let inventory: Inventory = oi.inventory
-        inventory.lockedQty = oi.releaseQty
-        inventory.lockedWeight = oi.releaseWeight
-        inventory.updater = this.user
-      })
+      if (releaseGood.crossDocking) {
+        const inventories: Inventory[] = orderInventories.map((oi: OrderInventory) => {
+          let inventory: Inventory = oi.inventory
+          inventory.lockedQty = oi.releaseQty
+          inventory.lockedWeight = oi.releaseWeight
+          inventory.updater = this.user
+        })
 
-      await this.updateInventory(inventories)
+        await this.updateInventory(inventories)
+      }
     }
 
     orderInventories.forEach((oi: OrderInventory) => {

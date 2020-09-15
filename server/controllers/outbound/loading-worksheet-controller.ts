@@ -52,12 +52,15 @@ export class LoadingWorksheetController extends VasWorksheetController {
     if (nonFinishedVasCnt) return
 
     const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
-    const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => {
-      let targetInventory: OrderInventory = wsd.targetInventory
-      targetInventory.status = ORDER_INVENTORY_STATUS.LOADING
-      targetInventory.updater = this.user
-      return targetInventory
-    })
+    let targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
+
+    targetInventories = targetInventories
+      .filter(targetInventory => targetInventory.status == ORDER_INVENTORY_STATUS.PICKED)
+      .map((targetInventory: OrderInventory) => {
+        targetInventory.status = ORDER_INVENTORY_STATUS.LOADING
+        targetInventory.updater = this.user
+        return targetInventory
+      })
 
     releaseGood.status = ORDER_STATUS.LOADING
     releaseGood.updater = this.user
