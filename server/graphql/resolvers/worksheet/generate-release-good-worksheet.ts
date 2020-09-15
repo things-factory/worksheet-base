@@ -71,14 +71,16 @@ export async function generateReleaseGoodWorksheet(
       await generatePickingWorksheetDetail(trxMgr, domain, customerBizplace, user, pickingWorksheet, oi)
     }
 
-    foundOIs.map(async (oi: OrderInventory) => {
-      if (oi.inventory?.id) {
-        oi.inventory.lockedQty = oi.releaseQty
-        oi.inventory.lockedWeight = oi.releaseWeight
-        oi.inventory.updater = user
-        await trxMgr.getRepository(Inventory).save(oi.inventory)
-      }
-    })
+    if (foundReleaseGood.crossDocking) {
+      foundOIs.map(async (oi: OrderInventory) => {
+        if (oi.inventory?.id) {
+          oi.inventory.lockedQty = oi.releaseQty
+          oi.inventory.lockedWeight = oi.releaseWeight
+          oi.inventory.updater = user
+          await trxMgr.getRepository(Inventory).save(oi.inventory)
+        }
+      })
+    }
   }
 
   // 2. 2) Update status of order inventories (PENDING_RECEIVE => PENDING_SPLIT or READY_TO_PICK)
