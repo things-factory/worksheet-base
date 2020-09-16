@@ -22,7 +22,7 @@ import {
   Pallet,
   Warehouse
 } from '@things-factory/warehouse-base'
-import { Equal, Not } from 'typeorm'
+import { Equal, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../constants'
 import { Worksheet, WorksheetDetail } from '../../entities'
 import { VasWorksheetController } from '../vas/vas-worksheet-controller'
@@ -286,7 +286,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
   ): Promise<void> {
     let arrivalNotice: ArrivalNotice = await this.findRefOrder(
       ArrivalNotice,
-      { domain: this.domain, name: arrivalNoticeNo, status: ORDER_STATUS.PROCESSING },
+      { domain: this.domain, name: arrivalNoticeNo, status: In([ORDER_STATUS.PROCESSING, ORDER_STATUS.PUTTING_AWAY]) },
       ['orderProducts', 'releaseGood']
     )
 

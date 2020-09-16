@@ -1,4 +1,5 @@
 import { User } from '@things-factory/auth-base'
+import { ArrivalNotice } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_TYPE } from '../../../../constants'
@@ -13,21 +14,27 @@ export const activateUnloadingResolver = {
       const { domain, user }: { domain: Domain; user: User } = context.state
       let unloadingWS: Worksheet = await activateUnloading(trxMgr, domain, user, worksheetNo, unloadingWorksheetDetails)
 
-      if (unloadingWS?.arrivalNotice?.crossDocking === undefined) {
+      if (!unloadingWS?.arrivalNotice?.id) {
         unloadingWS = await trxMgr.getRepository(Worksheet).findOne(unloadingWS.id, {
-          relations: ['arrivalNotice', 'arrivalNotice.releaseGood']
+          relations: ['arrivalNotice']
         })
       }
 
-      const crossDocking: boolean = unloadingWS.arrivalNotice.crossDocking
+      let arrivalNotice: ArrivalNotice = unloadingWS.arrivalNotice
+      const crossDocking: boolean = arrivalNotice.crossDocking
+
       if (crossDocking) {
+        arrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne(arrivalNotice.id, {
+          relations: ['releaseGood']
+        })
+        const releaseGood = arrivalNotice.releaseGood
         const { name: pickingWorksheetNo } = await worksheetByOrderNo(
           context.state.domain,
-          unloadingWS.arrivalNotice.releaseGood.name,
+          releaseGood.name,
           WORKSHEET_TYPE.PICKING,
           trxMgr
         )
-        await activatePicking(trxMgr, pickingWorksheetNo, context.state.domain, context.state.user)
+        await activatePicking(trxMgr, domain, user, pickingWorksheetNo)
       }
 
       return unloadingWS

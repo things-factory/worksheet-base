@@ -87,7 +87,7 @@ export const crossDockPickingResolver = {
 
         if (remainQty > 0 || remainWeight > 0) {
           // Need to create order inventory and worksheet detail without inventory assignment
-          let targetInventory: OrderInventory = Object.assign({}, targetInv)
+          let targetInventory: OrderInventory = trxMgr.getRepository(OrderInventory).create(targetInv)
           delete targetInventory.id
           targetInventory.name = OrderNoGenerator.orderInventory()
           targetInventory.releaseQty = remainQty
@@ -98,7 +98,9 @@ export const crossDockPickingResolver = {
           targetInventory = await trxMgr.getRepository(OrderInventory).save(targetInventory)
 
           const worksheetController: WorksheetController = new WorksheetController(trxMgr, domain, user)
-          worksheetController.createWorksheetDetails(worksheet, WORKSHEET_TYPE.PICKING, [targetInventory])
+          await worksheetController.createWorksheetDetails(worksheet, WORKSHEET_TYPE.PICKING, [targetInventory], {
+            status: WORKSHEET_STATUS.EXECUTING
+          })
         }
       } else {
         let { targetInventory: originOrdInv } = await trxMgr.getRepository(WorksheetDetail).findOne(originWSD.id, {

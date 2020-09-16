@@ -778,7 +778,7 @@ export class WorksheetController {
       inventory = await this.createInventory(inventory)
     }
 
-    generateInventoryHistory(
+    await generateInventoryHistory(
       inventory,
       referencOrder,
       transactionType,

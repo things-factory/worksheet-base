@@ -47,5 +47,5 @@ export async function activatePutaway(
   putawayWorksheetDetails: Partial<WorksheetDetail>[]
 ) {
   const worksheetController: PutawayWorksheetController = new PutawayWorksheetController(trxMgr, domain, user)
-  worksheetController.activatePutaway(worksheetNo, putawayWorksheetDetails)
+  await worksheetController.activatePutaway(worksheetNo, putawayWorksheetDetails)
 }
