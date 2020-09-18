@@ -16,11 +16,11 @@ export class DateTimeConverter {
     return unloadDate
   }
 
-  static datetime(dateTime) {
+  static datetime(dateTime, timezone) {
     let unloadDate = ''
     if (dateTime) {
       const datetime = Number(dateTime)
-      const timezoneOffset = new Date(datetime).getTimezoneOffset() * 60000
+      const timezoneOffset = timezone * 60000
       const newUnloadDate = new Date(datetime - timezoneOffset).toISOString().slice(0, -1)
 
       var dateTimeParts: any = newUnloadDate.split('T')
