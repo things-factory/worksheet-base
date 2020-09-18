@@ -476,7 +476,7 @@ export class WorksheetController {
     worksheet.updater = this.user
     worksheet = await this.trxMgr.getRepository(Worksheet).save(worksheet)
 
-    worksheetDetails = this.renewWorksheetDetails(worksheetDetails, changedWorksheetDetails, {
+    worksheetDetails = this.renewWorksheetDetails(worksheetDetails, changedWorksheetDetails, 'name', {
       status: WORKSHEET_STATUS.EXECUTING,
       updater: this.user
     })
@@ -574,22 +574,23 @@ export class WorksheetController {
   renewWorksheetDetails(
     originWSDs: WorksheetDetail[],
     changedWSDs: Partial<WorksheetDetail>[],
+    identifier: string,
     additionalProps: Partial<WorksheetDetail> = {}
   ): WorksheetDetail[] {
     if (
-      originWSDs.some((wsd: WorksheetDetail) => !wsd.id && !wsd.name) ||
-      changedWSDs.some((wsd: Partial<WorksheetDetail>) => !wsd.id && !wsd.name)
+      originWSDs.some((wsd: WorksheetDetail) => !wsd[identifier]) ||
+      changedWSDs.some((wsd: Partial<WorksheetDetail>) => !wsd[identifier])
     ) {
       throw new Error(
         this.ERROR_MSG.VALIDITY.CANT_PROCEED_STEP_BY(
           'renew worksheet details',
-          `some passed parameter doesn't have id and name`
+          `some passed parameter doesn't have identifier (${identifier})`
         )
       )
     }
 
     return originWSDs.map((originWSD: WorksheetDetail) => {
-      const changedWSD: Partial<WorksheetDetail> = this.findMatchedWSD(originWSD.id || originWSD.name, changedWSDs)
+      const changedWSD: Partial<WorksheetDetail> = this.findMatchedWSD(originWSD[identifier], changedWSDs)
 
       return {
         ...originWSD,

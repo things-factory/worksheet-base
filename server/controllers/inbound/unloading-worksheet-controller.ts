@@ -275,7 +275,9 @@ export class UnloadingWorksheetController extends VasWorksheetController {
       if (vasWorksheet) {
         await this.activateVAS(vasWorksheet.name, vasWorksheet.worksheetDetails)
       }
-    } catch (e) {}
+    } catch (e) {
+      // Do nothing
+    }
 
     return worksheet
   }
@@ -324,49 +326,31 @@ export class UnloadingWorksheetController extends VasWorksheetController {
       throw new Error('There is partially unloaded pallet, generate putaway worksheet before complete unloading.')
     }
 
-    const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
-    unloadingWorksheetDetails = this.renewWorksheetDetails(worksheetDetails, unloadingWorksheetDetails, {
-      status: WORKSHEET_STATUS.DONE,
-      updater: this.user
-    })
+    if (unloadingWorksheetDetails.some((wsd: Partial<WorksheetDetail>) => wsd.issue)) {
+      const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
+      unloadingWorksheetDetails = this.renewWorksheetDetails(worksheetDetails, unloadingWorksheetDetails, 'name', {
+        updater: this.user
+      })
+      const worksheetDetailsWithIssue: WorksheetDetail[] = unloadingWorksheetDetails.filter(
+        (wsd: WorksheetDetail) => wsd.issue
+      ) as WorksheetDetail[]
+      if (worksheetDetailsWithIssue.length) {
+        await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetailsWithIssue)
+      }
 
-    unloadingWorksheetDetails.forEach((wsd: WorksheetDetail) => {
-      wsd.targetProduct.remark = wsd.issue || wsd.targetProduct.remark
-    })
+      const targetProductsWithIssue: OrderProduct[] = worksheetDetailsWithIssue.map((wsd: WorksheetDetail) => {
+        let targetProduct: OrderProduct = wsd.targetProduct
+        targetProduct.remark = wsd.issue
+        return targetProduct
+      })
+      await this.updateOrderTargets(targetProductsWithIssue)
+    }
 
     if (arrivalNotice.status !== ORDER_STATUS.PUTTING_AWAY) {
-      arrivalNotice.status = ORDER_STATUS.READY_TO_PUTAWAY
-      arrivalNotice.updater = this.user
-      arrivalNotice = await this.updateRefOrder(arrivalNotice)
+      await this.completWorksheet(worksheet, ORDER_STATUS.READY_TO_PUTAWAY)
+    } else {
+      await this.completWorksheet(worksheet)
     }
-
-    const inventories: Inventory[] = await this.trxMgr.getRepository(Inventory).find({
-      where: {
-        domain: this.domain,
-        refOrderId: arrivalNotice.id,
-        status: INVENTORY_STATUS.UNLOADED
-      }
-    })
-
-    const putawayWorksheetController: PutawayWorksheetController = new PutawayWorksheetController(
-      this.trxMgr,
-      this.domain,
-      this.user
-    )
-    let putawayWorksheet: Worksheet = await putawayWorksheetController.generatePutawayWorksheet(
-      arrivalNoticeNo,
-      inventories
-    )
-
-    if (!putawayWorksheet?.worksheetDetails?.length) {
-      putawayWorksheet = await this.findWorksheetByNo(putawayWorksheet.name)
-    }
-
-    if (putawayWorksheet?.status === WORKSHEET_STATUS.DEACTIVATED) {
-      await putawayWorksheetController.activatePutaway(putawayWorksheet.name, putawayWorksheet.worksheetDetails)
-    }
-
-    await this.completWorksheet(worksheet)
   }
 
   async completeUnloadingPartially(

@@ -31,6 +31,4 @@ export async function completePutaway(
       relations: ['bizplace', 'arrivalNotice']
     })
   }
-  const arrivalNotice: ArrivalNotice = worksheet.arrivalNotice
-  await generateGoodsReceivalNote({ refNo: arrivalNotice.name, customer: worksheet.bizplace.id }, domain, user, trxMgr)
 }
