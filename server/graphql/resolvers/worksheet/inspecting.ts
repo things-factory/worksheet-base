@@ -7,13 +7,19 @@ import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
 
 export const inspecting = {
-  async inspecting(_: any, { worksheetDetailName, palletId, locationName, inspectedQty }, context: any) {
+  async inspecting(
+    _: any,
+    { worksheetDetailName, palletId, locationName, inspectedBatchNo, inspectedQty, inspectedWeight },
+    context: any
+  ) {
     return await getManager().transaction(async trxMgr => {
       await executeInspection(
         worksheetDetailName,
         palletId,
         locationName,
+        inspectedBatchNo,
         inspectedQty,
+        inspectedWeight,
         context.state.domain,
         context.state.user,
         trxMgr
@@ -26,7 +32,9 @@ export async function executeInspection(
   worksheetDetailName: string,
   palletId: string,
   locationName: string,
+  inspectedBatchNo: string,
   inspectedQty: number,
+  inspectedWeight: number,
   domain: Domain,
   user: User,
   trxMgr: EntityManager
@@ -64,7 +72,12 @@ export async function executeInspection(
 
   if (inventory.palletId !== palletId) throw new Error('Pallet ID is invalid')
 
-  if (beforeLocation.name !== currentLocation.name || inspectedQty !== inventory.qty) {
+  if (
+    beforeLocation.name !== currentLocation.name ||
+    inspectedQty !== inventory.qty ||
+    inspectedBatchNo !== inventory.batchId ||
+    inspectedWeight !== inventory.weight
+  ) {
     await trxMgr.getRepository(WorksheetDetail).save({
       ...worksheetDetail,
       status: WORKSHEET_STATUS.NOT_TALLY,
@@ -76,6 +89,8 @@ export async function executeInspection(
       ...targetInventory,
       inspectedLocation: currentLocation,
       inspectedQty,
+      inspectedWeight,
+      inspectedBatchNo,
       status: ORDER_INVENTORY_STATUS.NOT_TALLY,
       updater: user
     })
