@@ -31,7 +31,7 @@ process.on('bootstrap-module-route' as any, (app, routes) => {
     context.body = await renderKimedaGRN(context.params)
   })
 
-  routes.get('/view_job_sheet/:domain/:ganNo/:timezoneOffSet', async (context, next) => {
+  routes.get('/view_job_sheet/:domain/:ganNo', async (context, next) => {
     context.body = await renderJobSheet(context.params)
   })
 })
