@@ -16,7 +16,7 @@ export class DateTimeConverter {
     return unloadDate
   }
 
-  static datetime(dateTime) {
+  static datetime(dateTime, timezone) {
     let unloadDate = ''
     if (dateTime) {
       const datetime = Number(dateTime)
