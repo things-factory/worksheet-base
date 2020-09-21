@@ -42,18 +42,18 @@ export class CycleCountWorksheetController extends WorksheetController {
     inventories = await this.trxMgr.getRepository(Inventory).save(inventories)
 
     let targetInventories: OrderInventory[] = inventories.map((inventory: Inventory) => {
-      return {
-        domain: this.domain,
-        bizplace,
-        status: ORDER_INVENTORY_STATUS.PENDING,
-        name: OrderNoGenerator.orderInventory(),
-        InventoryCheck: cycleCount,
-        releaseQty: 0,
-        releaseWeight: 0,
-        inventory,
-        creator: this.user,
-        updater: this.user
-      }
+      let targetInventory: Partial<OrderInventory> = new OrderInventory()
+      targetInventory.domain = this.domain
+      targetInventory.bizplace = bizplace
+      targetInventory.status = ORDER_INVENTORY_STATUS.PENDING
+      targetInventory.name = OrderNoGenerator.orderInventory()
+      targetInventory.inventoryCheck = cycleCount
+      targetInventory.releaseQty = 0
+      targetInventory.releaseWeight = 0
+      targetInventory.inventory = inventory
+      targetInventory.creator = this.user
+      targetInventory.updater = this.user
+      return targetInventory
     })
     targetInventories = await this.trxMgr.getRepository(OrderInventory).save(targetInventories)
 

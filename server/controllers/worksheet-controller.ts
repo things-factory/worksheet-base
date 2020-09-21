@@ -26,7 +26,8 @@ export type OrderTargetTypes = OrderProduct | OrderInventory | OrderVas
 export enum ReferenceOrderFields {
   ArrivalNotice = 'arrivalNotice',
   ReleaseGood = 'releaseGood',
-  VasOrder = 'vasOrder'
+  VasOrder = 'vasOrder',
+  InventoryCheck = 'inventoryCheck'
 }
 
 export enum OrderTargetFields {
@@ -89,6 +90,8 @@ export class WorksheetController {
       return ReferenceOrderFields.ReleaseGood
     } else if (refOrder instanceof VasOrder) {
       return ReferenceOrderFields.VasOrder
+    } else if (refOrder instanceof InventoryCheck) {
+      return ReferenceOrderFields.InventoryCheck
     } else {
       throw new Error(
         this.ERROR_MSG.VALIDITY.UNEXPECTED_FIELD_VALUE('refOrder', 'One of referece order type', refOrder)
@@ -206,6 +209,10 @@ export class WorksheetController {
 
         case ReferenceOrderFields.VasOrder:
           refOrder = await this.findRefOrder(VasOrder, refOrder, ['bizplace'])
+          break
+
+        case ReferenceOrderFields.InventoryCheck:
+          refOrder = await this.findRefOrder(InventoryCheck, refOrder, ['bizplace'])
           break
       }
     }

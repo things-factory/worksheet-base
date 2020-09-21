@@ -28,6 +28,9 @@ export class WorksheetNoGenerator {
 
         case WORKSHEET_TYPE.VAS:
           return this.vas()
+
+        case WORKSHEET_TYPE.CYCLE_COUNT:
+          return this.cycleCount()
       }
     }
   }
@@ -55,6 +58,9 @@ export class WorksheetNoGenerator {
 
       case WORKSHEET_TYPE.VAS:
         return this.vasDetail()
+
+      case WORKSHEET_TYPE.CYCLE_COUNT:
+        return this.cycleCountDetail()
     }
   }
 

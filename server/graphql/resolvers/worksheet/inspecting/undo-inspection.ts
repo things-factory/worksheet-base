@@ -7,6 +7,7 @@ export const undoInspectionResolver = {
   async undoInspection(_: any, { worksheetDetailName }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const { domain, user }: { domain: Domain; user: User } = context.state
+      await undoInspection(trxMgr, domain, user, worksheetDetailName)
     })
   }
 }
