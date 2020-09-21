@@ -26,6 +26,7 @@ export const undoInspection = {
         inspectedLocation: null,
         inspectedQty: null,
         inspectedWeight: null,
+        inspectedBatchNo: null,
         status: ORDER_INVENTORY_STATUS.INSPECTING,
         updater: context.state.user
       })
