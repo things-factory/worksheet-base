@@ -212,7 +212,9 @@ export const Mutation = /* GraphQL */ `
     worksheetDetailName: String!
     palletId: String!
     locationName: String!
+    inspectedBatchNo: String!
     inspectedQty: Int!
+    inspectedWeight: Float!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   undoInspection (
