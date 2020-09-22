@@ -130,17 +130,17 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
       create temp table tmp2 as(
         select id,seq,ref_order_id,order_no,"name",pallet_id,batch_id,product_id,warehouse_id,location_id,"zone",order_ref_no,packing_type,unit,qty,
         opening_qty,weight,opening_weight,description,status,transaction_type,created_at,updated_at,domain_id,bizplace_id,creator_id,updater_id,
-        reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, inbound_qty as loose_amt, release_weight, inbound_weight,remaining_weight, inbound_weight as loose_wgt, null as remarks
+        reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, inbound_qty as loose_amt, release_weight, inbound_weight,remaining_weight, inbound_weight as loose_wgt, null as cross_dock
         from tmp where release_qty > 0 or release_qty is null
         union all 
         select id,seq,ref_order_id,order_no,"name",pallet_id,batch_id,product_id,warehouse_id,location_id,"zone",order_ref_no,packing_type,unit,qty,
         opening_qty,weight,opening_weight,description,status,transaction_type,created_at,updated_at,domain_id,bizplace_id,creator_id,updater_id,
-        reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, remaining_qty as loose_amt, release_weight, inbound_weight,remaining_weight, remaining_weight as loose_wgt, null as remarks
+        reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, remaining_qty as loose_amt, release_weight, inbound_weight,remaining_weight, remaining_weight as loose_wgt, null as cross_dock
         from tmp where release_qty < 0 and remaining_qty > 0
         union all 
         select id,seq,ref_order_id,order_no,"name",pallet_id,batch_id,product_id,warehouse_id,location_id,"zone",order_ref_no,packing_type,unit,qty,
         opening_qty,weight,opening_weight,description,status,transaction_type,created_at,updated_at,domain_id,bizplace_id,creator_id,updater_id,
-        reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, -release_qty as loose_amt, release_weight,inbound_weight,remaining_weight, -release_weight as loose_wgt, '[C/D]' as remarks
+        reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, -release_qty as loose_amt, release_weight,inbound_weight,remaining_weight, -release_weight as loose_wgt, '[C/D]' as cross_dock
         from tmp where release_qty < 0
       )
     `
@@ -150,44 +150,30 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
       `
       create temp table tmp3 as (
         select main.*, concat(p2.name, ' (', p2.description, ')') as product_name, plt.name as pallet_name,
-        case when main.ori_qty + main.release_qty = 0 and main.reusable_pallet_id is null then
-          case when main.remarks notnull then concat(main.pallet, ' PALLET(S) ', main.remarks) else concat(main.pallet, ' PALLET(S)') end
-        else 
-          case when main.qty + main.release_qty > 0 and main.reusable_pallet_id is null and main.remarks is null then
-            concat(main.pallet, ' PALLET(S)')
-          else 
-            case when main.qty + main.release_qty > 0 and main.reusable_pallet_id notnull and main.remarks is null then
-              concat(main.qty, ' ', main.packing_type, '(S) ', plt.name)
-            else
-              case when main.qty + main.release_qty > 0 and main.reusable_pallet_id is null and main.remarks notnull then
-                concat(main.qty, ' ', main.packing_type, '(S) ', main.remarks)
-              else
-                concat(main.qty, ' ', main.packing_type, '(S) ', plt.name, ' ', main.remarks)
-              end
-            end
-          end
-        end as remark,
+        case when main.reusable_pallet_id notnull then concat(main.qty, ' ', main.packing_type, '(S) ', plt.name) else concat(main.pallet, ' PALLET(S)')
+        end as remarks,
         row_number() over (
           partition by p2.name, main.packing_type
-          order by p2.name, reusable_pallet_id desc, remarks desc
+          order by p2.name, reusable_pallet_id desc, cross_dock desc
         ) as sort
         from (
-          select product_id, reusable_pallet_id, packing_type, remarks, sum(qty) as ori_qty, sum(loose_amt) as qty,
-          sum(coalesce(release_qty, 0)) as release_qty, sum(loose_wgt) as weight, count(distinct pallet_id) as pallet
+          select product_id, reusable_pallet_id, packing_type, cross_dock, sum(qty) as ori_qty, sum(loose_amt) as qty, sum(coalesce(release_qty, 0)) as release_qty, sum(loose_wgt) as weight, count(distinct pallet_id) as pallet
           from tmp2 
-          group by remarks, reusable_pallet_id, product_id, packing_type
+          group by cross_dock, reusable_pallet_id, product_id, packing_type
         ) as main
         inner join products p2 on p2.id::varchar = main.product_id
         left join pallets plt on plt.id = main.reusable_pallet_id
-        order by product_name, sort, remark
+        order by product_name, sort, remarks
       )
     `
     )
 
     invItems = await trxMgr.query(
     `
-    select product_name, sum(qty) as qty, sum(weight) as weight, string_agg(remark,' ') as remarks
-    from tmp3 group by product_name, remarks
+    select product_name, qty, weight, concat(remarks, ' ', cross_dock) as remarks from (
+      select product_name, sum(qty) as qty, sum(weight) as weight, string_agg(remarks,' ' order by product_name, sort, remarks) as remarks, cross_dock
+      from tmp3 group by product_name, cross_dock
+    ) as foo
     order by product_name, remarks
     `
     )
