@@ -93,7 +93,9 @@ export class CycleCountWorksheetController extends WorksheetController {
     worksheetDetailName: string,
     palletId: string,
     locationName: string,
-    inspectedQty: number
+    inspectedBatchNo: string,
+    inspectedQty: number,
+    inspectedWeight: number
   ): Promise<void> {
     let worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
       worksheetDetailName,
@@ -112,7 +114,12 @@ export class CycleCountWorksheetController extends WorksheetController {
     if (inventory.palletId !== palletId)
       throw new Error(this.ERROR_MSG.VALIDITY.CANT_PROCEED_STEP_BY('inspect', 'pallet ID is invalid'))
 
-    if (beforeLocation.name !== currentLocation.name || inspectedQty !== inventory.qty) {
+    if (
+      beforeLocation.name !== currentLocation.name ||
+      inspectedQty !== inventory.qty ||
+      inspectedBatchNo !== inventory.batchId ||
+      inspectedWeight !== inventory.weight
+    ) {
       worksheetDetail.status = WORKSHEET_STATUS.NOT_TALLY
       targetInventory.status = ORDER_INVENTORY_STATUS.NOT_TALLY
     } else {
@@ -125,6 +132,8 @@ export class CycleCountWorksheetController extends WorksheetController {
 
     targetInventory.inspectedLocation = currentLocation
     targetInventory.inspectedQty = inspectedQty
+    targetInventory.inspectedWeight = inspectedWeight
+    targetInventory.inspectedBatchNo = inspectedBatchNo
     targetInventory.updater = this.user
     await this.updateOrderTargets([targetInventory])
   }
@@ -139,6 +148,7 @@ export class CycleCountWorksheetController extends WorksheetController {
     targetInventory.inspectedLocaiton = null
     targetInventory.inspectedQty = null
     targetInventory.inspectedWeight = null
+    targetInventory.inspectedBatchNo = null
     targetInventory.status = ORDER_INVENTORY_STATUS.INSPECTING
     targetInventory.updater = this.user
     await this.updateOrderTargets([targetInventory])
