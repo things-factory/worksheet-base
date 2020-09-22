@@ -14,7 +14,7 @@ import { DateTimeConverter } from '../utils/datetime-util'
 
 const REPORT_API_URL = config.get('reportApiUrl', 'http://localhost:8888/rest/report/show_html')
 
-export async function renderJobSheet({ domain: domainName, ganNo }) {
+export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet }) {
   const domain: Domain = await getRepository(Domain).findOne({
     where: { subdomain: domainName }
   }) //.. find domain
@@ -163,11 +163,11 @@ export async function renderJobSheet({ domain: domainName, ganNo }) {
     company_address: foundDomainBiz.address,
     container_no: foundGAN?.containerNo ? foundGAN.containerNo : null,
     container_size: foundJS ? foundJS.containerSize : null,
-    eta: foundGAN?.ata ? DateTimeConverter.datetime(foundGAN.ata) : null,
+    eta: foundGAN?.ata ? DateTimeConverter.datetime(foundGAN.ata, timezoneOffSet) : null,
     ata: foundGAN?.ata ? DateTimeConverter.date(foundGAN.ata) : null,
     unloading_date: foundWS?.startedAt ? DateTimeConverter.date(foundWS.startedAt) : '',
     mt_date: foundJS?.containerMtDate ? DateTimeConverter.date(foundJS.containerMtDate) : '',
-    advise_mt_date: foundJS.adviseMtDate ? DateTimeConverter.datetime(foundJS.adviseMtDate) : '',
+    advise_mt_date: foundJS.adviseMtDate ? DateTimeConverter.datetime(foundJS.adviseMtDate, timezoneOffSet) : '',
     loose_item: foundGAN.looseItem ? 'N' : 'Y',
     no_of_pallet:
       (sumPalletQty > 1 ? `${sumPalletQty} PALLETS` : `${sumPalletQty} PALLET`) +
