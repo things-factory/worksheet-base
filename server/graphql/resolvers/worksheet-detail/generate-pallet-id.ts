@@ -48,39 +48,29 @@ export const generatePalletIdResolver = {
           if (foundWSD.id === targets[idx].id) {
             // 4. generate pallet id based on print qty > call generateId resolver
             for (let i = 0; i < targets[idx].printQty; i++) {
-              if (foundWSD.type === 'VAS') {
-                const generatedPalletId = await generateId({
-                  domain: context.state.domain,
-                  type: 'pallet_id',
-                  seed: {
-                    batchId: foundWSD.targetVas.targetBatchId,
-                    date: date
-                  }
-                })
-                // 5. map all data to be returned
-                results.push({
-                  product: foundWSD.targetVas.targetProduct,
-                  bizplace: foundWSD.bizplace,
-                  batchId: foundWSD.targetVas.targetBatchId,
-                  packingType: foundWSD.targetVas.packingType,
-                  palletId: generatedPalletId
-                })
-              } else {
-                const generatedPalletId = await generateId({
-                  domain: context.state.domain,
-                  type: 'pallet_id',
-                  seed: {
-                    batchId: foundWSD.targetProduct.batchId,
-                    date: date
-                  }
-                })
-                // 5. map all data to be returned
-                results.push({
-                  ...foundWSD.targetProduct,
-                  palletId: generatedPalletId,
-                  bizplace: foundWSD.bizplace
-                })
-              }
+              const batchId = foundWSD.type === 'VAS'
+                ? foundWSD.targetVas.targetBatchId
+                : foundWSD.targetProduct.batchId
+
+              const target = foundWSD.type === 'VAS'
+                ? foundWSD.targetVas
+                : foundWSD.targetProduct
+
+              const generatedPalletId = await generateId({
+                domain: context.state.domain,
+                type: 'pallet_id',
+                seed: {
+                  batchId,
+                  date
+                }
+              })
+
+              // 5. map all data to be returned
+              results.push({
+                ...target,
+                palletId: generatedPalletId,
+                bizplace: foundWSD.bizplace
+              })
             }
           }
         }
