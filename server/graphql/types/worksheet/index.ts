@@ -51,9 +51,9 @@ export const Mutation = /* GraphQL */ `
   ): ReleaseGoodWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   generateCycleCountWorksheet (
-    selectedInventory: [InventoryPatch]
     executionDate: String!
-  ): InventoryCheckWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
+    customerId: String!
+  ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   generateVasOrderWorksheet (
     vasNo: String!

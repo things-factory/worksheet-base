@@ -10,6 +10,8 @@ export const cycleCountWorksheetResolver = {
       where: { domain: context.state.domain, name: inventoryCheckNo, status: ORDER_STATUS.INSPECTING }
     })
 
+    if (!cycleCount) throw new Error('Failed to find cycle count worksheet')
+
     const worksheet: Worksheet = await getRepository(Worksheet).findOne({
       where: {
         domain: context.state.domain,

@@ -17,6 +17,8 @@ export const WorksheetDetailInfo = gql`
     weight: Float
     releaseQty: Float
     releaseWeight: Float
+    inspectedQty: Int
+    inspectedWeight: Float
     operationGuide: String
     set: Int
     targetType: String
