@@ -6,93 +6,52 @@ import { EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
 
-export const inspecting = {
-  async inspecting(_: any, { worksheetDetailName, palletId, locationName, inspectedQty }, context: any) {
-    return await getManager().transaction(async trxMgr => {
-      await executeInspection(
-        worksheetDetailName,
-        palletId,
-        locationName,
-        inspectedQty,
-        context.state.domain,
-        context.state.user,
-        trxMgr
-      )
+export const inspectingResolver = {
+  async inspecting(_: any, { worksheetDetailName, inspectedBatchNo, inspectedQty, inspectedWeight }, context: any) {
+    return await getManager().transaction(async (trxMgr: EntityManager) => {
+      const { domain, user }: { domain: Domain; user: User } = context.state
+
+      await inspecting(trxMgr, domain, user, worksheetDetailName, inspectedBatchNo, inspectedQty, inspectedWeight)
     })
   }
 }
 
-export async function executeInspection(
-  worksheetDetailName: string,
-  palletId: string,
-  locationName: string,
-  inspectedQty: number,
+export async function inspecting(
+  trxMgr: EntityManager,
   domain: Domain,
   user: User,
-  trxMgr: EntityManager
+  worksheetDetailName: string,
+  inspectedBatchNo: string,
+  inspectedQty: number,
+  inspectedWeight: number
 ) {
-  // get worksheet detail
-  const worksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
+  let worksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
     where: {
       domain,
       name: worksheetDetailName,
       status: WORKSHEET_STATUS.EXECUTING,
       type: WORKSHEET_TYPE.CYCLE_COUNT
     },
-    relations: [
-      'worksheet',
-      'worksheet.releaseGood',
-      'targetInventory',
-      'targetInventory.inventory',
-      'targetInventory.inventory.product',
-      'targetInventory.inventory.warehouse',
-      'targetInventory.inventory.location'
-    ]
+    relations: ['targetInventory', 'targetInventory.inventory']
   })
   if (!worksheetDetail) throw new Error(`Worksheet Details doesn't exists`)
 
-  // get location by name
-  const beforeLocation: Location = worksheetDetail.targetInventory.inventory.location
-  const currentLocation: Location = await trxMgr.getRepository(Location).findOne({
-    where: { domain, name: locationName },
-    relations: ['warehouse']
-  })
-  if (!currentLocation) throw new Error(`Location doesn't exists`)
-
   let targetInventory: OrderInventory = worksheetDetail.targetInventory
-  let inventory: Inventory = targetInventory.inventory
+  const inventory: Inventory = targetInventory.inventory
+  const { batchId, qty, weight }: { batchId: string; qty: number; weight: number } = inventory
 
-  if (inventory.palletId !== palletId) throw new Error('Pallet ID is invalid')
+  const isChanged: boolean = batchId !== inspectedBatchNo || qty !== inspectedQty || weight !== inspectedWeight
+  const worksheetDetailStatus: string = isChanged ? WORKSHEET_STATUS.NOT_TALLY : WORKSHEET_STATUS.DONE
+  const targetInventoryStatus: string = isChanged ? ORDER_INVENTORY_STATUS.NOT_TALLY : ORDER_INVENTORY_STATUS.INSPECTED
 
-  if (beforeLocation.name !== currentLocation.name || inspectedQty !== inventory.qty) {
-    await trxMgr.getRepository(WorksheetDetail).save({
-      ...worksheetDetail,
-      status: WORKSHEET_STATUS.NOT_TALLY,
-      updater: user
-    })
+  worksheetDetail.status = worksheetDetailStatus
+  worksheetDetail.updater = user
+  await trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
 
-    // Change status of order inventory
-    await trxMgr.getRepository(OrderInventory).save({
-      ...targetInventory,
-      inspectedLocation: currentLocation,
-      inspectedQty,
-      status: ORDER_INVENTORY_STATUS.NOT_TALLY,
-      updater: user
-    })
-  } else {
-    await trxMgr.getRepository(WorksheetDetail).save({
-      ...worksheetDetail,
-      status: WORKSHEET_STATUS.DONE,
-      updater: user
-    })
-
-    // Change status of order inventory
-    await trxMgr.getRepository(OrderInventory).save({
-      ...targetInventory,
-      inspectedLocation: currentLocation,
-      inspectedQty,
-      status: ORDER_INVENTORY_STATUS.INSPECTED,
-      updater: user
-    })
-  }
+  targetInventory.inspectedBatchNo = inspectedBatchNo
+  targetInventory.inspectedQty = inspectedQty
+  targetInventory.inspectedWeight = inspectedWeight
+  targetInventory.status = targetInventoryStatus
+  targetInventory.updater = user
+  await trxMgr.getRepository(OrderInventory).save(targetInventory)
 }
