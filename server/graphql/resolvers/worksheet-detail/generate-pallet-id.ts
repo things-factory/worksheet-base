@@ -48,13 +48,10 @@ export const generatePalletIdResolver = {
           if (foundWSD.id === targets[idx].id) {
             // 4. generate pallet id based on print qty > call generateId resolver
             for (let i = 0; i < targets[idx].printQty; i++) {
-              const batchId = foundWSD.type === 'VAS'
-                ? foundWSD.targetVas.targetBatchId
-                : foundWSD.targetProduct.batchId
+              const batchId =
+                foundWSD.type === 'VAS' ? foundWSD.targetVas.targetBatchId : foundWSD.targetProduct.batchId
 
-              const target = foundWSD.type === 'VAS'
-                ? foundWSD.targetVas
-                : foundWSD.targetProduct
+              let target = foundWSD.type === 'VAS' ? foundWSD.targetVas : foundWSD.targetProduct
 
               const generatedPalletId = await generateId({
                 domain: context.state.domain,
@@ -64,7 +61,14 @@ export const generatePalletIdResolver = {
                   date
                 }
               })
-
+              if (foundWSD.type === 'VAS') {
+                let targetVas = {
+                  product: foundWSD.targetVas.targetProduct,
+                  batchId: foundWSD.targetVas.targetBatchId,
+                  packingType: foundWSD.targetVas.packingType
+                }
+                target = targetVas
+              }
               // 5. map all data to be returned
               results.push({
                 ...target,
