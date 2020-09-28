@@ -22,6 +22,15 @@ export const activateLoadingResolver = {
 
       if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
 
+      const relatedPicingWorksheetCnt: number = await trxMgr.getRepository(Worksheet).count({
+        where: {
+          domain,
+          releaseGood: foundWorksheet.releaseGood,
+          type: WORKSHEET_TYPE.PICKING,
+          status: Not(Equal(WORKSHEET_STATUS.DONE))
+        }
+      })
+
       const relatedWorksheetCnt: number = await trxMgr.getRepository(Worksheet).count({
         where: {
           domain,
@@ -31,11 +40,21 @@ export const activateLoadingResolver = {
         }
       })
 
+      let errMsg = []
+
       // Stop to activate loading worksheet with Exception
       // This resolver is being called from client side not from other resolver.
       // So if there's a related worksheet, it should throw an Error to inform user about non-finished order.
+      if (relatedPicingWorksheetCnt) {
+        errMsg.push(`Picking Worksheet with RO: ${foundWorksheet.releaseGood.name} is still under processing.`)
+      }
+
       if (relatedWorksheetCnt) {
-        throw new Error(`Related VAS order with RO: ${foundWorksheet.releaseGood.name} is still under processing.`)
+        errMsg.push(`Related VAS order with RO: ${foundWorksheet.releaseGood.name} is still under processing.`)
+      }
+
+      if (errMsg.length > 0) {
+        throw errMsg.join('')
       }
 
       return await activateLoading(
