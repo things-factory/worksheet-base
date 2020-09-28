@@ -161,7 +161,7 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
     company_domain: foundDomainBiz.name,
     company_brn: foundDomainBiz.description,
     company_address: foundDomainBiz.address,
-    container_no: foundGAN?.containerNo ? foundGAN.containerNo : null,
+    container_no: foundGAN?.containerNo ? foundGAN.containerNo : foundGAN.deliveryOrderNo,
     container_size: foundJS ? foundJS.containerSize : null,
     eta: foundGAN?.ata ? DateTimeConverter.datetime(foundGAN.ata, timezoneOffSet) : null,
     ata: foundGAN?.ata ? DateTimeConverter.date(foundGAN.ata) : null,
