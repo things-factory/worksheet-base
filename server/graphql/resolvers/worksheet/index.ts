@@ -8,7 +8,7 @@ import { activateVasResolver } from './activate-vas'
 import { addExtraPalletResolver } from './add-extra-pallet'
 import { assignVasInventoriesResolver } from './assign-vas-inventories'
 import { checkMissingPalletResolver } from './check-missing-pallet'
-import { completeInspection } from './complete-inspection'
+import { completeInspectionResolver } from './complete-inspection'
 import { completeLoading } from './complete-loading'
 import { completePicking } from './complete-picking'
 import { completePreunload } from './complete-preunload'
@@ -121,7 +121,7 @@ export const Mutation = {
   ...activateVasResolver,
   ...activatePickingResolver,
   ...activateCycleCount,
-  ...completeInspection,
+  ...completeInspectionResolver,
   ...editBatchNo,
   ...proceedEditedBatchResolver,
   ...preunload,

@@ -48,7 +48,7 @@ export async function addExtraPallet(
   })
 
   const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-    where: { domain, type: WORKSHEET_TYPE.CYCLE_COUNT, status: WORKSHEET_STATUS.EXECUTING },
+    where: { domain, type: WORKSHEET_TYPE.CYCLE_COUNT, status: WORKSHEET_STATUS.EXECUTING, inventoryCheck: cycleCount },
     relations: ['bizplace']
   })
   const bizplace: Bizplace = worksheet.bizplace
