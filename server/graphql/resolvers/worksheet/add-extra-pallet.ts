@@ -2,7 +2,7 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { InventoryCheck, OrderInventory, OrderNoGenerator, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Location } from '@things-factory/warehouse-base'
+import { Inventory, Location } from '@things-factory/warehouse-base'
 import { EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -44,14 +44,19 @@ export async function addExtraPallet(
 ): Promise<void> {
   // Create worksheet detail
   const cycleCount: InventoryCheck = await trxMgr.getRepository(InventoryCheck).findOne({
-    where: { domain, name: cycleCountNo }
-  })
-
-  const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-    where: { domain, type: WORKSHEET_TYPE.CYCLE_COUNT, status: WORKSHEET_STATUS.EXECUTING, inventoryCheck: cycleCount },
+    where: { domain, name: cycleCountNo },
     relations: ['bizplace']
   })
-  const bizplace: Bizplace = worksheet.bizplace
+
+  const bizplace: Bizplace = cycleCount.bizplace
+  const inventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
+    where: { domain, palletId, bizplace }
+  })
+  if (!inventory) throw new Error('Failed to find inventory')
+
+  const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+    where: { domain, type: WORKSHEET_TYPE.CYCLE_COUNT, status: WORKSHEET_STATUS.EXECUTING, inventoryCheck: cycleCount }
+  })
   const location: Location = await trxMgr.getRepository(Location).findOne({
     where: { domain, id: locationId }
   })
@@ -62,7 +67,7 @@ export async function addExtraPallet(
   targetInventory.status = ORDER_INVENTORY_STATUS.ADDED
   targetInventory.name = OrderNoGenerator.orderInventory()
   targetInventory.inventoryCheck = cycleCount
-  targetInventory.palletId = palletId
+  targetInventory.inventory = inventory
   targetInventory.inspectedBatchNo = inspectedBatchNo
   targetInventory.inspectedQty = inspectedQty
   targetInventory.inspectedWeight = inspectedWeight
