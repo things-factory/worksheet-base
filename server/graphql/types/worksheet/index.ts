@@ -209,6 +209,27 @@ export const Mutation = /* GraphQL */ `
     worksheetDetailName: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
+  checkMissingPallet (
+    worksheetDetailName: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  relocatePallet (
+    worksheetDetailName: String!
+    inspectedBatchNo: String!
+    inspectedQty: Int!
+    inspectedWeight: Float!
+    inspectedLocationId: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  addExtraPallet (
+    cycleCountNo: String!
+    palletId: String!
+    inspectedBatchNo: String!
+    inspectedQty: Int!
+    inspectedWeight: Float!
+    locationId: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
   completePicking (
     releaseGoodNo: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")

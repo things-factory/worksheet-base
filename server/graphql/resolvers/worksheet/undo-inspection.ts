@@ -1,5 +1,5 @@
 import { User } from '@things-factory/auth-base'
-import { OrderInventory } from '@things-factory/sales-base'
+import { OrderInventory, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager, Not } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
@@ -29,10 +29,11 @@ export async function undoInspection(
   worksheetDetail.status = WORKSHEET_STATUS.EXECUTING
   worksheetDetail.updater = user
   await trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
-
+  targetInventory.status = ORDER_INVENTORY_STATUS.INSPECTING
   targetInventory.inspectedBatchNo = null
   targetInventory.inspectedQty = null
   targetInventory.inspectedWeight = null
+  targetInventory.inspectedLocation = null
   targetInventory.updater = user
   await trxMgr.getRepository(OrderInventory).save(targetInventory)
 }

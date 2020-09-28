@@ -49,18 +49,19 @@ export const cycleCountWorksheetResolver = {
 
         return {
           name: cycleCountWSD.name,
-          palletId: inventory.palletId,
-          batchId: inventory.batchId,
-          product: inventory.product,
-          qty: inventory.qty,
-          weight: inventory.weight,
+          palletId: inventory?.palletId,
+          batchId: inventory?.batchId,
+          product: inventory?.product,
+          qty: inventory?.qty,
+          weight: inventory?.weight,
           inspectedQty: targetInventory.inspectedQty,
           inspectedWeight: targetInventory.inspectedWeight,
           inspectedLocation: targetInventory.inspectedLocation,
           status: cycleCountWSD.status,
           targetName: targetInventory.name,
-          packingType: inventory.packingType,
-          location: inventory.location
+          packingType: inventory?.packingType,
+          location: inventory?.location,
+          relatedOrderInv: targetInventory
         }
       })
     }

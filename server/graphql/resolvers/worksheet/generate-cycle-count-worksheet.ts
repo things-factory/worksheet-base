@@ -44,12 +44,11 @@ export async function generateCycleCountWorksheet(
   cycleCount: InventoryCheck
 ): Promise<Worksheet> {
   // Find out warehouse and customer bizplace
-  const myBizplace: Bizplace = await getMyBizplace(user)
-  const customerBizplace: Bizplace = await trxMgr.getRepository(Bizplace).findOne(customerId)
+  const bizplace: Bizplace = await trxMgr.getRepository(Bizplace).findOne(customerId)
 
   // Find out inventories which is target for cycle counting
   let inventories: Inventory[] = await trxMgr.getRepository(Inventory).find({
-    where: { domain, bizplace: customerBizplace, status: INVENTORY_STATUS.STORED }
+    where: { domain, bizplace: bizplace, status: INVENTORY_STATUS.STORED }
   })
 
   if (!inventories.length) {
@@ -62,7 +61,7 @@ export async function generateCycleCountWorksheet(
     for (const inventory of inventories) {
       let targetInventory: OrderInventory = new OrderInventory()
       targetInventory.domain = domain
-      targetInventory.bizplace = myBizplace
+      targetInventory.bizplace = bizplace
       targetInventory.status = ORDER_INVENTORY_STATUS.PENDING
       targetInventory.name = OrderNoGenerator.orderInventory()
       targetInventory.inventoryCheck = cycleCount
@@ -87,7 +86,7 @@ export async function generateCycleCountWorksheet(
   // create cycle count worksheet
   let cycleCountWorksheet: Worksheet = new Worksheet()
   cycleCountWorksheet.domain = domain
-  cycleCountWorksheet.bizplace = myBizplace
+  cycleCountWorksheet.bizplace = bizplace
   cycleCountWorksheet.name = WorksheetNoGenerator.cycleCount()
   cycleCountWorksheet.inventoryCheck = cycleCount
   cycleCountWorksheet.type = WORKSHEET_TYPE.CYCLE_COUNT
@@ -100,7 +99,7 @@ export async function generateCycleCountWorksheet(
   for (const targetInventory of targetInventories) {
     let cycleCountWorksheetDetail: WorksheetDetail = new WorksheetDetail()
     cycleCountWorksheetDetail.domain = domain
-    cycleCountWorksheetDetail.bizplace = myBizplace
+    cycleCountWorksheetDetail.bizplace = bizplace
     cycleCountWorksheetDetail.worksheet = cycleCountWorksheet
     cycleCountWorksheetDetail.name = WorksheetNoGenerator.cycleCountDetail()
     cycleCountWorksheetDetail.targetInventory = targetInventory

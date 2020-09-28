@@ -5,7 +5,9 @@ import { activatePutawayResolver } from './activate-putaway'
 import { activateReturnResolver } from './activate-return'
 import { activateUnloadingResolver } from './activate-unloading'
 import { activateVasResolver } from './activate-vas'
+import { addExtraPalletResolver } from './add-extra-pallet'
 import { assignVasInventoriesResolver } from './assign-vas-inventories'
+import { checkMissingPalletResolver } from './check-missing-pallet'
 import { completeInspection } from './complete-inspection'
 import { completeLoading } from './complete-loading'
 import { completePicking } from './complete-picking'
@@ -46,6 +48,7 @@ import { proceedExtraProductsResolver } from './proceed-extra-products'
 import { putaway } from './putaway'
 import { putawayWorksheetResolver } from './putaway-worksheet'
 import { rejectCancellationReleaseOrder } from './reject-cancellation-release-order'
+import { relocatePalletResolver } from './relocate-pallet'
 import { replacePickingPalletsResolver } from './replace-picking-pallets'
 import { returnWorksheetResolver } from './return-worksheet'
 import { returning } from './returning'
@@ -129,6 +132,7 @@ export const Mutation = {
   ...undoUnloading,
   ...undoPutaway,
   ...undoInspectionResolver,
+  ...checkMissingPalletResolver,
   ...completeUnloading,
   ...completeUnloadingPartiallyResolver,
   ...completeLoading,
@@ -138,6 +142,8 @@ export const Mutation = {
   ...undoLoading,
   ...transfer,
   ...inspectingResolver,
+  ...relocatePalletResolver,
+  ...addExtraPalletResolver,
   ...completePutaway,
   ...picking,
   ...completePicking,

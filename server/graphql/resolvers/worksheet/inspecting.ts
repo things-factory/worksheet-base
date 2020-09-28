@@ -1,7 +1,7 @@
 import { User } from '@things-factory/auth-base'
 import { OrderInventory, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, Location } from '@things-factory/warehouse-base'
+import { Inventory } from '@things-factory/warehouse-base'
 import { EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
@@ -32,7 +32,7 @@ export async function inspecting(
       status: WORKSHEET_STATUS.EXECUTING,
       type: WORKSHEET_TYPE.CYCLE_COUNT
     },
-    relations: ['targetInventory', 'targetInventory.inventory']
+    relations: ['targetInventory', 'targetInventory.inventory', 'targetInventory.inventory.location']
   })
   if (!worksheetDetail) throw new Error(`Worksheet Details doesn't exists`)
 
@@ -51,6 +51,7 @@ export async function inspecting(
   targetInventory.inspectedBatchNo = inspectedBatchNo
   targetInventory.inspectedQty = inspectedQty
   targetInventory.inspectedWeight = inspectedWeight
+  targetInventory.inspectedLocation = targetInventory.inventory.location
   targetInventory.status = targetInventoryStatus
   targetInventory.updater = user
   await trxMgr.getRepository(OrderInventory).save(targetInventory)
