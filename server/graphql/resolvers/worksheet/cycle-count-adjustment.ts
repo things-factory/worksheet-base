@@ -1,13 +1,7 @@
 import { User } from '@things-factory/auth-base'
 import { InventoryCheck, OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import {
-  Inventory,
-  INVENTORY_STATUS,
-  INVENTORY_TRANSACTION_TYPE,
-  Location,
-  Warehouse
-} from '@things-factory/warehouse-base'
+import { Inventory, INVENTORY_STATUS, INVENTORY_TRANSACTION_TYPE, Location } from '@things-factory/warehouse-base'
 import { EntityManager, getManager, In } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
 import { WorksheetDetail } from '../../../entities'
@@ -58,9 +52,6 @@ export async function cycleCountAdjustment(
     const transactQty: number = targetInventory.inspectedQty - inventory.qty
     const transactWeight: number = targetInventory.inspectedWeight - inventory.weight
 
-    const foundInspectedLoc: Location = targetInventory.inspectedLocation
-    const foundWarehouse: Warehouse = foundInspectedLoc.warehouse
-
     if (targetInventory.status === ORDER_INVENTORY_STATUS.MISSING) {
       inventory.status = INVENTORY_STATUS.TERMINATED
       inventory.qty = 0
@@ -92,17 +83,16 @@ export async function cycleCountAdjustment(
       )
 
       // change inventory qty to 0 and terminate it
-      inventory = await trxMgr.getRepository(Inventory).save({
-        ...inventory,
-        batchId: targetInventory.inspectedBatchId,
-        qty: targetInventory.inspectedQty,
-        lockedQty: 0,
-        weight: targetInventory.inspectedWeight,
-        lockedWeight: 0,
-        location: foundInspectedLoc,
-        status: INVENTORY_STATUS.TERMINATED,
-        updater: user
-      })
+      inventory.batchId = targetInventory.inspectedBatchId
+      inventory.qty = targetInventory.inspectedQty
+      inventory.lockedQty = 0
+      inventory.weight = targetInventory.inspectedWeight
+      inventory.lockedWeight = 0
+      inventory.location = targetInventory.inspectedLocation
+      inventory.warehouse = targetInventory.inspectedLocation.warehouse
+      inventory.status = INVENTORY_STATUS.TERMINATED
+      inventory.updater = user
+      inventory = await trxMgr.getRepository(Inventory).save(inventory)
 
       // create inventory history
       await generateInventoryHistory(inventory, cycleCount, INVENTORY_TRANSACTION_TYPE.TERMINATED, 0, 0, user, trxMgr)
@@ -114,12 +104,12 @@ export async function cycleCountAdjustment(
       inventory.lockedQty = 0
       inventory.weight = targetInventory.inspectedWeight
       inventory.lockedWeight = 0
-      inventory.location = foundInspectedLoc
-      inventory.warehouse = foundWarehouse
+      inventory.location = targetInventory.inspectedLocation
+      inventory.warehouse = targetInventory.inspectedLocation.warehouse
       inventory.updater = user
       inventory = await trxMgr.getRepository(Inventory).save(inventory)
 
-      if (prevLocationId !== foundInspectedLoc.id) {
+      if (prevLocationId !== targetInventory.inspectedLocation.id) {
         const prevLocation: Location = await trxMgr.getRepository(Location).findOne(prevLocationId)
         await switchLocationStatus(domain, prevLocation, user, trxMgr)
       }
