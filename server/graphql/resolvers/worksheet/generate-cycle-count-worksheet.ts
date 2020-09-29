@@ -30,8 +30,10 @@ export async function generateCycleCountWorksheet(
   executionDate: string,
   customerId: string
 ): Promise<Worksheet> {
+  // Find out warehouse and customer bizplace
+  const customerBizplace: Bizplace = await trxMgr.getRepository(Bizplace).findOne(customerId)
   const existingWorksheetCnt: number = await trxMgr.getRepository(Worksheet).count({
-    where: { domain, type: WORKSHEET_TYPE.CYCLE_COUNT, status: Not(WORKSHEET_STATUS.DONE) }
+    where: { domain, bizplace: customerBizplace, type: WORKSHEET_TYPE.CYCLE_COUNT, status: Not(WORKSHEET_STATUS.DONE) }
   })
 
   if (existingWorksheetCnt) {
@@ -39,8 +41,6 @@ export async function generateCycleCountWorksheet(
   }
 
   const cycleCount: InventoryCheck = await generateCycleCount(trxMgr, domain, user, executionDate, customerId)
-  // Find out warehouse and customer bizplace
-  const customerBizplace: Bizplace = await trxMgr.getRepository(Bizplace).findOne(customerId)
 
   // Find out inventories which is target for cycle counting
   let inventories: Inventory[] = await trxMgr.getRepository(Inventory).find({
