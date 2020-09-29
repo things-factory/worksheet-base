@@ -30,7 +30,7 @@ export async function cycleCountAdjustment(
   cycleCountWorksheetDetails: Partial<WorksheetDetail>[]
 ): Promise<void> {
   // get cycle count no
-  const foundCC: InventoryCheck = await trxMgr.getRepository(InventoryCheck).findOne({
+  const cycleCount: InventoryCheck = await trxMgr.getRepository(InventoryCheck).findOne({
     where: {
       domain,
       name: cycleCountNo,
@@ -39,12 +39,8 @@ export async function cycleCountAdjustment(
   })
 
   // get cycle count wsd that is not tally
-  const foundWSD: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
-    where: {
-      domain,
-      name: In(cycleCountWorksheetDetails.map(wsd => wsd.name)),
-      status: WORKSHEET_STATUS.NOT_TALLY
-    },
+  const worksheetDetails: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
+    where: { domain, name: In(cycleCountWorksheetDetails.map(wsd => wsd.name)), status: WORKSHEET_STATUS.NOT_TALLY },
     relations: [
       'targetInventory',
       'targetInventory.inventory',
@@ -54,121 +50,102 @@ export async function cycleCountAdjustment(
     ]
   })
 
-  // get order inventory
-  await Promise.all(
-    foundWSD.map(async (wsd: WorksheetDetail) => {
-      const foundOI: OrderInventory = wsd.targetInventory
-      const inventory: Inventory = foundOI.inventory
+  for (let worksheetDetail of worksheetDetails) {
+    const targetInventory: OrderInventory = worksheetDetail.targetInventory
 
-      const transactQty: number = foundOI.inspectedQty - inventory.qty
-      const transactWeight: number = foundOI.inspectedWeight - inventory.weight
+    let inventory: Inventory = targetInventory.inventory
 
-      const foundInspectedLoc: Location = foundOI.inspectedLocation
-      const foundWarehouse: Warehouse = foundInspectedLoc.warehouse
+    const transactQty: number = targetInventory.inspectedQty - inventory.qty
+    const transactWeight: number = targetInventory.inspectedWeight - inventory.weight
 
-      // new allocated location
-      const allocatedItemCnt: number = await trxMgr.getRepository(Inventory).count({
-        domain,
-        status: INVENTORY_STATUS.STORED,
-        location: foundInspectedLoc
+    const foundInspectedLoc: Location = targetInventory.inspectedLocation
+    const foundWarehouse: Warehouse = foundInspectedLoc.warehouse
+
+    if (targetInventory.status === ORDER_INVENTORY_STATUS.MISSING) {
+      inventory.status = INVENTORY_STATUS.TERMINATED
+      inventory.qty = 0
+      inventory.weight = 0
+      inventory.lockedQty = 0
+      inventory.lockedWeight = 0
+      inventory.updater = user
+      inventory = await trxMgr.getRepository(Inventory).save(inventory)
+
+      await generateInventoryHistory(
+        inventory,
+        cycleCount,
+        INVENTORY_TRANSACTION_TYPE.ADJUSTMENT,
+        -inventory.qty,
+        -inventory.weight,
+        user,
+        trxMgr
+      )
+    } else if (targetInventory.inspectedQty == 0) {
+      // create inventory history
+      await generateInventoryHistory(
+        inventory,
+        cycleCount,
+        INVENTORY_TRANSACTION_TYPE.ADJUSTMENT,
+        transactQty,
+        transactWeight,
+        user,
+        trxMgr
+      )
+
+      // change inventory qty to 0 and terminate it
+      inventory = await trxMgr.getRepository(Inventory).save({
+        ...inventory,
+        batchId: targetInventory.inspectedBatchId,
+        qty: targetInventory.inspectedQty,
+        lockedQty: 0,
+        weight: targetInventory.inspectedWeight,
+        lockedWeight: 0,
+        location: foundInspectedLoc,
+        status: INVENTORY_STATUS.TERMINATED,
+        updater: user
       })
 
-      // previous allocated location
-      const prevLocItemCnt: number = await trxMgr.getRepository(Inventory).count({
-        domain,
-        status: INVENTORY_STATUS.STORED,
-        location: inventory.location
-      })
+      // create inventory history
+      await generateInventoryHistory(inventory, cycleCount, INVENTORY_TRANSACTION_TYPE.TERMINATED, 0, 0, user, trxMgr)
+    } else {
+      const prevLocationId: string = inventory.location.id
 
-      if (foundOI.inspectedQty == 0) {
-        // create inventory history
-        await generateInventoryHistory(
-          inventory,
-          foundCC,
-          INVENTORY_TRANSACTION_TYPE.ADJUSTMENT,
-          transactQty,
-          transactWeight,
-          user,
-          trxMgr
-        )
+      inventory.batchId = targetInventory.inspectedBatchId
+      inventory.qty = targetInventory.inspectedQty
+      inventory.lockedQty = 0
+      inventory.weight = targetInventory.inspectedWeight
+      inventory.lockedWeight = 0
+      inventory.location = foundInspectedLoc
+      inventory.warehouse = foundWarehouse
+      inventory.updater = user
+      inventory = await trxMgr.getRepository(Inventory).save(inventory)
 
-        // change inventory qty to 0 and terminate it
-        const terminatedInv: Inventory = await trxMgr.getRepository(Inventory).save({
-          ...inventory,
-          qty: foundOI.inspectedQty,
-          lockedQty: 0,
-          weight: foundOI.inspectedWeight,
-          lockedWeight: 0,
-          location: foundInspectedLoc,
-          status: INVENTORY_STATUS.TERMINATED,
-          updater: user
-        })
-
-        // create inventory history
-        await generateInventoryHistory(
-          terminatedInv,
-          foundCC,
-          INVENTORY_TRANSACTION_TYPE.TERMINATED,
-          0,
-          0,
-          user,
-          trxMgr
-        )
-      } else {
-        if (inventory.location.name !== foundInspectedLoc.name) {
-          if (!prevLocItemCnt) {
-            // if no inventory at previous location, set status to empty
-            await switchLocationStatus(domain, inventory.location, user, trxMgr)
-          }
-
-          if (!allocatedItemCnt) {
-            // if no inventory, set status to stored
-            await switchLocationStatus(domain, foundInspectedLoc, user, trxMgr)
-          }
-        }
-
-        // change inventory qty
-        const adjustedInv: Inventory = await trxMgr.getRepository(Inventory).save({
-          ...inventory,
-          qty: foundOI.inspectedQty,
-          lockedQty: 0,
-          weight: foundOI.inspectedWeight,
-          lockedWeight: 0,
-          location: foundInspectedLoc,
-          warehouse: foundWarehouse,
-          updater: user
-        })
-
-        // create inv history
-        await generateInventoryHistory(
-          adjustedInv,
-          foundCC,
-          INVENTORY_TRANSACTION_TYPE.ADJUSTMENT,
-          transactQty,
-          transactWeight,
-          user,
-          trxMgr
-        )
+      if (prevLocationId !== foundInspectedLoc.id) {
+        const prevLocation: Location = await trxMgr.getRepository(Location).findOne(prevLocationId)
+        await switchLocationStatus(domain, prevLocation, user, trxMgr)
       }
 
-      await trxMgr.getRepository(OrderInventory).save({
-        ...foundOI,
-        status: ORDER_INVENTORY_STATUS.TERMINATED,
-        updater: user
-      })
+      await generateInventoryHistory(
+        inventory,
+        cycleCount,
+        INVENTORY_TRANSACTION_TYPE.ADJUSTMENT,
+        transactQty,
+        transactWeight,
+        user,
+        trxMgr
+      )
+    }
 
-      await trxMgr.getRepository(WorksheetDetail).save({
-        ...wsd,
-        status: WORKSHEET_STATUS.ADJUSTED,
-        updater: user
-      })
-    })
-  )
+    targetInventory.status = ORDER_INVENTORY_STATUS.TERMINATED
+    targetInventory.updater = user
+    await trxMgr.getRepository(OrderInventory).save(targetInventory)
+
+    worksheetDetail.status = WORKSHEET_STATUS.ADJUSTED
+    worksheetDetail.updater = user
+    await trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
+  }
 
   // change cycle count status to DONE
-  await trxMgr.getRepository(InventoryCheck).save({
-    ...foundCC,
-    status: ORDER_STATUS.DONE,
-    updater: user
-  })
+  cycleCount.status = ORDER_STATUS.DONE
+  cycleCount.updater = user
+  await trxMgr.getRepository(InventoryCheck).save(cycleCount)
 }

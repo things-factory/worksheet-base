@@ -9,7 +9,7 @@ import {
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
-import { EntityManager, getManager } from 'typeorm'
+import { EntityManager, getManager, Not, IsNull } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils'
@@ -30,13 +30,24 @@ export async function generateCycleCountWorksheet(
   executionDate: string,
   customerId: string
 ): Promise<Worksheet> {
+  const existingWorksheetCnt: number = await trxMgr.getRepository(Worksheet).count({
+    where: { domain, type: WORKSHEET_TYPE.CYCLE_COUNT, status: Not(WORKSHEET_STATUS.DONE) }
+  })
+
+  if (existingWorksheetCnt) {
+    throw new Error(`Unfinished cycle count worksheet exists.`)
+  }
+
   const cycleCount: InventoryCheck = await generateCycleCount(trxMgr, domain, user, executionDate, customerId)
   // Find out warehouse and customer bizplace
   const customerBizplace: Bizplace = await trxMgr.getRepository(Bizplace).findOne(customerId)
 
   // Find out inventories which is target for cycle counting
   let inventories: Inventory[] = await trxMgr.getRepository(Inventory).find({
-    where: { domain, bizplace: customerBizplace, status: INVENTORY_STATUS.STORED }
+    where: [
+      { domain, bizplace: customerBizplace, status: INVENTORY_STATUS.STORED, lockedQty: IsNull },
+      { domain, bizplace: customerBizplace, status: INVENTORY_STATUS.STORED, lockedQty: 0 }
+    ]
   })
 
   if (!inventories.length) {
