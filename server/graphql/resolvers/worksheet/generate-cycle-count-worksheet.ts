@@ -1,12 +1,11 @@
 import { User } from '@things-factory/auth-base'
-import { Bizplace, getMyBizplace } from '@things-factory/biz-base'
+import { Bizplace } from '@things-factory/biz-base'
 import {
   generateCycleCount,
   InventoryCheck,
   OrderInventory,
   OrderNoGenerator,
-  ORDER_INVENTORY_STATUS,
-  ORDER_TYPES
+  ORDER_INVENTORY_STATUS
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
@@ -19,19 +18,7 @@ export const generateCycleCountWorksheetResolver = {
   async generateCycleCountWorksheet(_: any, { executionDate, customerId }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const { domain, user }: { domain: Domain; user: User } = context.state
-      const cycleCountNo: any = OrderNoGenerator.cycleCount()
-      const orderType: any = ORDER_TYPES.CYCLE_COUNT
-
-      const createdCycleOrder: InventoryCheck = await generateCycleCount(
-        cycleCountNo,
-        executionDate,
-        orderType,
-        domain,
-        user,
-        trxMgr
-      )
-
-      return await generateCycleCountWorksheet(trxMgr, domain, user, customerId, createdCycleOrder)
+      return await generateCycleCountWorksheet(trxMgr, domain, user, executionDate, customerId)
     })
   }
 }
@@ -40,15 +27,16 @@ export async function generateCycleCountWorksheet(
   trxMgr: EntityManager,
   domain: Domain,
   user: User,
-  customerId: string,
-  cycleCount: InventoryCheck
+  executionDate: string,
+  customerId: string
 ): Promise<Worksheet> {
+  const cycleCount: InventoryCheck = await generateCycleCount(trxMgr, domain, user, executionDate, customerId)
   // Find out warehouse and customer bizplace
-  const bizplace: Bizplace = await trxMgr.getRepository(Bizplace).findOne(customerId)
+  const customerBizplace: Bizplace = await trxMgr.getRepository(Bizplace).findOne(customerId)
 
   // Find out inventories which is target for cycle counting
   let inventories: Inventory[] = await trxMgr.getRepository(Inventory).find({
-    where: { domain, bizplace: bizplace, status: INVENTORY_STATUS.STORED }
+    where: { domain, bizplace: customerBizplace, status: INVENTORY_STATUS.STORED }
   })
 
   if (!inventories.length) {
@@ -61,7 +49,7 @@ export async function generateCycleCountWorksheet(
     for (const inventory of inventories) {
       let targetInventory: OrderInventory = new OrderInventory()
       targetInventory.domain = domain
-      targetInventory.bizplace = bizplace
+      targetInventory.bizplace = customerBizplace
       targetInventory.status = ORDER_INVENTORY_STATUS.PENDING
       targetInventory.name = OrderNoGenerator.orderInventory()
       targetInventory.inventoryCheck = cycleCount
@@ -86,7 +74,7 @@ export async function generateCycleCountWorksheet(
   // create cycle count worksheet
   let cycleCountWorksheet: Worksheet = new Worksheet()
   cycleCountWorksheet.domain = domain
-  cycleCountWorksheet.bizplace = bizplace
+  cycleCountWorksheet.bizplace = customerBizplace
   cycleCountWorksheet.name = WorksheetNoGenerator.cycleCount()
   cycleCountWorksheet.inventoryCheck = cycleCount
   cycleCountWorksheet.type = WORKSHEET_TYPE.CYCLE_COUNT
@@ -99,7 +87,7 @@ export async function generateCycleCountWorksheet(
   for (const targetInventory of targetInventories) {
     let cycleCountWorksheetDetail: WorksheetDetail = new WorksheetDetail()
     cycleCountWorksheetDetail.domain = domain
-    cycleCountWorksheetDetail.bizplace = bizplace
+    cycleCountWorksheetDetail.bizplace = customerBizplace
     cycleCountWorksheetDetail.worksheet = cycleCountWorksheet
     cycleCountWorksheetDetail.name = WorksheetNoGenerator.cycleCountDetail()
     cycleCountWorksheetDetail.targetInventory = targetInventory

@@ -20,7 +20,7 @@ import { completeVas } from './complete-vas'
 import { confirmCancellationReleaseOrder } from './confirm-cancellation-release-order'
 import { createWorksheet } from './create-worksheet'
 import { crossDockPickingResolver } from './cross-dock-picking'
-import { cycleCountAdjustment } from './cycle-count-adjustment'
+import { cycleCountAdjustmentResolver } from './cycle-count-adjustment'
 import { cycleCountWorksheetResolver } from './cycle-count-worksheet'
 import { deleteWorksheet } from './delete-worksheet'
 import { deliveryOrderByWorksheetResolver } from './delivery-order-by-worksheet'
@@ -106,7 +106,7 @@ export const Query = {
 export const Mutation = {
   ...updateWorksheet,
   ...createWorksheet,
-  ...cycleCountAdjustment,
+  ...cycleCountAdjustmentResolver,
   ...generateCycleCountWorksheetResolver,
   ...deleteWorksheet,
   ...generateArrivalNoticeWorksheetResolver,
