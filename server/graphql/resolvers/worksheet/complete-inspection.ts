@@ -1,109 +1,89 @@
+import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { OrderInventory, ORDER_STATUS, ORDER_INVENTORY_STATUS, InventoryCheck } from '@things-factory/sales-base'
+import { InventoryCheck, OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
+import { Domain } from '@things-factory/shell'
 import { Inventory } from '@things-factory/warehouse-base'
-import { getManager } from 'typeorm'
+import { getManager, EntityManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
-export const completeInspection = {
+export const completeInspectionResolver = {
   async completeInspection(_: any, { inventoryCheckNo }, context: any) {
     return await getManager().transaction(async trxMgr => {
-      const inventoryCheck: InventoryCheck = await trxMgr.getRepository(InventoryCheck).findOne({
-        where: { domain: context.state.domain, name: inventoryCheckNo, status: ORDER_STATUS.INSPECTING },
-        relations: ['bizplace', 'orderInventories']
-      })
-
-      if (!inventoryCheck) throw new Error(`Inspection order doesn't exists.`)
-      const ownDomainBizplace: Bizplace = inventoryCheck.bizplace
-      const foundInspectionWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-        where: {
-          domain: context.state.domain,
-          bizplace: ownDomainBizplace,
-          status: WORKSHEET_STATUS.EXECUTING,
-          type: WORKSHEET_TYPE.CYCLE_COUNT,
-          inventoryCheck
-        },
-        relations: [
-          'worksheetDetails',
-          'worksheetDetails.targetInventory',
-          'worksheetDetails.targetInventory.inventory'
-        ]
-      })
-
-      if (!foundInspectionWorksheet) throw new Error(`Worksheet doesn't exists.`)
-      const worksheetDetails: WorksheetDetail[] = foundInspectionWorksheet.worksheetDetails
-      const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
-
-      // filter out not tally inventory
-      const notTallyInv: WorksheetDetail[] = worksheetDetails.filter(
-        (wsd: WorksheetDetail) => wsd.status === WORKSHEET_STATUS.NOT_TALLY
-      )
-
-      const tallyOI: OrderInventory[] = targetInventories.filter(
-        (oi: OrderInventory) => oi.status === ORDER_INVENTORY_STATUS.INSPECTED
-      )
-
-      if (tallyOI?.length > 0) {
-        await Promise.all(
-          tallyOI.map(async (oi: OrderInventory) => {
-            const tallyInv: Inventory = oi.inventory
-
-            const terminatedOI = {
-              ...oi,
-              status: ORDER_INVENTORY_STATUS.TERMINATED,
-              updater: context.state.user
-            }
-            await trxMgr.getRepository(OrderInventory).save(terminatedOI)
-
-            await trxMgr.getRepository(Inventory).save({
-              ...tallyInv,
-              lockedQty: 0,
-              lockedWeight: 0,
-              updater: context.state.user
-            })
-          })
-        )
-      }
-
-      if (notTallyInv?.length == 0) {
-        // terminate all order inventory if all inspection accuracy is 100%
-        await Promise.all(
-          targetInventories.map(async (oi: OrderInventory) => {
-            const allTerminatedOI = {
-              ...oi,
-              status: ORDER_INVENTORY_STATUS.TERMINATED,
-              updater: context.state.user
-            }
-            await trxMgr.getRepository(OrderInventory).save(allTerminatedOI)
-          })
-        )
-      }
-
-      // Update status and endedAt of worksheet
-      await trxMgr.getRepository(Worksheet).save({
-        ...foundInspectionWorksheet,
-        status: WORKSHEET_STATUS.DONE,
-        endedAt: new Date(),
-        updater: context.state.user
-      })
-
-      if (notTallyInv?.length > 0) {
-        // 3. update status of inventory check
-        await trxMgr.getRepository(InventoryCheck).save({
-          ...inventoryCheck,
-          status: ORDER_STATUS.PENDING_REVIEW,
-          updater: context.state.user
-        })
-      } else {
-        // 3. update status of inventory check
-        await trxMgr.getRepository(InventoryCheck).save({
-          ...inventoryCheck,
-          status: ORDER_STATUS.DONE,
-          updater: context.state.user
-        })
-      }
-
-      // TODO: Add notification to admin and office admin
+      const { domain, user }: { domain: Domain; user: User } = context.state
+      await completeInspection(trxMgr, domain, user, inventoryCheckNo)
     })
   }
+}
+
+export async function completeInspection(
+  trxMgr: EntityManager,
+  domain: Domain,
+  user: User,
+  inventoryCheckNo: string
+): Promise<void> {
+  const inventoryCheck: InventoryCheck = await trxMgr.getRepository(InventoryCheck).findOne({
+    where: { domain, name: inventoryCheckNo, status: ORDER_STATUS.INSPECTING },
+    relations: ['orderInventories']
+  })
+
+  if (!inventoryCheck) throw new Error(`Inspection order doesn't exists.`)
+
+  const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+    where: { domain, status: WORKSHEET_STATUS.EXECUTING, type: WORKSHEET_TYPE.CYCLE_COUNT, inventoryCheck },
+    relations: ['worksheetDetails', 'worksheetDetails.targetInventory', 'worksheetDetails.targetInventory.inventory']
+  })
+
+  if (!worksheet) throw new Error(`Worksheet doesn't exists.`)
+  const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
+  const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
+
+  const {
+    tallyTargetInventories,
+    notTallyTargetInventories
+  }: {
+    tallyTargetInventories: OrderInventory[]
+    notTallyTargetInventories: OrderInventory[]
+  } = targetInventories.reduce(
+    (result, targetInventory: OrderInventory) => {
+      if (targetInventory.status !== ORDER_INVENTORY_STATUS.INSPECTED) {
+        result.notTallyTargetInventories.push(targetInventory)
+      } else {
+        result.tallyTargetInventories.push(targetInventory)
+      }
+
+      return result
+    },
+    {
+      tallyTargetInventories: [],
+      notTallyTargetInventories: []
+    }
+  )
+
+  const tallyInventories: Inventory[] = tallyTargetInventories.map(targetInventory => targetInventory.inventory)
+  tallyTargetInventories.forEach((targetInventory: OrderInventory) => {
+    targetInventory.status = ORDER_INVENTORY_STATUS.TERMINATED
+    targetInventory.updater = user
+  })
+  await trxMgr.getRepository(OrderInventory).save(tallyTargetInventories)
+
+  tallyInventories.forEach((inventory: Inventory) => {
+    inventory.lockedQty = 0
+    inventory.lockedWeight = 0
+    inventory.updater = user
+  })
+  await trxMgr.getRepository(Inventory).save(tallyInventories)
+
+  worksheet.status = WORKSHEET_STATUS.DONE
+  worksheet.endedAt = new Date()
+  worksheet.updater = user
+  await trxMgr.getRepository(Worksheet).save(worksheet)
+
+  if (notTallyTargetInventories.length) {
+    inventoryCheck.status = ORDER_STATUS.PENDING_REVIEW
+  } else {
+    inventoryCheck.status = ORDER_STATUS.DONE
+  }
+  inventoryCheck.updater = user
+  await trxMgr.getRepository(InventoryCheck).save(inventoryCheck)
 }
