@@ -9,7 +9,7 @@ import {
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
-import { EntityManager, getManager, Not, SelectQueryBuilder } from 'typeorm'
+import { EntityManager, getManager, Not, SelectQueryBuilder, Brackets } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils'
@@ -49,12 +49,16 @@ export async function generateCycleCountWorksheet(
     .where('INV.domain_id = :domainId', { domainId: domain.id })
     .andWhere('INV.bizplace_id = :bizplaceId', { bizplaceId: customerBizplace.id })
     .andWhere('INV.status != :status', { status: INVENTORY_STATUS.STORED })
-    .andWhere('"INV"."locked_qty" NOTNULL')
-    .orWhere('"INV"."locked_qty" = 0')
+    .andWhere(
+      new Brackets(qb => {
+        qb.where('"INV"."locked_qty" NOTNULL')
+        qb.orWhere('"INV"."locked_qty" = 0')
+      })
+    )
     .getMany()
 
   if (!inventories.length) {
-    throw new Error(`Faield to find inventories`)
+    throw new Error(`Failed to find inventories`)
   }
 
   // generate order inventory mapping with inventory ID
