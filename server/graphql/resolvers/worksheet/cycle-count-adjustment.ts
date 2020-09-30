@@ -46,13 +46,17 @@ export async function cycleCountAdjustment(
 
   for (let worksheetDetail of worksheetDetails) {
     const targetInventory: OrderInventory = worksheetDetail.targetInventory
-
     let inventory: Inventory = targetInventory.inventory
 
     const transactQty: number = targetInventory.inspectedQty - inventory.qty
     const transactWeight: number = targetInventory.inspectedWeight - inventory.weight
 
     if (targetInventory.status === ORDER_INVENTORY_STATUS.MISSING) {
+      const inventoryHistory = {
+        qty: -inventory.qty,
+        weight: -inventory.weight
+      }
+
       inventory.status = INVENTORY_STATUS.TERMINATED
       inventory.qty = 0
       inventory.weight = 0
@@ -65,8 +69,8 @@ export async function cycleCountAdjustment(
         inventory,
         cycleCount,
         INVENTORY_TRANSACTION_TYPE.ADJUSTMENT,
-        -inventory.qty,
-        -inventory.weight,
+        inventoryHistory.qty,
+        inventoryHistory.weight,
         user,
         trxMgr
       )
