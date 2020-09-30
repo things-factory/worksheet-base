@@ -186,7 +186,7 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
         in_pallet: DateTimeConverter.date(item.createdAt),
         out_pallet: item?.outboundAt ? DateTimeConverter.date(item.outboundAt) : null,
         do_list: item.doName,
-        transport: item?.doName ? (item.ownTransport ? 'Y' : 'N') : null,
+        transport: item?.doName ? (item.ownTransport ? 'N' : 'Y') : null,
         product_qty: item.unloadedQty,
         remark: foundGAN.looseItem ? 'STRETCH FILM' : null
       }
