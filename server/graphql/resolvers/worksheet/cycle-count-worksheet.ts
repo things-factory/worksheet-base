@@ -57,6 +57,7 @@ export const cycleCountWorksheetResolver = {
           inspectedQty: targetInventory.inspectedQty,
           inspectedWeight: targetInventory.inspectedWeight,
           inspectedLocation: targetInventory.inspectedLocation,
+          inspectedBatchNo: targetInventory.inspectedBatchNo,
           status: cycleCountWSD.status,
           targetName: targetInventory.name,
           packingType: inventory?.packingType,

@@ -87,7 +87,7 @@ export async function cycleCountAdjustment(
       )
 
       // change inventory qty to 0 and terminate it
-      inventory.batchId = targetInventory.inspectedBatchId
+      inventory.batchId = targetInventory.inspectedBatchNo
       inventory.qty = targetInventory.inspectedQty
       inventory.lockedQty = 0
       inventory.weight = targetInventory.inspectedWeight
@@ -103,7 +103,7 @@ export async function cycleCountAdjustment(
     } else {
       const prevLocationId: string = inventory.location.id
 
-      inventory.batchId = targetInventory.inspectedBatchId
+      inventory.batchId = targetInventory.inspectedBatchNo
       inventory.qty = targetInventory.inspectedQty
       inventory.lockedQty = 0
       inventory.weight = targetInventory.inspectedWeight
