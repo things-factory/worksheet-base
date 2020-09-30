@@ -48,10 +48,10 @@ export async function generateCycleCountWorksheet(
 
     .where('INV.domain_id = :domainId', { domainId: domain.id })
     .andWhere('INV.bizplace_id = :bizplaceId', { bizplaceId: customerBizplace.id })
-    .andWhere('INV.status != :status', { status: INVENTORY_STATUS.STORED })
+    .andWhere('INV.status = :status', { status: INVENTORY_STATUS.STORED })
     .andWhere(
       new Brackets(qb => {
-        qb.where('"INV"."locked_qty" NOTNULL')
+        qb.where('"INV"."locked_qty" ISNULL')
         qb.orWhere('"INV"."locked_qty" = 0')
       })
     )
