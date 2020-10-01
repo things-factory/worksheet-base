@@ -18,7 +18,8 @@ export const cycleCountWorksheetResolver = {
         inventoryCheck: cycleCount,
         type: WORKSHEET_TYPE.CYCLE_COUNT,
         status: WORKSHEET_STATUS.EXECUTING
-      }
+      },
+      relations: ['bizplace']
     })
 
     const qb: SelectQueryBuilder<WorksheetDetail> = createQueryBuilder(WorksheetDetail, 'WSD')
@@ -41,7 +42,8 @@ export const cycleCountWorksheetResolver = {
 
     return {
       worksheetInfo: {
-        startedAt: worksheet.startedAt
+        startedAt: worksheet.startedAt,
+        bizplace: worksheet.bizplace
       },
       worksheetDetailInfos: worksheetDetails.map(async (cycleCountWSD: WorksheetDetail) => {
         const targetInventory: OrderInventory = cycleCountWSD.targetInventory
