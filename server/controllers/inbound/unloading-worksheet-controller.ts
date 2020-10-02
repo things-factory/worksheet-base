@@ -71,7 +71,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     passedPalletQty: number,
     palletQty: number
   ): Promise<void> {
-    let worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
+    let worksheetDetail: WorksheetDetail = await this.findActivatableWorksheetDetailByName(
       worksheetDetailName,
       WORKSHEET_TYPE.UNLOADING,
       ['targetProduct']
@@ -407,10 +407,11 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     )
     const orderProducts: OrderProduct[] = arrivalNotice.orderProducts
     let unloadableOrderProducts: OrderProduct[] = orderProducts
-      .filter((orderProduct: OrderProduct) => !orderProduct.adjustedPalletQty)
+      .filter((orderProduct: OrderProduct) => orderProduct.status === ORDER_PRODUCT_STATUS.INSPECTED)
       .map((orderProduct: OrderProduct) => {
         orderProduct.status = ORDER_PRODUCT_STATUS.READY_TO_UNLOAD
         orderProduct.updater = this.user
+        return orderProduct
       })
     await this.updateOrderTargets(unloadableOrderProducts)
 

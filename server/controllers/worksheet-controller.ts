@@ -254,6 +254,24 @@ export class WorksheetController {
   }
 
   /**
+   * @summary Find executable worksheet detail by its name
+   * @description Find worksheet detail by passwd worksheet detail name
+   * and check validity by passed type and status (EXECUTING)
+   * If you want to get additional relations you need to define relations
+   * ex) findExecutableWorksheetDetailByName(worksheetDetailName, type, ['arrivalNotice'])
+   */
+  async findActivatableWorksheetDetailByName(
+    worksheetDetailName: string,
+    type: string,
+    relations: string[] = []
+  ): Promise<WorksheetDetail> {
+    const worksheetDetail: WorksheetDetail = await this.findWorksheetDetailByName(worksheetDetailName, relations)
+    this.checkRecordValidity(worksheetDetail, { type, status: WORKSHEET_STATUS.DEACTIVATED })
+
+    return worksheetDetail
+  }
+
+  /**
    * @summary find worksheet detail by passed condition
    * @description find worksheey based on passed condition
    * If you want to get additional relations you need to define reltaions
