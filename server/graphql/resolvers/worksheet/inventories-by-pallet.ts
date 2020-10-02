@@ -91,27 +91,8 @@ export const inventoriesByPalletResolver = {
 }
 
 async function getRemainAmount(inventory: Inventory): Promise<{ remainQty: number; remainWeight: number }> {
-  const orderInventories: OrderInventory = await getRepository(OrderInventory).find({
-    where: {
-      inventory,
-      status: In([
-        ORDER_INVENTORY_STATUS.PENDING,
-        ORDER_INVENTORY_STATUS.PENDING_RECEIVE,
-        ORDER_INVENTORY_STATUS.READY_TO_PICK,
-        ORDER_INVENTORY_STATUS.PICKING,
-        ORDER_INVENTORY_STATUS.PENDING_SPLIT
-      ])
-    }
-  })
-
-  const { releaseQty, releaseWeight } = orderInventories.reduce(
-    (releaseAmount: { releaseQty: number; releaseWeight: number }, orderInv: OrderInventory) => {
-      releaseAmount.releaseQty += orderInv.releaseQty
-      releaseAmount.releaseWeight += orderInv.releaseWeight
-      return releaseAmount
-    },
-    { releaseQty: 0, releaseWeight: 0 }
-  )
-
-  return { remainQty: inventory.qty - releaseQty, remainWeight: inventory.weight - releaseWeight }
+  return {
+    remainQty: inventory.qty - inventory.lockedQty,
+    remainWeight: inventory.weight - inventory.lockedWeight
+  }
 }
