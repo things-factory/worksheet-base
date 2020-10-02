@@ -3,59 +3,86 @@ import {
   InventoryCheck,
   OrderInventory,
   OrderNoGenerator,
+  generateCycleCount,
   ORDER_INVENTORY_STATUS,
   ORDER_STATUS
 } from '@things-factory/sales-base'
 import { Inventory, INVENTORY_STATUS, Location } from '@things-factory/warehouse-base'
-import { Equal, In, Not } from 'typeorm'
+import { Equal, In, Not, SelectQueryBuilder, Brackets } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../constants'
 import { Worksheet, WorksheetDetail } from '../../entities'
 import { WorksheetController } from '../worksheet-controller'
 
 export class CycleCountWorksheetController extends WorksheetController {
-  async generateCycleCountWorksheet(cycleCountNo: string, inventories: Inventory[]): Promise<Worksheet> {
-    const cycleCount: InventoryCheck = await this.findRefOrder(
-      InventoryCheck,
-      {
+  async generateCycleCountWorksheet(executionDate: string, customerId: string): Promise<Worksheet> {
+    // Find out warehouse and customer bizplace
+    const customerBizplace: Bizplace = await this.trxMgr.getRepository(Bizplace).findOne(customerId)
+    const existingWorksheetCnt: number = await this.trxMgr.getRepository(Worksheet).count({
+      where: {
         domain: this.domain,
-        name: cycleCountNo,
-        status: ORDER_STATUS.PENDING
-      },
-      ['bizplace']
-    )
+        bizplace: customerBizplace,
+        type: WORKSHEET_TYPE.CYCLE_COUNT,
+        status: Not(WORKSHEET_STATUS.DONE)
+      }
+    })
 
-    const bizplace: Bizplace = cycleCount.bizplace
-
-    if (inventories.some((inv: Inventory) => !(inv instanceof Inventory))) {
-      const palletIds: string[] = inventories.map((inv: Inventory) => inv.palletId)
-      inventories = await this.trxMgr.getRepository(Inventory).find({
-        where: { domain: this.domain, palletId: In(palletIds), status: INVENTORY_STATUS.STORED }
-      })
+    if (existingWorksheetCnt) {
+      throw new Error(`Unfinished cycle count worksheet exists.`)
     }
 
-    /* Update inventories to lock up available qty & weight */
-    inventories.forEach((inv: Inventory) => {
-      inv.lockedQty = inv.qty
-      inv.lockedWeight = inv.weight
-      inv.updater = this.user
-    })
-    inventories = await this.trxMgr.getRepository(Inventory).save(inventories)
+    const cycleCount: InventoryCheck = await generateCycleCount(
+      this.trxMgr,
+      this.domain,
+      this.user,
+      executionDate,
+      customerId
+    )
 
-    let targetInventories: OrderInventory[] = inventories.map((inventory: Inventory) => {
-      let targetInventory: Partial<OrderInventory> = new OrderInventory()
-      targetInventory.domain = this.domain
-      targetInventory.bizplace = bizplace
-      targetInventory.status = ORDER_INVENTORY_STATUS.PENDING
-      targetInventory.name = OrderNoGenerator.orderInventory()
-      targetInventory.inventoryCheck = cycleCount
-      targetInventory.releaseQty = 0
-      targetInventory.releaseWeight = 0
-      targetInventory.inventory = inventory
-      targetInventory.creator = this.user
-      targetInventory.updater = this.user
-      return targetInventory
-    })
+    // Find out inventories which is target for cycle counting
+    const qb: SelectQueryBuilder<Inventory> = this.trxMgr.getRepository(Inventory).createQueryBuilder('INV')
+    let inventories: Inventory[] = await qb
+
+      .where('INV.domain_id = :domainId', { domainId: this.domain.id })
+      .andWhere('INV.bizplace_id = :bizplaceId', { bizplaceId: customerBizplace.id })
+      .andWhere('INV.status = :status', { status: INVENTORY_STATUS.STORED })
+      .andWhere(
+        new Brackets(qb => {
+          qb.where('"INV"."locked_qty" ISNULL')
+          qb.orWhere('"INV"."locked_qty" = 0')
+        })
+      )
+      .getMany()
+
+    if (!inventories.length) {
+      throw new Error(`Failed to find inventories`)
+    }
+
+    let targetInventories: OrderInventory[] = []
+    if (!targetInventories.length)
+      for (const inventory of inventories) {
+        let targetInventory: OrderInventory = new OrderInventory()
+        targetInventory.domain = this.domain
+        targetInventory.bizplace = customerBizplace
+        targetInventory.status = ORDER_INVENTORY_STATUS.PENDING
+        targetInventory.name = OrderNoGenerator.orderInventory()
+        targetInventory.inventoryCheck = cycleCount
+        targetInventory.releaseQty = 0
+        targetInventory.releaseWeight = 0
+        targetInventory.inventory = inventory
+        targetInventory.creator = this.user
+        targetInventory.updater = this.user
+
+        targetInventories.push(targetInventory)
+      }
     targetInventories = await this.trxMgr.getRepository(OrderInventory).save(targetInventories)
+
+    // // set a locked qty at all inventory
+    inventories.forEach((inventory: Inventory) => {
+      inventory.lockedQty = inventory.qty
+      inventory.lockedWeight = inventory.weight
+      inventory.updater = this.user
+    })
+    await this.trxMgr.getRepository(Inventory).save(inventories)
 
     return await this.generateWorksheet(
       WORKSHEET_TYPE.CYCLE_COUNT,
@@ -91,8 +118,6 @@ export class CycleCountWorksheetController extends WorksheetController {
 
   async inspecting(
     worksheetDetailName: string,
-    palletId: string,
-    locationName: string,
     inspectedBatchNo: string,
     inspectedQty: number,
     inspectedWeight: number
@@ -104,36 +129,24 @@ export class CycleCountWorksheetController extends WorksheetController {
     )
 
     let targetInventory: OrderInventory = worksheetDetail.targetInventory
-    let inventory: Inventory = targetInventory.inventory
-    const beforeLocation: Location = inventory.location
-    const currentLocation: Location = await this.trxMgr.getRepository(Location).findOne({
-      where: { domain: this.domain, name: locationName }
-    })
-    if (!currentLocation) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(locationName))
+    const inventory: Inventory = targetInventory.inventory
+    const { batchId, qty, weight }: { batchId: string; qty: number; weight: number } = inventory
 
-    if (inventory.palletId !== palletId)
-      throw new Error(this.ERROR_MSG.VALIDITY.CANT_PROCEED_STEP_BY('inspect', 'pallet ID is invalid'))
+    const isChanged: boolean = batchId !== inspectedBatchNo || qty !== inspectedQty || weight !== inspectedWeight
+    const worksheetDetailStatus: string = isChanged ? WORKSHEET_STATUS.NOT_TALLY : WORKSHEET_STATUS.DONE
+    const targetInventoryStatus: string = isChanged
+      ? ORDER_INVENTORY_STATUS.NOT_TALLY
+      : ORDER_INVENTORY_STATUS.INSPECTED
 
-    if (
-      beforeLocation.name !== currentLocation.name ||
-      inspectedQty !== inventory.qty ||
-      inspectedBatchNo !== inventory.batchId ||
-      inspectedWeight !== inventory.weight
-    ) {
-      worksheetDetail.status = WORKSHEET_STATUS.NOT_TALLY
-      targetInventory.status = ORDER_INVENTORY_STATUS.NOT_TALLY
-    } else {
-      worksheetDetail.status = WORKSHEET_STATUS.DONE
-      targetInventory.status = ORDER_INVENTORY_STATUS.INSPECTED
-    }
-
+    worksheetDetail.status = worksheetDetailStatus
     worksheetDetail.updater = this.user
     await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
 
-    targetInventory.inspectedLocation = currentLocation
+    targetInventory.inspectedBatchNo = inspectedBatchNo
     targetInventory.inspectedQty = inspectedQty
     targetInventory.inspectedWeight = inspectedWeight
-    targetInventory.inspectedBatchNo = inspectedBatchNo
+    targetInventory.inspectedLocation = targetInventory.inventory.location
+    targetInventory.status = targetInventoryStatus
     targetInventory.updater = this.user
     await this.updateOrderTargets([targetInventory])
   }
@@ -145,10 +158,10 @@ export class CycleCountWorksheetController extends WorksheetController {
     )
 
     let targetInventory: OrderInventory = worksheetDetail.targetInventory
-    targetInventory.inspectedLocaiton = null
+    targetInventory.inspectedBatchNo = null
     targetInventory.inspectedQty = null
     targetInventory.inspectedWeight = null
-    targetInventory.inspectedBatchNo = null
+    targetInventory.inspectedLocation = null
     targetInventory.status = ORDER_INVENTORY_STATUS.INSPECTING
     targetInventory.updater = this.user
     await this.updateOrderTargets([targetInventory])
@@ -172,52 +185,54 @@ export class CycleCountWorksheetController extends WorksheetController {
     this.checkRecordValidity(worksheet, { status: WORKSHEET_STATUS.EXECUTING })
 
     const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
-    let targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
-    const notTallyWorksheetDetails: WorksheetDetail[] = worksheetDetails.filter(
-      (wsd: WorksheetDetail) => wsd.status === WORKSHEET_STATUS.NOT_TALLY
+    const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
+
+    const {
+      tallyTargetInventories,
+      notTallyTargetInventories
+    }: {
+      tallyTargetInventories: OrderInventory[]
+      notTallyTargetInventories: OrderInventory[]
+    } = targetInventories.reduce(
+      (result, targetInventory: OrderInventory) => {
+        if (targetInventory.status !== ORDER_INVENTORY_STATUS.INSPECTED) {
+          result.notTallyTargetInventories.push(targetInventory)
+        } else {
+          result.tallyTargetInventories.push(targetInventory)
+        }
+
+        return result
+      },
+      {
+        tallyTargetInventories: [],
+        notTallyTargetInventories: []
+      }
     )
 
-    // terminate all order inventory if all inspection accuracy is 100%
-    if (!notTallyWorksheetDetails?.length) {
-      targetInventories.forEach((targetInventory: OrderInventory) => {
-        targetInventory.status = ORDER_INVENTORY_STATUS.TERMINATED
-        targetInventory.updater = this.user
-      })
-      await this.updateOrderTargets(targetInventories)
-      worksheet = await this.completWorksheet(worksheet, ORDER_STATUS.DONE)
+    const tallyInventories: Inventory[] = tallyTargetInventories.map(targetInventory => targetInventory.inventory)
+    tallyTargetInventories.forEach((targetInventory: OrderInventory) => {
+      targetInventory.status = ORDER_INVENTORY_STATUS.TERMINATED
+      targetInventory.updater = this.user
+    })
+    await this.updateOrderTargets(tallyTargetInventories)
+
+    tallyInventories.forEach((inventory: Inventory) => {
+      inventory.lockedQty = 0
+      inventory.lockedWeight = 0
+      inventory.updater = this.user
+    })
+    await this.trxMgr.getRepository(Inventory).save(tallyInventories)
+
+    worksheet = await this.completWorksheet(worksheet, WORKSHEET_STATUS.DONE)
+    worksheet.status = WORKSHEET_STATUS.DONE
+
+    if (notTallyTargetInventories.length) {
+      inventoryCheck.status = ORDER_STATUS.PENDING_REVIEW
     } else {
-      type InspectionResult = { tallyTargetInventories: OrderInventory[]; nonTallyTargetInventories: OrderInventory[] }
-
-      let { tallyTargetInventories, nonTallyTargetInventories }: InspectionResult = targetInventories.reduce(
-        (inspectionResult: InspectionResult, targetInventory) => {
-          if (targetInventory.status === ORDER_INVENTORY_STATUS.INSPECTED) {
-            inspectionResult.tallyTargetInventories.push(targetInventory)
-          } else {
-            inspectionResult.nonTallyTargetInventories.push(targetInventory)
-          }
-          return inspectionResult
-        },
-        { tallyTargetInventories: [], nonTallyTargetInventories: [] }
-      )
-
-      let inventories: Inventory[] = tallyTargetInventories.map(
-        (targetInventory: OrderInventory) => targetInventory.inventory
-      )
-      inventories.forEach((inventory: Inventory) => {
-        inventory.lockedQty = 0
-        inventory.lockedWeight = 0
-        inventory.updater = this.user
-      })
-      await this.trxMgr.getRepository(Inventory).save(inventories)
-
-      worksheet = await this.completWorksheet(worksheet, ORDER_STATUS.PENDING_REVIEW)
-
-      nonTallyTargetInventories.forEach((targetInventory: OrderInventory) => {
-        targetInventory.status = ORDER_INVENTORY_STATUS.INSPECTING
-        targetInventory.updater = this.user
-      })
-      await this.updateOrderTargets(nonTallyTargetInventories)
+      inventoryCheck.status = ORDER_STATUS.DONE
     }
+    inventoryCheck.updater = this.user
+    await this.trxMgr.getRepository(InventoryCheck).save(inventoryCheck)
 
     return worksheet
   }
