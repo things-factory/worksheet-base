@@ -10,7 +10,7 @@ import { Mutations as VasMutations } from './vas'
 import { confirmCancellationReleaseOrder } from './confirm-cancellation-release-order'
 import { createWorksheet } from './create-worksheet'
 import { crossDockPickingResolver } from './cross-dock-picking'
-import { cycleCountAdjustment } from './cycle-count-adjustment'
+import { cycleCountAdjustmentResolver } from './cycle-count-adjustment'
 import { cycleCountWorksheetResolver } from './cycle-count-worksheet'
 import { deleteWorksheet } from './delete-worksheet'
 import { deliveryOrderByWorksheetResolver } from './delivery-order-by-worksheet'
@@ -82,7 +82,7 @@ export const Mutation = {
   ...InspectMutations,
   ...updateWorksheet,
   ...createWorksheet,
-  ...cycleCountAdjustment,
+  ...cycleCountAdjustmentResolver,
   ...deleteWorksheet,
   ...editBatchNo,
   ...proceedEditedBatchResolver,

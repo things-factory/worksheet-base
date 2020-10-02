@@ -51,9 +51,9 @@ export const Mutation = /* GraphQL */ `
   ): ReleaseGoodWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   generateCycleCountWorksheet (
-    selectedInventory: [InventoryPatch]
     executionDate: String!
-  ): InventoryCheckWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
+    customerId: String!
+  ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   generateVasOrderWorksheet (
     vasNo: String!
@@ -210,8 +210,6 @@ export const Mutation = /* GraphQL */ `
 
   inspecting (
     worksheetDetailName: String!
-    palletId: String!
-    locationName: String!
     inspectedBatchNo: String!
     inspectedQty: Int!
     inspectedWeight: Float!
@@ -219,6 +217,27 @@ export const Mutation = /* GraphQL */ `
 
   undoInspection (
     worksheetDetailName: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  checkMissingPallet (
+    worksheetDetailName: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  relocatePallet (
+    worksheetDetailName: String!
+    inspectedBatchNo: String!
+    inspectedQty: Int!
+    inspectedWeight: Float!
+    inspectedLocationId: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  addExtraPallet (
+    cycleCountNo: String!
+    palletId: String!
+    inspectedBatchNo: String!
+    inspectedQty: Int!
+    inspectedWeight: Float!
+    locationId: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   completePicking (
