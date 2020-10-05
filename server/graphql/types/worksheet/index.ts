@@ -53,6 +53,7 @@ export const Mutation = /* GraphQL */ `
   generateCycleCountWorksheet (
     executionDate: String!
     customerId: String!
+    orderInventoryIds: [String]
   ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   generateVasOrderWorksheet (

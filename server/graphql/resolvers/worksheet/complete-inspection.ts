@@ -1,9 +1,8 @@
 import { User } from '@things-factory/auth-base'
-import { Bizplace } from '@things-factory/biz-base'
 import { InventoryCheck, OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory } from '@things-factory/warehouse-base'
-import { getManager, EntityManager } from 'typeorm'
+import { EntityManager, getManager, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -30,7 +29,12 @@ export async function completeInspection(
   if (!inventoryCheck) throw new Error(`Inspection order doesn't exists.`)
 
   const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-    where: { domain, status: WORKSHEET_STATUS.EXECUTING, type: WORKSHEET_TYPE.CYCLE_COUNT, inventoryCheck },
+    where: {
+      domain,
+      status: WORKSHEET_STATUS.EXECUTING,
+      type: In([WORKSHEET_TYPE.CYCLE_COUNT, WORKSHEET_TYPE.CYCLE_COUNT_RECHECK]),
+      inventoryCheck
+    },
     relations: ['worksheetDetails', 'worksheetDetails.targetInventory', 'worksheetDetails.targetInventory.inventory']
   })
 
@@ -74,16 +78,18 @@ export async function completeInspection(
   })
   await trxMgr.getRepository(Inventory).save(tallyInventories)
 
-  worksheet.status = WORKSHEET_STATUS.DONE
+  if (notTallyTargetInventories.length) {
+    worksheet.status = WORKSHEET_STATUS.NOT_TALLY
+    inventoryCheck.status = ORDER_STATUS.PENDING_REVIEW
+  } else {
+    worksheet.status = WORKSHEET_STATUS.DONE
+    inventoryCheck.status = ORDER_STATUS.DONE
+  }
+
   worksheet.endedAt = new Date()
   worksheet.updater = user
   await trxMgr.getRepository(Worksheet).save(worksheet)
 
-  if (notTallyTargetInventories.length) {
-    inventoryCheck.status = ORDER_STATUS.PENDING_REVIEW
-  } else {
-    inventoryCheck.status = ORDER_STATUS.DONE
-  }
   inventoryCheck.updater = user
   await trxMgr.getRepository(InventoryCheck).save(inventoryCheck)
 }
