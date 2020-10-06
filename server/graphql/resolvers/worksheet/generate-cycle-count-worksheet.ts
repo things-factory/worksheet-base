@@ -10,7 +10,7 @@ import {
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
-import { EntityManager, getManager, In, Not, SelectQueryBuilder } from 'typeorm'
+import { EntityManager, getManager, In, InsertResult, Not, SelectQueryBuilder, Brackets } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils'
@@ -91,9 +91,13 @@ export async function generateCycleCountWorksheet(
     let inventories: Inventory[] = await qb
       .where('INV.domain_id = :domainId', { domainId: domain.id })
       .andWhere('INV.bizplace_id = :bizplaceId', { bizplaceId: customerBizplace.id })
-      .andWhere('INV.status != :status', { status: INVENTORY_STATUS.STORED })
-      .andWhere('"INV"."locked_qty" NOTNULL')
-      .orWhere('"INV"."locked_qty" = 0')
+      .andWhere('INV.status = :status', { status: INVENTORY_STATUS.STORED })
+      .andWhere(
+        new Brackets(qb => {
+          qb.where('"INV"."locked_qty" ISNULL')
+          qb.orWhere('"INV"."locked_qty" = 0')
+        })
+      )
       .getMany()
 
     if (!inventories.length) {
@@ -112,6 +116,7 @@ export async function generateCycleCountWorksheet(
     cycleCountWorksheet = await trxMgr.getRepository(Worksheet).save(cycleCountWorksheet)
 
     // generate order inventory mapping with inventory ID
+    let targetInventories: OrderInventory[] = []
     for (let i: number = 0; i < inventories.length; i++) {
       const inventory: Inventory = inventories[i]
 
@@ -126,13 +131,18 @@ export async function generateCycleCountWorksheet(
       targetInventory.inventory = inventory
       targetInventory.creator = user
       targetInventory.updater = user
-
-      await trxMgr.getRepository(OrderInventory).save(targetInventory)
+      targetInventories.push(targetInventory)
 
       inventory.lockedQty = inventory.qty
       inventory.lockedWeight = inventory.weight
       inventory.updater = user
-      await trxMgr.getRepository(Inventory).save(inventory)
+    }
+
+    targetInventories = await trxMgr.getRepository(OrderInventory).save(targetInventories, { chunk: 500 })
+
+    let cycleCountWorksheetDetails: WorksheetDetail[] = []
+    for (let i: number = 0; i < targetInventories.length; i++) {
+      let targetInventory: OrderInventory = targetInventories[i]
 
       let cycleCountWorksheetDetail: WorksheetDetail = new WorksheetDetail()
       cycleCountWorksheetDetail.domain = domain
@@ -145,8 +155,10 @@ export async function generateCycleCountWorksheet(
       cycleCountWorksheetDetail.creator = user
       cycleCountWorksheetDetail.updater = user
 
-      await trxMgr.getRepository(WorksheetDetail).save(cycleCountWorksheetDetail)
+      cycleCountWorksheetDetails.push(cycleCountWorksheetDetail)
     }
+
+    await trxMgr.getRepository(WorksheetDetail).save(cycleCountWorksheetDetails, { chunk: 500 })
 
     return cycleCountWorksheet
   }
