@@ -409,14 +409,40 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     let unloadableOrderProducts: OrderProduct[] = orderProducts
       .filter((orderProduct: OrderProduct) => orderProduct.status === ORDER_PRODUCT_STATUS.INSPECTED)
       .map((orderProduct: OrderProduct) => {
+        orderProduct.palletQty = orderProduct.adjustedPalletQty
         orderProduct.status = ORDER_PRODUCT_STATUS.READY_TO_UNLOAD
         orderProduct.updater = this.user
         return orderProduct
       })
-    await this.updateOrderTargets(unloadableOrderProducts)
+    if (unloadableOrderProducts.length > 0) await this.updateOrderTargets(unloadableOrderProducts)
 
-    let unloadingWorksheet: Worksheet = await this.findWorksheetByRefOrder(arrivalNotice, WORKSHEET_TYPE.UNLOADING)
-    unloadingWorksheet.status = WORKSHEET_STATUS.PENDING_ADJUSTMENT
+    let nonUnloadableOrderProducts: OrderProduct[] = orderProducts
+      .filter((orderProduct: OrderProduct) => orderProduct.status === ORDER_PRODUCT_STATUS.PENDING_APPROVAL)
+      .map((orderProduct: OrderProduct) => {
+        orderProduct.palletQty = orderProduct.adjustedPalletQty
+        orderProduct.updater = this.user
+        return orderProduct
+      })
+    if (nonUnloadableOrderProducts.length > 0) await this.updateOrderTargets(nonUnloadableOrderProducts)
+
+    let unloadingWorksheet: Worksheet = await this.findWorksheetByRefOrder(arrivalNotice, WORKSHEET_TYPE.UNLOADING, [
+      'worksheetDetails',
+      'worksheetDetails.targetInventory',
+      'worksheetDetails.targetInventory.inventory'
+    ])
+    if (nonUnloadableOrderProducts.length > 0) {
+      unloadingWorksheet.status = WORKSHEET_STATUS.PENDING_ADJUSTMENT
+    } else {
+      unloadingWorksheet.status = WORKSHEET_STATUS.DEACTIVATED
+
+      let worksheetDetails: WorksheetDetail[] = unloadingWorksheet.worksheetDetails
+      worksheetDetails.forEach((worksheetDetail: WorksheetDetail) => {
+        worksheetDetail.status = WORKSHEET_STATUS.DEACTIVATED
+        worksheetDetail.updater = this.user
+      })
+      await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetails)
+    }
+
     unloadingWorksheet.updater = this.user
     return await this.trxMgr.getRepository(Worksheet).save(unloadingWorksheet)
   }

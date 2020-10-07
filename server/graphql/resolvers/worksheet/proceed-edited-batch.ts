@@ -4,7 +4,7 @@ import { ArrivalNotice, OrderProduct, OrderVas, ORDER_PRODUCT_STATUS, ORDER_STAT
 import { sendNotification } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE, TARGET_TYPE } from '../../../constants'
-import { Worksheet } from '../../../entities'
+import { Worksheet, WorksheetDetail } from '../../../entities'
 
 export const proceedEditedBatchResolver = {
   async proceedEditedBatch(_: any, { ganNo, approvedProducts, rejectedProducts }, context: any): Promise<void> {
@@ -102,6 +102,12 @@ export const proceedEditedBatchResolver = {
         )
         await trxMgr.getRepository(OrderProduct).save(rejectedProducts)
       }
+
+      let worksheetDetails: WorksheetDetail[] = unloadingWS.worksheetDetails
+      worksheetDetails.forEach((worksheetDetail: WorksheetDetail) => {
+        worksheetDetail.status = WORKSHEET_STATUS.DEACTIVATED
+      })
+      await trxMgr.getRepository(WorksheetDetail).save(worksheetDetails)
 
       await trxMgr.getRepository(Worksheet).save({
         ...unloadingWS,
