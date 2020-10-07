@@ -28,6 +28,7 @@ export const cycleCountWorksheetResolver = {
       .leftJoinAndSelect('T_INV.inspectedLocation', 'INS_LOC')
       .leftJoinAndSelect('INV.location', 'LOC')
       .leftJoinAndSelect('INV.product', 'PROD')
+      .leftJoinAndSelect('LOC.warehouse', 'WH')
 
     if (locationSortingRules?.length > 0) {
       locationSortingRules.forEach((rule: { name: string; desc: boolean }) => {
