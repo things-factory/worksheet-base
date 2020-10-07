@@ -69,14 +69,14 @@ export async function completeInspection(
     targetInventory.status = ORDER_INVENTORY_STATUS.TERMINATED
     targetInventory.updater = user
   })
-  await trxMgr.getRepository(OrderInventory).save(tallyTargetInventories)
+  await trxMgr.getRepository(OrderInventory).save(tallyTargetInventories, { chunk: 500 })
 
   tallyInventories.forEach((inventory: Inventory) => {
     inventory.lockedQty = 0
     inventory.lockedWeight = 0
     inventory.updater = user
   })
-  await trxMgr.getRepository(Inventory).save(tallyInventories)
+  await trxMgr.getRepository(Inventory).save(tallyInventories, { chunk: 500 })
 
   if (notTallyTargetInventories.length) {
     worksheet.status = WORKSHEET_STATUS.NOT_TALLY

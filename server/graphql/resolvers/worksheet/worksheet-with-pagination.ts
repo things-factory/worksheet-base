@@ -9,7 +9,7 @@ export const worksheetWithPaginationResolver = {
     { name, pagination }: { name: string; pagination?: { page: number; limit: number } },
     context: any
   ): Promise<{ worksheet: Worksheet; worksheetDetails: WorksheetDetail[]; total: number }> {
-    const { domain, user }: { domain: Domain; user: User } = context.state
+    const { domain }: { domain: Domain; user: User } = context.state
     const worksheet: Worksheet = await getRepository(Worksheet).findOne({
       where: { domain, name },
       relations: ['bizplace', 'arrivalNotice', 'releaseGood', 'inventoryCheck']
