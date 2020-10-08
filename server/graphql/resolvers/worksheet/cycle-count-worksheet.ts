@@ -1,6 +1,6 @@
 import { OrderInventory, ORDER_STATUS, InventoryCheck } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
-import { getRepository, createQueryBuilder, SelectQueryBuilder } from 'typeorm'
+import { getRepository, createQueryBuilder, SelectQueryBuilder, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 
@@ -16,7 +16,7 @@ export const cycleCountWorksheetResolver = {
       where: {
         domain: context.state.domain,
         inventoryCheck: cycleCount,
-        type: WORKSHEET_TYPE.CYCLE_COUNT,
+        type: In([WORKSHEET_TYPE.CYCLE_COUNT, WORKSHEET_TYPE.CYCLE_COUNT_RECHECK]),
         status: WORKSHEET_STATUS.EXECUTING
       },
       relations: ['bizplace']
@@ -28,6 +28,7 @@ export const cycleCountWorksheetResolver = {
       .leftJoinAndSelect('T_INV.inspectedLocation', 'INS_LOC')
       .leftJoinAndSelect('INV.location', 'LOC')
       .leftJoinAndSelect('INV.product', 'PROD')
+      .leftJoinAndSelect('LOC.warehouse', 'WH')
 
     if (locationSortingRules?.length > 0) {
       locationSortingRules.forEach((rule: { name: string; desc: boolean }) => {

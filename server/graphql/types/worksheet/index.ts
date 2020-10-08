@@ -8,6 +8,7 @@ import { GoodsDeliveryNote } from './goods-delivery-note'
 import { InventoryCheckWorksheet } from './inventory-check-worksheet'
 import { LoadedWorksheetDetail } from './loaded-worksheet-detail'
 import { NewWorksheet } from './new-worksheet'
+import { ProductApproval } from './product-approval'
 import { ReleaseGoodWorksheet } from './release-good-worksheet'
 import { VasOrderWorksheet } from './vas-order-worksheet'
 import { Worksheet } from './worksheet'
@@ -15,7 +16,7 @@ import { WorksheetDetailInfo } from './worksheet-detail-info'
 import { WorksheetInfo } from './worksheet-info'
 import { WorksheetList } from './worksheet-list'
 import { WorksheetPatch } from './worksheet-patch'
-import { ProductApproval } from './product-approval'
+import { WorksheetWithPagination } from './worksheet-with-pagination'
 
 export const Mutation = /* GraphQL */ `
   createWorksheet (
@@ -53,6 +54,7 @@ export const Mutation = /* GraphQL */ `
   generateCycleCountWorksheet (
     executionDate: String!
     customerId: String!
+    orderInventoryIds: [String]
   ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   generateVasOrderWorksheet (
@@ -425,6 +427,11 @@ export const Query = /* GraphQL */ `
     orderType: String!
     orderNo: String!
   ): Worksheet @priviledge(category: "worksheet", priviledge: "query")
+
+  worksheetWithPagination (
+    name: String!
+    pagination: Pagination
+  ): WorksheetWithPagination @priviledge(category: "worksheet", priviledge: "query")
 `
 
 export const Types = /* GraphQL */ [
@@ -445,5 +452,6 @@ export const Types = /* GraphQL */ [
   WorksheetDetailInfo,
   ExecutingWorksheet,
   LoadedWorksheetDetail,
-  ProductApproval
+  ProductApproval,
+  WorksheetWithPagination
 ]

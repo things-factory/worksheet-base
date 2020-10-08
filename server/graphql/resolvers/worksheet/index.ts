@@ -79,6 +79,7 @@ import {
 import { vasWorksheetResolver } from './vas-worksheet'
 import { worksheetResolver } from './worksheet'
 import { worksheetByOrderNoResolver } from './worksheet-by-order-no'
+import { worksheetWithPaginationResolver } from './worksheet-with-pagination'
 import { worksheetsResolver } from './worksheets'
 
 export const Query = {
@@ -100,7 +101,8 @@ export const Query = {
   ...inventoriesByPalletResolver,
   ...checkRelabelableResolver,
   ...havingVasResolver,
-  ...worksheetByOrderNoResolver
+  ...worksheetByOrderNoResolver,
+  ...worksheetWithPaginationResolver
 }
 
 export const Mutation = {
