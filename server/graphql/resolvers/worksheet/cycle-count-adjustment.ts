@@ -4,7 +4,7 @@ import { Domain } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS, INVENTORY_TRANSACTION_TYPE, Location } from '@things-factory/warehouse-base'
 import { EntityManager, getManager, In } from 'typeorm'
 import { WORKSHEET_STATUS } from '../../../constants'
-import { WorksheetDetail } from '../../../entities'
+import { Worksheet, WorksheetDetail } from '../../../entities'
 import { generateInventoryHistory, switchLocationStatus } from '../../../utils'
 
 export const cycleCountAdjustmentResolver = {
@@ -137,6 +137,13 @@ export async function cycleCountAdjustment(
     worksheetDetail.updater = user
     await trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
   }
+
+  const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+    where: { domain, inventoryCheck: cycleCount }
+  })
+
+  worksheet.status = WORKSHEET_STATUS.DONE
+  await trxMgr.getRepository(Worksheet).save(worksheet)
 
   // change cycle count status to DONE
   cycleCount.status = ORDER_STATUS.DONE
