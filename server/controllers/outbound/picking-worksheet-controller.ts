@@ -193,7 +193,12 @@ export class PickingWorksheetController extends VasWorksheetController {
     productId: string,
     packingType: string
   ): Promise<void> {
-    const worksheet: Worksheet = await this.findWorksheetByNo(worksheetNo, ['worksheetDetails'])
+    const worksheet: Worksheet = await this.findWorksheetByNo(worksheetNo, [
+      'worksheetDetails',
+      'worksheetDetails.targetInventory',
+      'worksheetDetails.targetInventory.inventory',
+      'worksheetDetails.targetInventory.product'
+    ])
     const worksheetDetails: WorksheetDetail[] = await this.extractMatchedWorksheetDetails(
       worksheet.worksheetDetails,
       batchId,
