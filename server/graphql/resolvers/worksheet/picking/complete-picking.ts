@@ -43,11 +43,12 @@ export async function completePicking(
   ])
 
   const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
-  const pickedTargetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => {
-    if (wsd.targetInventory.status === ORDER_INVENTORY_STATUS.PICKED) {
-      return wsd.targetInventory
-    }
-  })
+  const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
+  const pickedTargetInventories: OrderInventory[] = targetInventories
+    .filter(targetInventory => targetInventory.status === ORDER_INVENTORY_STATUS.PICKED)
+    .map((pickedTargetInventory: OrderInventory) => {
+      return pickedTargetInventory
+    })
 
   await pickingWSCtrl.completePicking(releaseGoodNo)
 

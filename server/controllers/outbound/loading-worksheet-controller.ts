@@ -66,7 +66,7 @@ export class LoadingWorksheetController extends VasWorksheetController {
     releaseGood.updater = this.user
     await this.updateRefOrder(releaseGood)
 
-    await this.updateOrderTargets(targetInventories)
+    if (targetInventories.length > 0) await this.updateOrderTargets(targetInventories)
     return await this.activateWorksheet(worksheet, worksheetDetails, loadingWorksheetDetails)
   }
 
