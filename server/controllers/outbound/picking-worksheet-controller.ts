@@ -62,6 +62,7 @@ export class PickingWorksheetController extends VasWorksheetController {
     }
 
     releaseGood.status = ORDER_STATUS.READY_TO_PICK
+    releaseGood.acceptedBy = this.user
     releaseGood.updater = this.user
     await this.updateRefOrder(releaseGood)
 
