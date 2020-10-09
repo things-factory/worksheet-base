@@ -68,6 +68,14 @@ export class PickingWorksheetController extends VasWorksheetController {
     return worksheet
   }
 
+  async generatePickingWorksheetDetail(
+    worksheet: Worksheet,
+    targetInventory: Partial<OrderInventory>[]
+  ): Promise<WorksheetDetail[]> {
+    // Create worksheet details
+    return await this.createWorksheetDetails(worksheet, WORKSHEET_TYPE.PICKING, [targetInventory])
+  }
+
   async activatePicking(worksheetNo: string): Promise<Worksheet> {
     let worksheet: Worksheet = await this.findActivatableWorksheet(worksheetNo, WORKSHEET_TYPE.PICKING, [
       'releaseGood',
