@@ -15,7 +15,8 @@ export const completeUnloadingResolver = {
       await completeUnloading(trxMgr, domain, user, arrivalNoticeNo, worksheetDetails)
 
       const arrivalNotice: ArrivalNotice = await trxMgr.getRepository(ArrivalNotice).findOne({
-        where: { domain, name: arrivalNoticeNo }
+        where: { domain, name: arrivalNoticeNo },
+        relations: ['bizplace']
       })
 
       const putawayWSCtrl: PutawayWorksheetController = new PutawayWorksheetController(trxMgr, domain, user)
@@ -34,7 +35,7 @@ export const completeUnloadingResolver = {
         await putawayWSCtrl.activatePutaway(putawayWorksheet.name, putawayWorksheet.worksheetDetails)
       }
 
-      const { id: bizplaceId }: Bizplace = await getMyBizplace(user)
+      const bizplaceId: Bizplace = arrivalNotice.bizplace.id
       await generateGoodsReceivalNote({ refNo: arrivalNoticeNo, customer: bizplaceId }, domain, user, trxMgr)
 
       const worksheetController: UnloadingWorksheetController = new UnloadingWorksheetController(trxMgr, domain, user)
