@@ -9,7 +9,7 @@ import { WorksheetDetail } from '../../../entities'
 export const relocatePalletResolver = {
   async relocatePallet(
     _: any,
-    { worksheetDetailName, inspectedBatchNo, inspectedQty, inspectedWeight, inspectedLocationId },
+    { worksheetDetailName, inspectedBatchNo, inspectedQty, inspectedWeight, inspectedLocationName },
     context: any
   ): Promise<void> {
     return getManager().transaction(async (trxMgr: EntityManager) => {
@@ -22,7 +22,7 @@ export const relocatePalletResolver = {
         inspectedBatchNo,
         inspectedQty,
         inspectedWeight,
-        inspectedLocationId
+        inspectedLocationName
       )
     })
   }
@@ -36,7 +36,7 @@ export async function relocatePallet(
   inspectedBatchNo: string,
   inspectedQty: number,
   inspectedWeight: number,
-  inspectedLocationId: string
+  inspectedLocationName: string
 ): Promise<void> {
   let worksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
     where: { domain, name: worksheetDetailName, type: WORKSHEET_TYPE.CYCLE_COUNT },
@@ -47,10 +47,10 @@ export async function relocatePallet(
 
   let targetInventory: OrderInventory = worksheetDetail.targetInventory
   const location: Location = targetInventory?.inventory?.location
-  if (location.id === inspectedLocationId) throw new Error(`You can't relocate at same location`)
+  if (location.name === inspectedLocationName) throw new Error(`You can't relocate at same location`)
 
   const inspectedLocation: Location = await trxMgr.getRepository(Location).findOne({
-    where: { id: inspectedLocationId, domain }
+    where: { name: inspectedLocationName, domain }
   })
 
   worksheetDetail.status = WORKSHEET_STATUS.NOT_TALLY
