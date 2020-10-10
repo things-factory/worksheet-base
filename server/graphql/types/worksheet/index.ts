@@ -220,7 +220,7 @@ export const Mutation = /* GraphQL */ `
     inspectedBatchNo: String!
     inspectedQty: Int!
     inspectedWeight: Float!
-    inspectedLocationId: String!
+    inspectedLocationName: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   addExtraPallet (

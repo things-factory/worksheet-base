@@ -29,7 +29,10 @@ export async function undoInspection(
   worksheetDetail.status = WORKSHEET_STATUS.EXECUTING
   worksheetDetail.updater = user
   await trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
-  targetInventory.status = ORDER_INVENTORY_STATUS.INSPECTING
+  targetInventory.status =
+    targetInventory.status === ORDER_INVENTORY_STATUS.RELOCATED
+      ? ORDER_INVENTORY_STATUS.MISSING
+      : ORDER_INVENTORY_STATUS.INSPECTING
   targetInventory.inspectedBatchNo = null
   targetInventory.inspectedQty = null
   targetInventory.inspectedWeight = null
