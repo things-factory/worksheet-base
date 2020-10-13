@@ -27,7 +27,7 @@ export async function checkMissingPallet(
   })
 
   if (!worksheetDetail) {
-    throw new Error('Faield to find worksheet detail')
+    throw new Error('Failed to find worksheet detail')
   }
   const targetInventory: OrderInventory = worksheetDetail.targetInventory
 

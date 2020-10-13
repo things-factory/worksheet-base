@@ -11,7 +11,7 @@ import { WorksheetNoGenerator } from '../../../utils'
 export const addExtraPalletResolver = {
   async addExtraPallet(
     _: any,
-    { cycleCountNo, palletId, inspectedBatchNo, inspectedQty, inspectedWeight, locationId },
+    { cycleCountNo, palletId, inspectedBatchNo, inspectedQty, inspectedWeight, locationName },
     context: any
   ): Promise<void> {
     return getManager().transaction(async (trxMgr: EntityManager) => {
@@ -25,7 +25,7 @@ export const addExtraPalletResolver = {
         inspectedBatchNo,
         inspectedQty,
         inspectedWeight,
-        locationId
+        locationName
       )
     })
   }
@@ -40,7 +40,7 @@ export async function addExtraPallet(
   inspectedBatchNo: string,
   inspectedQty: number,
   inspectedWeight: number,
-  locationId: string
+  locationName: string
 ): Promise<void> {
   // Create worksheet detail
   const cycleCount: InventoryCheck = await trxMgr.getRepository(InventoryCheck).findOne({
@@ -58,7 +58,7 @@ export async function addExtraPallet(
     where: { domain, type: WORKSHEET_TYPE.CYCLE_COUNT, status: WORKSHEET_STATUS.EXECUTING, inventoryCheck: cycleCount }
   })
   const location: Location = await trxMgr.getRepository(Location).findOne({
-    where: { domain, id: locationId }
+    where: { domain, name: locationName }
   })
 
   let targetInventory: OrderInventory = new OrderInventory()

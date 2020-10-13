@@ -229,7 +229,7 @@ export const Mutation = /* GraphQL */ `
     inspectedBatchNo: String!
     inspectedQty: Int!
     inspectedWeight: Float!
-    locationId: String!
+    locationName: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   completePicking (
