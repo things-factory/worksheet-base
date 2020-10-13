@@ -114,7 +114,6 @@ export const Mutation = /* GraphQL */ `
 
   cycleCountAdjustment (
     cycleCountNo: String!
-    cycleCountWorksheetDetails: [WorksheetDetailPatch]
   ): Boolean
 
   undoUnloading (
