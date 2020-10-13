@@ -38,6 +38,7 @@ import { inventoriesByPalletResolver } from './inventories-by-pallet'
 import { loadedInventories } from './loaded-inventories'
 import { loading } from './loading'
 import { loadingWorksheetResolver } from './loading-worksheet'
+import { notTallyTargetInventoriesResolver } from './not-tally-target-inventories'
 import { pendingCancellationReleaseOrder } from './pending-cancellation-release-order'
 import { picking } from './picking'
 import { pickingWorksheetResolver } from './picking-worksheet'
@@ -102,7 +103,8 @@ export const Query = {
   ...checkRelabelableResolver,
   ...havingVasResolver,
   ...worksheetByOrderNoResolver,
-  ...worksheetWithPaginationResolver
+  ...worksheetWithPaginationResolver,
+  ...notTallyTargetInventoriesResolver
 }
 
 export const Mutation = {

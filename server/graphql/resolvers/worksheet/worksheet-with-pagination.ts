@@ -19,6 +19,7 @@ export const worksheetWithPaginationResolver = {
       where: { domain, worksheet },
       relations: [
         'targetInventory',
+        'targetInventory.originLocation',
         'targetInventory.inspectedLocation',
         'targetInventory.inventory',
         'targetInventory.inventory.location',

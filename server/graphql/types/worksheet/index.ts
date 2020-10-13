@@ -431,6 +431,10 @@ export const Query = /* GraphQL */ `
     name: String!
     pagination: Pagination
   ): WorksheetWithPagination @priviledge(category: "worksheet", priviledge: "query")
+
+  notTallyTargetInventories (
+    cycleCountNo: String!
+  ): [OrderInventory] @priviledge(category: "worksheet", priviledge: "query")
 `
 
 export const Types = /* GraphQL */ [

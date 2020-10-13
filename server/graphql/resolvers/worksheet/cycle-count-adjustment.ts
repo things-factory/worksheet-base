@@ -32,7 +32,11 @@ export async function cycleCountAdjustment(
   })
 
   let worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
-    where: { domain, type: WORKSHEET_TYPE.CYCLE_COUNT, inventoryCheck: cycleCount }
+    where: {
+      domain,
+      type: In([WORKSHEET_TYPE.CYCLE_COUNT, WORKSHEET_TYPE.CYCLE_COUNT_RECHECK]),
+      inventoryCheck: cycleCount
+    }
   })
 
   // get cycle count wsd that is not tally

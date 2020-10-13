@@ -9,7 +9,7 @@ import {
   ORDER_STATUS
 } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
+import { Inventory, INVENTORY_STATUS, Location } from '@things-factory/warehouse-base'
 import { EntityManager, getManager, In, InsertResult, Not, SelectQueryBuilder, Brackets } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
@@ -89,6 +89,7 @@ export async function generateCycleCountWorksheet(
     // Find out inventories which is target for cycle counting
     const qb: SelectQueryBuilder<Inventory> = trxMgr.getRepository(Inventory).createQueryBuilder('INV')
     let inventories: Inventory[] = await qb
+      .leftJoinAndSelect('INV.location', 'LOC')
       .where('INV.domain_id = :domainId', { domainId: domain.id })
       .andWhere('INV.bizplace_id = :bizplaceId', { bizplaceId: customerBizplace.id })
       .andWhere('INV.status = :status', { status: INVENTORY_STATUS.STORED })
@@ -126,6 +127,10 @@ export async function generateCycleCountWorksheet(
       targetInventory.status = ORDER_INVENTORY_STATUS.PENDING
       targetInventory.name = OrderNoGenerator.orderInventory()
       targetInventory.inventoryCheck = cycleCount
+      targetInventory.originQty = inventory.qty
+      targetInventory.originWeight = inventory.weight
+      targetInventory.originBatchNo = inventory.batchId
+      targetInventory.originLocation = inventory.location
       targetInventory.releaseQty = 0
       targetInventory.releaseWeight = 0
       targetInventory.inventory = inventory
