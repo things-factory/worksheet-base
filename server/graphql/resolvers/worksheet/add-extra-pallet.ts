@@ -2,8 +2,8 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { InventoryCheck, OrderInventory, OrderNoGenerator, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, Location } from '@things-factory/warehouse-base'
-import { EntityManager, getManager } from 'typeorm'
+import { Inventory, INVENTORY_STATUS, Location } from '@things-factory/warehouse-base'
+import { Brackets, SelectQueryBuilder, EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils'
@@ -49,9 +49,19 @@ export async function addExtraPallet(
   })
 
   const bizplace: Bizplace = cycleCount.bizplace
-  const inventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
-    where: { domain, palletId, bizplace }
-  })
+  const qb: SelectQueryBuilder<Inventory> = trxMgr.getRepository(Inventory).createQueryBuilder('INV')
+  let inventory: Inventory = await qb
+    .where('INV.domain_id = :domainId', { domainId: domain.id })
+    .andWhere('INV.bizplace_id = :bizplaceId', { bizplaceId: bizplace.id })
+    .andWhere('INV.palletId = :palletId', { palletId })
+    .andWhere('INV.status = :status', { status: INVENTORY_STATUS.STORED })
+    .andWhere(
+      new Brackets(qb => {
+        qb.where('"INV"."locked_qty" ISNULL')
+        qb.orWhere('"INV"."locked_qty" = 0')
+      })
+    )
+    .getOne()
   if (!inventory) throw new Error('Failed to find inventory')
 
   const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
