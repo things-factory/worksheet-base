@@ -51,14 +51,14 @@ export async function addExtraPallet(
   const bizplace: Bizplace = cycleCount.bizplace
   const qb: SelectQueryBuilder<Inventory> = trxMgr.getRepository(Inventory).createQueryBuilder('INV')
   let inventory: Inventory = await qb
-    .where('INV.domain_id = :domainId', { domainId: domain.id })
-    .andWhere('INV.bizplace_id = :bizplaceId', { bizplaceId: bizplace.id })
+    .where('INV.domain = :domainId', { domainId: domain.id })
+    .andWhere('INV.bizplace = :bizplaceId', { bizplaceId: bizplace.id })
     .andWhere('INV.palletId = :palletId', { palletId })
     .andWhere('INV.status = :status', { status: INVENTORY_STATUS.STORED })
     .andWhere(
       new Brackets(qb => {
-        qb.where('"INV"."locked_qty" ISNULL')
-        qb.orWhere('"INV"."locked_qty" = 0')
+        qb.where('INV.lockedQty ISNULL')
+        qb.orWhere('INV.lockedQty = 0')
       })
     )
     .getOne()
