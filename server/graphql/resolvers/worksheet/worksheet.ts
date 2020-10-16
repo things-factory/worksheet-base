@@ -1,6 +1,6 @@
 import { getPermittedBizplaceIds } from '@things-factory/biz-base'
-import { OrderInventory, OrderProduct, OrderVas } from '@things-factory/sales-base'
-import { getRepository, In } from 'typeorm'
+import { OrderInventory, OrderProduct, OrderVas, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
+import { getRepository, In, Not, Equal } from 'typeorm'
 import { Worksheet } from '../../../entities'
 
 interface WorksheetInterface extends Worksheet {
@@ -73,7 +73,8 @@ export const worksheetResolver = {
         where: {
           domain: context.state.domain,
           bizplace: worksheet.bizplace,
-          releaseGood: worksheet.releaseGood
+          releaseGood: worksheet.releaseGood,
+          status: Not(Equal(ORDER_INVENTORY_STATUS.CANCELLED))
         },
         relations: ['product', 'inventory', 'inventory.location']
       })
