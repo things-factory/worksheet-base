@@ -2,8 +2,8 @@ import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
 import { InventoryCheck, OrderInventory, OrderNoGenerator, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory, Location } from '@things-factory/warehouse-base'
-import { EntityManager, getManager } from 'typeorm'
+import { Inventory, INVENTORY_STATUS, Location } from '@things-factory/warehouse-base'
+import { Brackets, SelectQueryBuilder, EntityManager, getManager } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
 import { Worksheet, WorksheetDetail } from '../../../entities'
 import { WorksheetNoGenerator } from '../../../utils'
@@ -11,7 +11,7 @@ import { WorksheetNoGenerator } from '../../../utils'
 export const addExtraPalletResolver = {
   async addExtraPallet(
     _: any,
-    { cycleCountNo, palletId, inspectedBatchNo, inspectedQty, inspectedWeight, locationId },
+    { cycleCountNo, palletId, inspectedBatchNo, inspectedQty, inspectedWeight, locationName },
     context: any
   ): Promise<void> {
     return getManager().transaction(async (trxMgr: EntityManager) => {
@@ -25,7 +25,7 @@ export const addExtraPalletResolver = {
         inspectedBatchNo,
         inspectedQty,
         inspectedWeight,
-        locationId
+        locationName
       )
     })
   }
@@ -40,7 +40,7 @@ export async function addExtraPallet(
   inspectedBatchNo: string,
   inspectedQty: number,
   inspectedWeight: number,
-  locationId: string
+  locationName: string
 ): Promise<void> {
   // Create worksheet detail
   const cycleCount: InventoryCheck = await trxMgr.getRepository(InventoryCheck).findOne({
@@ -49,16 +49,26 @@ export async function addExtraPallet(
   })
 
   const bizplace: Bizplace = cycleCount.bizplace
-  const inventory: Inventory = await trxMgr.getRepository(Inventory).findOne({
-    where: { domain, palletId, bizplace }
-  })
+  const qb: SelectQueryBuilder<Inventory> = trxMgr.getRepository(Inventory).createQueryBuilder('INV')
+  let inventory: Inventory = await qb
+    .where('INV.domain = :domainId', { domainId: domain.id })
+    .andWhere('INV.bizplace = :bizplaceId', { bizplaceId: bizplace.id })
+    .andWhere('INV.palletId = :palletId', { palletId })
+    .andWhere('INV.status = :status', { status: INVENTORY_STATUS.STORED })
+    .andWhere(
+      new Brackets(qb => {
+        qb.where('INV.lockedQty ISNULL')
+        qb.orWhere('INV.lockedQty = 0')
+      })
+    )
+    .getOne()
   if (!inventory) throw new Error('Failed to find inventory')
 
   const worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
     where: { domain, type: WORKSHEET_TYPE.CYCLE_COUNT, status: WORKSHEET_STATUS.EXECUTING, inventoryCheck: cycleCount }
   })
   const location: Location = await trxMgr.getRepository(Location).findOne({
-    where: { domain, id: locationId }
+    where: { domain, name: locationName }
   })
 
   let targetInventory: OrderInventory = new OrderInventory()

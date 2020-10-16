@@ -114,7 +114,6 @@ export const Mutation = /* GraphQL */ `
 
   cycleCountAdjustment (
     cycleCountNo: String!
-    cycleCountWorksheetDetails: [WorksheetDetailPatch]
   ): Boolean
 
   undoUnloading (
@@ -229,7 +228,7 @@ export const Mutation = /* GraphQL */ `
     inspectedBatchNo: String!
     inspectedQty: Int!
     inspectedWeight: Float!
-    locationId: String!
+    locationName: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   completePicking (
@@ -432,6 +431,10 @@ export const Query = /* GraphQL */ `
     name: String!
     pagination: Pagination
   ): WorksheetWithPagination @priviledge(category: "worksheet", priviledge: "query")
+
+  notTallyTargetInventories (
+    cycleCountNo: String!
+  ): [OrderInventory] @priviledge(category: "worksheet", priviledge: "query")
 `
 
 export const Types = /* GraphQL */ [
