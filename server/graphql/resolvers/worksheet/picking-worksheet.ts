@@ -1,4 +1,4 @@
-import { OrderInventory, ORDER_INVENTORY_STATUS, ReleaseGood } from '@things-factory/sales-base'
+import { OrderInventory, ORDER_STATUS, ReleaseGood, ORDER_INVENTORY_STATUS } from '@things-factory/sales-base'
 import { Inventory } from '@things-factory/warehouse-base'
 import { createQueryBuilder, getRepository, SelectQueryBuilder } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
@@ -36,7 +36,7 @@ export const pickingWorksheetResolver = {
     const worksheetDetails: WorksheetDetail[] = await qb
       .where('"WSD"."worksheet_id" = :worksheetId', { worksheetId: worksheet.id })
       .andWhere('"WSD"."status" != :status', { status: WORKSHEET_STATUS.REPLACED })
-      .andWhere('"T_INV"."status" != :status', { status: ORDER_INVENTORY_STATUS.CANCELLED })
+      .andWhere('"T_INV"."status" != :t_invstatus', { t_invstatus: ORDER_INVENTORY_STATUS.CANCELLED })
       .getMany()
 
     return {
