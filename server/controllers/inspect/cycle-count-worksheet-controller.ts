@@ -255,7 +255,7 @@ export class CycleCountWorksheetController extends WorksheetController {
 
     let worksheet: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne({
       where: {
-        domain,
+        domain: this.domain,
         status: WORKSHEET_STATUS.EXECUTING,
         type: In([WORKSHEET_TYPE.CYCLE_COUNT, WORKSHEET_TYPE.CYCLE_COUNT_RECHECK]),
         inventoryCheck
