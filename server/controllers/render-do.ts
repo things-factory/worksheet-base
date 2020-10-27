@@ -77,6 +77,7 @@ export async function renderDO({ domain: domainName, doNo }) {
       'targetInventory.inventory',
       'targetInventory.inventory.location',
       'targetInventory.inventory.product',
+      'targetInventory.inventory.reusablePallet',
       'updater'
     ]
   })
@@ -118,14 +119,16 @@ export async function renderDO({ domain: domainName, doNo }) {
         product_qty: targetInventory.releaseQty,
         product_weight: targetInventory.releaseWeight,
         remark: targetInventory.remark,
-        cross_docking: targetInventory.crossDocking
+        cross_docking: targetInventory.crossDocking,
+        pallet: inventory?.reusablePallet && inventory?.reusablePallet?.name ? inventory.reusablePallet.name : ''
       }
     })
     .reduce((newItem, item) => {
       var foundItem = newItem.find(
         newItem => newItem.product_name === item.product_name &&
         newItem.product_batch === item.product_batch &&
-        newItem.cross_docking === item.cross_docking
+        newItem.cross_docking === item.cross_docking &&
+        newItem.pallet === item.pallet
       )
       if (!foundItem) {
         foundItem = {
@@ -135,7 +138,8 @@ export async function renderDO({ domain: domainName, doNo }) {
           product_qty: item.product_qty,
           product_weight: item.product_weight,
           remark: 1,
-          cross_docking: item.cross_docking
+          cross_docking: item.cross_docking,
+          pallet: item.pallet
         }
 
         newItem.push(foundItem)
@@ -145,7 +149,8 @@ export async function renderDO({ domain: domainName, doNo }) {
           if (
             ni.product_name === item.product_name &&
             ni.product_batch === item.product_batch &&
-            ni.cross_docking === item.cross_docking
+            ni.cross_docking === item.cross_docking &&
+            ni.pallet === item.pallet
             ) {
             return {
               ...ni,
@@ -186,8 +191,8 @@ export async function renderDO({ domain: domainName, doNo }) {
         ...prod,
         list_no: idx + 1,
         remark: prod.cross_docking ?
-          prod.remark > 1 ? `${prod.remark} PALLETS [C/D]` : `${prod.remark} PALLET [C/D]` :
-          prod.remark > 1 ? `${prod.remark} PALLETS` : `${prod.remark} PALLET`
+         prod.pallet === '' ? `${prod.remark} PALLET(S) [C/D]` : `${prod.remark} PALLET(S) (${prod.pallet}) [C/D]` :
+         prod.pallet === '' ? `${prod.remark} PALLET(S)` : `${prod.remark} PALLET(S) (${prod.pallet})`
       }
     })
   } //.. make data from do

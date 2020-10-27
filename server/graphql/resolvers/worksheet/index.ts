@@ -19,6 +19,7 @@ import { havingVasResolver } from './having-vas'
 import { inventoriesByPalletResolver } from './inventories-by-pallet'
 import { loadedInventories } from './loaded-inventories'
 import { loadingWorksheetResolver } from './loading-worksheet'
+import { notTallyTargetInventoriesResolver } from './not-tally-target-inventories'
 import { pendingCancellationReleaseOrder } from './pending-cancellation-release-order'
 import { pickingWorksheetResolver } from './picking-worksheet'
 import { preunloadWorksheetResolver } from './preunload-worksheet'
@@ -47,6 +48,7 @@ import {
 import { vasWorksheetResolver } from './vas-worksheet'
 import { worksheetResolver } from './worksheet'
 import { worksheetByOrderNoResolver } from './worksheet-by-order-no'
+import { worksheetWithPaginationResolver } from './worksheet-with-pagination'
 import { worksheetsResolver } from './worksheets'
 
 export const Query = {
@@ -68,7 +70,9 @@ export const Query = {
   ...inventoriesByPalletResolver,
   ...checkRelabelableResolver,
   ...havingVasResolver,
-  ...worksheetByOrderNoResolver
+  ...worksheetByOrderNoResolver,
+  ...worksheetWithPaginationResolver,
+  ...notTallyTargetInventoriesResolver
 }
 
 export const Mutation = {

@@ -3,15 +3,15 @@ import { InventoryCheck, OrderInventory, ORDER_INVENTORY_STATUS, ORDER_STATUS } 
 import { Domain } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS, INVENTORY_TRANSACTION_TYPE, Location } from '@things-factory/warehouse-base'
 import { EntityManager, getManager, In } from 'typeorm'
-import { WORKSHEET_STATUS } from '../../../constants'
-import { WorksheetDetail } from '../../../entities'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../constants'
+import { Worksheet, WorksheetDetail } from '../../../entities'
 import { generateInventoryHistory, switchLocationStatus } from '../../../utils'
 
 export const cycleCountAdjustmentResolver = {
-  async cycleCountAdjustment(_: any, { cycleCountNo, cycleCountWorksheetDetails }, context: any) {
+  async cycleCountAdjustment(_: any, { cycleCountNo }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const { domain, user }: { domain: Domain; user: User } = context.state
-      await cycleCountAdjustment(trxMgr, domain, user, cycleCountNo, cycleCountWorksheetDetails)
+      await cycleCountAdjustment(trxMgr, domain, user, cycleCountNo)
     })
   }
 }
@@ -20,8 +20,7 @@ export async function cycleCountAdjustment(
   trxMgr: EntityManager,
   domain: Domain,
   user: User,
-  cycleCountNo: string,
-  cycleCountWorksheetDetails: Partial<WorksheetDetail>[]
+  cycleCountNo: string
 ): Promise<void> {
   // get cycle count no
   const cycleCount: InventoryCheck = await trxMgr.getRepository(InventoryCheck).findOne({
@@ -32,9 +31,22 @@ export async function cycleCountAdjustment(
     }
   })
 
+  let worksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+    where: {
+      domain,
+      type: In([WORKSHEET_TYPE.CYCLE_COUNT, WORKSHEET_TYPE.CYCLE_COUNT_RECHECK]),
+      inventoryCheck: cycleCount
+    }
+  })
+
   // get cycle count wsd that is not tally
   const worksheetDetails: WorksheetDetail[] = await trxMgr.getRepository(WorksheetDetail).find({
-    where: { domain, name: In(cycleCountWorksheetDetails.map(wsd => wsd.name)), status: WORKSHEET_STATUS.NOT_TALLY },
+    where: {
+      domain,
+      worksheet,
+      type: In([WORKSHEET_TYPE.CYCLE_COUNT, WORKSHEET_TYPE.CYCLE_COUNT_RECHECK]),
+      status: WORKSHEET_STATUS.NOT_TALLY
+    },
     relations: [
       'targetInventory',
       'targetInventory.inventory',
@@ -137,6 +149,9 @@ export async function cycleCountAdjustment(
     worksheetDetail.updater = user
     await trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
   }
+
+  worksheet.status = WORKSHEET_STATUS.DONE
+  await trxMgr.getRepository(Worksheet).save(worksheet)
 
   // change cycle count status to DONE
   cycleCount.status = ORDER_STATUS.DONE

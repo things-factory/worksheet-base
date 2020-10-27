@@ -103,13 +103,14 @@ export const confirmCancellationReleaseOrder = {
         await trxMgr.getRepository(OrderInventory).save(
           await Promise.all(
             cancelOI.map(async (oi: OrderInventory) => {
+              let foundInv: Inventory = oi.inventory
               let cancelledInv: Inventory = oi.inventory
 
               if (cancelledInv) {
                 await trxMgr.getRepository(Inventory).save({
                   ...cancelledInv,
-                  lockedQty: 0,
-                  lockedWeight: 0
+                  lockedQty: foundInv.lockedQty - oi.releaseQty,
+                  lockedWeight: foundInv.lockedWeight - oi.releaseWeight
                 })
 
                 await generateInventoryHistory(
