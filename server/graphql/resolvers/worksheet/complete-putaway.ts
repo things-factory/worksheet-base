@@ -108,7 +108,6 @@ export const completePutaway = {
       inventories = inventories.map((inventory: Inventory) => {
         return {
           ...inventory,
-          lockedQty: 0,
           updater: context.state.user
         }
       })
