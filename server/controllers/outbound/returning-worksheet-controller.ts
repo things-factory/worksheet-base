@@ -108,8 +108,8 @@ export class ReturningWorksheetController extends VasWorksheetController {
     })
 
     const worksheet: Worksheet = await this.findWorksheetByRefOrder(releaseGood, WORKSHEET_TYPE.RETURN, [
-      'worksheetDestails',
-      'worksheetDestails.targetInventory'
+      'worksheetDetails',
+      'worksheetDetails.targetInventory'
     ])
     this.checkRecordValidity(worksheet, { status: WORKSHEET_STATUS.EXECUTING })
 

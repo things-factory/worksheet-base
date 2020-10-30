@@ -4,6 +4,7 @@ import { generatePartialPutawayWorksheetResolver } from './generate-partial-puta
 import { generatePutawayWorksheetResolver } from './generate-putaway-worksheet'
 import { generateReleaseGoodWorksheetResolver } from './generate-release-good-worksheet'
 import { generateVasOrderWorksheetResolver } from './generate-vas-order-worksheet'
+import { generateReturnOrderWorksheetResolver } from './generate-return-order-worksheet'
 
 export const Mutations = {
   ...generateArrivalNoticeWorksheetResolver,
@@ -11,5 +12,6 @@ export const Mutations = {
   ...generatePartialPutawayWorksheetResolver,
   ...generatePutawayWorksheetResolver,
   ...generateReleaseGoodWorksheetResolver,
-  ...generateVasOrderWorksheetResolver
+  ...generateVasOrderWorksheetResolver,
+  ...generateReturnOrderWorksheetResolver
 }

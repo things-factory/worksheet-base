@@ -31,6 +31,9 @@ export class WorksheetNoGenerator {
 
         case WORKSHEET_TYPE.CYCLE_COUNT:
           return this.cycleCount()
+
+        case WORKSHEET_TYPE.OUTBOUND_RETURN:
+          return this.outboundReturn()
       }
     }
   }
@@ -61,6 +64,9 @@ export class WorksheetNoGenerator {
 
       case WORKSHEET_TYPE.CYCLE_COUNT:
         return this.cycleCountDetail()
+
+      case WORKSHEET_TYPE.OUTBOUND_RETURN:
+        return this.outboundReturnDetail()
     }
   }
 
@@ -96,6 +102,10 @@ export class WorksheetNoGenerator {
     return `VAS-${uuid()}`
   }
 
+  static outboundReturn() {
+    return `OR-${uuid()}`
+  }
+
   static unloadingDetail() {
     return `ULD-DETAIL-${uuid()}`
   }
@@ -126,5 +136,9 @@ export class WorksheetNoGenerator {
 
   static vasDetail() {
     return `VAS-DETAIL-${uuid()}`
+  }
+
+  static outboundReturnDetail() {
+    return `OR-DETAIL-${uuid()}`
   }
 }

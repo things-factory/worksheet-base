@@ -11,7 +11,8 @@ import {
   ORDER_PRODUCT_STATUS,
   ORDER_VAS_STATUS,
   ReleaseGood,
-  VasOrder
+  VasOrder,
+  ReturnOrder
 } from '@things-factory/sales-base'
 import { Domain, sendNotification } from '@things-factory/shell'
 import { Inventory, Pallet, INVENTORY_STATUS } from '@things-factory/warehouse-base'
@@ -20,14 +21,15 @@ import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
 import { generateInventoryHistory, WorksheetNoGenerator } from '../utils'
 
-export type ReferenceOrderType = ArrivalNotice | ReleaseGood | VasOrder | InventoryCheck | DeliveryOrder
+export type ReferenceOrderType = ArrivalNotice | ReleaseGood | VasOrder | InventoryCheck | DeliveryOrder | ReturnOrder
 export type OrderTargetTypes = OrderProduct | OrderInventory | OrderVas
 
 export enum ReferenceOrderFields {
   ArrivalNotice = 'arrivalNotice',
   ReleaseGood = 'releaseGood',
   VasOrder = 'vasOrder',
-  InventoryCheck = 'inventoryCheck'
+  InventoryCheck = 'inventoryCheck',
+  ReturnOrder = 'returnOrder'
 }
 
 export enum OrderTargetFields {
@@ -92,6 +94,8 @@ export class WorksheetController {
       return ReferenceOrderFields.VasOrder
     } else if (refOrder instanceof InventoryCheck) {
       return ReferenceOrderFields.InventoryCheck
+    } else if (refOrder instanceof ReturnOrder) {
+      return ReferenceOrderFields.ReturnOrder
     } else {
       throw new Error(
         this.ERROR_MSG.VALIDITY.UNEXPECTED_FIELD_VALUE('refOrder', 'One of referece order type', refOrder)
@@ -411,6 +415,8 @@ export class WorksheetController {
         entitySchema = VasOrder
       } else if (refOrder instanceof InventoryCheck) {
         entitySchema = InventoryCheck
+      } else if (refOrder instanceof ReturnOrder) {
+        entitySchema = ReturnOrder
       }
     }
 
@@ -845,6 +851,8 @@ export class WorksheetController {
         entitySchema = VasOrder
       } else if (refOrder instanceof InventoryCheck) {
         entitySchema = InventoryCheck
+      } else if (refOrder instanceof ReturnOrder) {
+        entitySchema = ReturnOrder
       }
     }
 

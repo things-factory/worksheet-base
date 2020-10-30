@@ -10,6 +10,7 @@ import { LoadedWorksheetDetail } from './loaded-worksheet-detail'
 import { NewWorksheet } from './new-worksheet'
 import { ProductApproval } from './product-approval'
 import { ReleaseGoodWorksheet } from './release-good-worksheet'
+import { ReturnOrderWorksheet } from './return-order-worksheet'
 import { VasOrderWorksheet } from './vas-order-worksheet'
 import { Worksheet } from './worksheet'
 import { WorksheetDetailInfo } from './worksheet-detail-info'
@@ -57,6 +58,11 @@ export const Mutation = /* GraphQL */ `
     orderInventoryIds: [String]
   ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
+  generateReturnOrderWorksheet (
+    returnOrderNo: String!
+    bufferLocation: ObjectRef!
+  ): ReturnOrderWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
+
   generateVasOrderWorksheet (
     vasNo: String!
   ): VasOrderWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
@@ -89,6 +95,11 @@ export const Mutation = /* GraphQL */ `
   activateReturn (
     worksheetNo: String!
     returnWorksheetDetails: [WorksheetDetailPatch]
+  ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
+
+  activateOutboundReturn (
+    worksheetNo: String!
+    outboundReturnWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   activateVas (
@@ -364,6 +375,10 @@ export const Query = /* GraphQL */ `
     arrivalNoticeNo: String!
   ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
 
+  unloadingReturnWorksheet (
+    returnOrderNo: String!
+  ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
+
   preunloadWorksheet (
     arrivalNoticeNo: String!
   ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
@@ -454,6 +469,7 @@ export const Types = /* GraphQL */ [
   WorksheetList,
   ArrivalNoticeWorksheet,
   ReleaseGoodWorksheet,
+  ReturnOrderWorksheet,
   InventoryCheckWorksheet,
   DeliveryOrderInfo,
   GoodsDeliveryNote,

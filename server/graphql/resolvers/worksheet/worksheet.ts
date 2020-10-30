@@ -26,6 +26,7 @@ export const worksheetResolver = {
         'arrivalNotice.releaseGood',
         'releaseGood',
         'releaseGood.arrivalNotice',
+        'returnOrder',
         'inventoryCheck',
         'vasOrder',
         'worksheetDetails',
@@ -84,6 +85,27 @@ export const worksheetResolver = {
           domain: context.state.domain,
           bizplace: worksheet.bizplace,
           releaseGood: worksheet.releaseGood
+        },
+        relations: ['targetProduct']
+      })
+    }
+
+    if (worksheet?.returnOrder?.id) {
+      worksheet.orderInventories = await getRepository(OrderInventory).find({
+        where: {
+          domain: context.state.domain,
+          bizplace: worksheet.bizplace,
+          returnOrder: worksheet.returnOrder,
+          status: Not(Equal(ORDER_INVENTORY_STATUS.CANCELLED))
+        },
+        relations: ['product', 'inventory', 'inventory.location']
+      })
+
+      worksheet.orderVass = await getRepository(OrderVas).find({
+        where: {
+          domain: context.state.domain,
+          bizplace: worksheet.bizplace,
+          returnOrder: worksheet.returnOrder
         },
         relations: ['targetProduct']
       })
