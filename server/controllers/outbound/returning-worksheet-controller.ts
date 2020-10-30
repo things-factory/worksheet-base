@@ -39,6 +39,7 @@ export class ReturningWorksheetController extends VasWorksheetController {
       let targetInventory: OrderInventory = wsd.targetInventory
       targetInventory.status = ORDER_INVENTORY_STATUS.RETURNING
       targetInventory.updater = this.user
+      return targetInventory
     })
     await this.updateOrderTargets(targetInventories)
     return await this.activateWorksheet(worksheet, worksheetDetails, returningWorksheetDetails)
@@ -48,7 +49,7 @@ export class ReturningWorksheetController extends VasWorksheetController {
     let worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
       worksheetDetailName,
       WORKSHEET_TYPE.RETURN,
-      ['worksheet', 'worksheet.releaseGood', 'targetInventory', 'targetInventory.inventory']
+      ['worksheet', 'worksheet.releaseGood', 'targetInventory', 'targetInventory.inventory', 'targetInventory.inventory.location']
     )
 
     const worksheet: Worksheet = worksheetDetail.worksheet
@@ -108,8 +109,8 @@ export class ReturningWorksheetController extends VasWorksheetController {
     })
 
     const worksheet: Worksheet = await this.findWorksheetByRefOrder(releaseGood, WORKSHEET_TYPE.RETURN, [
-      'worksheetDestails',
-      'worksheetDestails.targetInventory'
+      'worksheetDetails',
+      'worksheetDetails.targetInventory'
     ])
     this.checkRecordValidity(worksheet, { status: WORKSHEET_STATUS.EXECUTING })
 
