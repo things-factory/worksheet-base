@@ -146,6 +146,7 @@ export async function generateReleaseGoodWorksheet(
    */
   foundReleaseGood.status = ORDER_STATUS.READY_TO_PICK
   foundReleaseGood.updater = user
+  foundReleaseGood.acceptedBy = user
   await trxMgr.getRepository(ReleaseGood).save(foundReleaseGood)
 
   /**
