@@ -10,6 +10,7 @@ import { LoadedWorksheetDetail } from './loaded-worksheet-detail'
 import { NewWorksheet } from './new-worksheet'
 import { ProductApproval } from './product-approval'
 import { ReleaseGoodWorksheet } from './release-good-worksheet'
+import { CycleCountWorksheet } from './cycle-count-worksheet'
 import { VasOrderWorksheet } from './vas-order-worksheet'
 import { Worksheet } from './worksheet'
 import { WorksheetDetailInfo } from './worksheet-detail-info'
@@ -55,7 +56,7 @@ export const Mutation = /* GraphQL */ `
     executionDate: String!
     customerId: String!
     orderInventoryIds: [String]
-  ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
+  ): CycleCountWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   generateVasOrderWorksheet (
     vasNo: String!
@@ -454,6 +455,7 @@ export const Types = /* GraphQL */ [
   WorksheetList,
   ArrivalNoticeWorksheet,
   ReleaseGoodWorksheet,
+  CycleCountWorksheet,
   InventoryCheckWorksheet,
   DeliveryOrderInfo,
   GoodsDeliveryNote,
