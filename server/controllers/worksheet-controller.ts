@@ -521,7 +521,7 @@ export class WorksheetController {
    * Step 4. Change order targets properly and update it based on type of worksheet
    * Step 5. If passed updatedRefOrderStatus has value it update reference order status
    */
-  async completWorksheet(worksheet: Worksheet, updatedRefOrderStatus?: string): Promise<Worksheet> {
+  async completeWorksheet(worksheet: Worksheet, updatedRefOrderStatus?: string): Promise<Worksheet> {
     if (!worksheet.id) throw new Error(this.ERROR_MSG.UPDATE.ID_NOT_EXISTS)
 
     worksheet.status = WORKSHEET_STATUS.DONE

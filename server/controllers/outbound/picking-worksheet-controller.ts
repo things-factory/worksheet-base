@@ -308,7 +308,7 @@ export class PickingWorksheetController extends VasWorksheetController {
     ])
     this.checkRecordValidity(worksheet, { status: WORKSHEET_STATUS.EXECUTING })
 
-    return await this.completWorksheet(worksheet, ORDER_STATUS.LOADING)
+    return await this.completeWorksheet(worksheet, ORDER_STATUS.LOADING)
   }
 
   private async extractMatchedWorksheetDetails(

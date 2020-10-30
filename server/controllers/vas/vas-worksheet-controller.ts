@@ -372,7 +372,7 @@ export class VasWorksheetController extends WorksheetController {
       }
     }
 
-    worksheet = await this.completWorksheet(worksheet, ORDER_STATUS.DONE)
+    worksheet = await this.completeWorksheet(worksheet, ORDER_STATUS.DONE)
     return worksheet
   }
 

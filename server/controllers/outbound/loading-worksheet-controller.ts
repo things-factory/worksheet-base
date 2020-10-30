@@ -245,6 +245,6 @@ export class LoadingWorksheetController extends VasWorksheetController {
     ])
     this.checkRecordValidity(worksheet, { status: WORKSHEET_STATUS.EXECUTING })
 
-    return await this.completWorksheet(worksheet, ORDER_STATUS.DONE)
+    return await this.completeWorksheet(worksheet, ORDER_STATUS.DONE)
   }
 }

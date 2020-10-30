@@ -26,7 +26,6 @@ import { Equal, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../constants'
 import { Worksheet, WorksheetDetail } from '../../entities'
 import { VasWorksheetController } from '../vas/vas-worksheet-controller'
-import { PutawayWorksheetController } from './putaway-worksheet-controller'
 
 export type UnloadingWorksheetDetail = Partial<WorksheetDetail> & {
   palletizingVasId: string
@@ -115,10 +114,9 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     const palletId: string = inventory.palletId
     this.checkPalletDuplication(palletId)
 
-    const worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
-      worksheetDetailName,
-      WORKSHEET_TYPE.UNLOADING,
-      [
+    const worksheetDetail: WorksheetDetail = await this.trxMgr.getRepository(WorksheetDetail).findOne({
+      where: { name: worksheetDetailName, type: WORKSHEET_TYPE.UNLOADING, status: Not(Equal(WORKSHEET_STATUS.DEACTIVATED)) },
+      relations: [
         'bizplace',
         'worksheet',
         'worksheet.arrivalNotice',
@@ -127,7 +125,8 @@ export class UnloadingWorksheetController extends VasWorksheetController {
         'targetProduct',
         'targetProduct.product'
       ]
-    )
+    })
+    if (!worksheetDetail) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(worksheetDetailName))
 
     const bizplace: Bizplace = worksheetDetail.bizplace
     const worksheet: Worksheet = worksheetDetail.worksheet
@@ -347,9 +346,9 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     }
 
     if (arrivalNotice.status !== ORDER_STATUS.PUTTING_AWAY) {
-      await this.completWorksheet(worksheet, ORDER_STATUS.READY_TO_PUTAWAY)
+      await this.completeWorksheet(worksheet, ORDER_STATUS.READY_TO_PUTAWAY)
     } else {
-      await this.completWorksheet(worksheet)
+      await this.completeWorksheet(worksheet)
     }
   }
 
@@ -359,7 +358,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
   ): Promise<Worksheet> {
     const arrivalNotice: ArrivalNotice = await this.findRefOrder(ArrivalNotice, {
       name: arrivalNoticeNo,
-      status: ORDER_STATUS.PROCESSING
+      status: In([ORDER_STATUS.PROCESSING, ORDER_STATUS.PUTTING_AWAY])
     })
 
     const worksheet: Worksheet = await this.findWorksheetByRefOrder(arrivalNotice, WORKSHEET_TYPE.UNLOADING, [
