@@ -72,8 +72,8 @@ export async function executePicking(
     ...inventory,
     qty: inventory.qty - targetInventory.releaseQty,
     weight: Math.round((inventory.weight - targetInventory.releaseWeight) * 100) / 100,
-    lockedQty: 0,
-    lockedWeight: 0,
+    lockedQty: inventory.lockedQty - targetInventory.releaseQty,
+    lockedWeight: inventory.lockedWeight - targetInventory.releaseWeight,
     updater: user
   })
 
