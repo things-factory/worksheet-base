@@ -34,7 +34,7 @@ export async function completeLoading(
   const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
   const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => wsd.targetInventory)
   const remainInventories: OrderInventory[] = targetInventories.filter(
-    (targetInventory: OrderInventory) => targetInventory.status === ORDER_INVENTORY_STATUS.LOADED
+    (targetInventory: OrderInventory) => targetInventory.status === ORDER_INVENTORY_STATUS.LOADING
   )
 
   await worksheetController.completeLoading(releaseGoodNo)
