@@ -7,7 +7,7 @@ import {
   ORDER_INVENTORY_STATUS,
   ORDER_STATUS
 } from '@things-factory/sales-base'
-import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
+import { Inventory, Location, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { Brackets, Equal, Not, SelectQueryBuilder, In } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../constants'
 import { Worksheet, WorksheetDetail } from '../../entities'
@@ -245,6 +245,113 @@ export class CycleCountWorksheetController extends WorksheetController {
     worksheetDetail.status = WORKSHEET_STATUS.EXECUTING
     worksheetDetail.updater = this.user
     await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
+  }
+
+  async checkMissingPallet(worksheetDetailName: string): Promise<void> {
+    let worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
+      worksheetDetailName,
+      WORKSHEET_TYPE.CYCLE_COUNT,
+      ['targetInventory']
+    )
+
+    let targetInventory: OrderInventory = worksheetDetail.targetInventory
+    worksheetDetail.status = WORKSHEET_STATUS.NOT_TALLY
+    worksheetDetail.updater = this.user
+    await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
+  
+    targetInventory.status = ORDER_INVENTORY_STATUS.MISSING
+    targetInventory.updater = this.user
+    await this.updateOrderTargets([targetInventory])  
+  }
+
+  async addExtraPallet(cycleCountNo: string, palletId: string, inspectedBatchNo: string, inspectedQty: number, inspectedWeight: number, locationName: string): Promise<void> {
+    const inventoryCheck: InventoryCheck = await this.findRefOrder(
+      InventoryCheck, 
+      {
+        name: cycleCountNo,
+        status: ORDER_STATUS.INSPECTING
+      },
+      ['bizplace']
+    )
+
+    const bizplace: Bizplace = inventoryCheck.bizplace
+    const qb: SelectQueryBuilder<Inventory> = this.trxMgr.getRepository(Inventory).createQueryBuilder('INV')
+    let inventory: Inventory = await qb
+    .where('INV.domain = :domainId', { domainId: this.domain.id })
+    .andWhere('INV.bizplace = :bizplaceId', { bizplaceId: bizplace.id })
+    .andWhere('INV.palletId = :palletId', { palletId })
+    .andWhere('INV.status = :status', { status: INVENTORY_STATUS.STORED })
+    .andWhere(
+      new Brackets(qb => {
+        qb.where('INV.lockedQty ISNULL')
+        qb.orWhere('INV.lockedQty = 0')
+      })
+    )
+    .getOne()
+    if (!inventory) throw new Error('Failed to find inventory')
+
+    const worksheet: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne({
+      where: { domain: this.domain, type: WORKSHEET_TYPE.CYCLE_COUNT, status: WORKSHEET_STATUS.EXECUTING, inventoryCheck }
+    })
+    const location: Location = await this.trxMgr.getRepository(Location).findOne({
+      where: { domain: this.domain, name: locationName }
+    })
+    
+    let targetInventory: OrderInventory = new OrderInventory()
+    targetInventory.domain = this.domain
+    targetInventory.bizplace = bizplace
+    targetInventory.status = ORDER_INVENTORY_STATUS.ADDED
+    targetInventory.name = OrderNoGenerator.orderInventory()
+    targetInventory.inventoryCheck = inventoryCheck
+    targetInventory.inventory = inventory
+    targetInventory.inspectedBatchNo = inspectedBatchNo
+    targetInventory.inspectedQty = inspectedQty
+    targetInventory.inspectedWeight = inspectedWeight
+    targetInventory.inspectedLocation = location
+    targetInventory.creator = this.user
+    targetInventory.updater = this.user
+    await this.updateOrderTargets([targetInventory])  
+
+    let worksheetDetail: WorksheetDetail = new WorksheetDetail()
+    worksheetDetail.domain = this.domain
+    worksheetDetail.bizplace = bizplace
+    worksheetDetail.worksheet = worksheet
+    worksheetDetail.name = WorksheetNoGenerator.cycleCountDetail()
+    worksheetDetail.targetInventory = targetInventory
+    worksheetDetail.type = WORKSHEET_TYPE.CYCLE_COUNT
+    worksheetDetail.status = WORKSHEET_STATUS.NOT_TALLY
+    worksheetDetail.creator = this.user
+    worksheetDetail.updater = this.user
+    await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
+  }
+
+  async relocatePallet( worksheetDetailName: string, inspectedBatchNo: string, inspectedQty: number, inspectedWeight: number, inspectedLocationName: string ): Promise<void> {
+    let worksheetDetail: WorksheetDetail = await this.trxMgr.getRepository(WorksheetDetail).findOne({
+      where: { domain: this.domain, name: worksheetDetailName, type: WORKSHEET_TYPE.CYCLE_COUNT },
+      relations: ['targetInventory', 'targetInventory.inventory', 'targetInventory.inventory.location']
+    })
+    
+    if (!worksheetDetail) throw new Error('Failed to find worksheet detail')
+    
+    let targetInventory: OrderInventory = worksheetDetail.targetInventory
+    const location: Location = targetInventory?.inventory?.location
+    if (location.name === inspectedLocationName) throw new Error(`You can't relocate at same location`)
+  
+    const inspectedLocation: Location = await this.trxMgr.getRepository(Location).findOne({
+      where: { name: inspectedLocationName, domain: this.domain }
+    })
+  
+    worksheetDetail.status = WORKSHEET_STATUS.NOT_TALLY
+    worksheetDetail.updater = this.user
+    await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
+  
+    targetInventory.inspectedLocation = inspectedLocation
+    targetInventory.inspectedBatchNo = inspectedBatchNo
+    targetInventory.inspectedQty = inspectedQty
+    targetInventory.inspectedWeight = inspectedWeight
+    targetInventory.status = ORDER_INVENTORY_STATUS.RELOCATED
+    targetInventory.updater = this.user
+    await this.updateOrderTargets([targetInventory])  
   }
 
   async completeCycleCount(inventoryCheckNo: string): Promise<Worksheet> {
