@@ -3,6 +3,7 @@ import { Bizplace } from '@things-factory/biz-base'
 import { generateDeliveryOrder, OrderInventory, ORDER_INVENTORY_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
+import { WORKSHEET_TYPE } from '../../../../constants'
 import { LoadingWorksheetController, WorksheetController } from '../../../../controllers'
 import { WorksheetDetail } from '../../../../entities'
 
@@ -15,13 +16,18 @@ export const loadingResolver = {
       const releaseGood: ReleaseGood = await worksheetController.findRefOrder(
         ReleaseGood,
         { domain, name: releaseGoodNo },
-        ['bizplace', 'orderInventories']
+        ['bizplace']
       )
 
+      const loadingWorksheetController: LoadingWorksheetController = new LoadingWorksheetController(trxMgr, domain, user)
+      let targetInventories: OrderInventory[] = []
+      for(let worksheetDetail of loadedWorksheetDetails) {
+        worksheetDetail = await loadingWorksheetController.findWorksheetDetailByName(worksheetDetail.name, ['targetInventory'])
+        const targetInventory = worksheetDetail.targetInventory
+        targetInventories.push(targetInventory)
+      }
+
       const bizplace: Bizplace = releaseGood.bizplace
-      const targetInventories: OrderInventory[] = releaseGood.orderInventories.filter(
-        (oi: OrderInventory) => oi.status === ORDER_INVENTORY_STATUS.LOADED
-      )
       await generateDeliveryOrder(orderInfo, targetInventories, bizplace, releaseGood, domain, user, trxMgr)
     })
   }
