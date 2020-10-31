@@ -123,7 +123,7 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
 
     await trxMgr.query(
       `
-        drop table invHistory
+        drop table temp_invHistory
       `
     )
 
