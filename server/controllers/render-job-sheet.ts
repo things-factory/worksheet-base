@@ -94,12 +94,12 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
     ` 
       SELECT inv.id AS "inv_id", inv.pallet_id AS "palletId", inv.packing_type AS "packingType", inv.created_at AS "createdAt", product.name AS "productName", 
       (	
-        select distinct on(pallet_id) COALESCE(qty, 0) AS unloadedQty from invHistory invh 
+        select distinct on(pallet_id) COALESCE(qty, 0) AS unloadedQty from temp_invHistory invh 
         where invh.status = 'UNLOADED' and invh.inventory_id = inv.id
         order by pallet_id, seq asc
       ) AS "unloadedQty", 
       (
-        select distinct on(pallet_id) COALESCE(created_at, null) AS outboundAt from invHistory invh 
+        select distinct on(pallet_id) COALESCE(created_at, null) AS outboundAt from temp_invHistory invh 
         where invh.status = 'TERMINATED' and invh.inventory_id = inv.id
         order by pallet_id, seq desc
       ) AS "outboundAt",
