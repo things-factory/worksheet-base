@@ -109,7 +109,7 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
       do2.own_collection AS "ownTransport",
       STRING_AGG (vas.name, ', ') AS "vasName" 
       FROM inventories inv 
-      LEFT JOIN order_inventories orderInv ON orderInv.inventory_id = inv.id AND orderInv.release_good_id is not null  
+      LEFT JOIN order_inventories orderInv ON orderInv.inventory_id = inv.id AND orderInv.release_good_id is not null and orderInv.status <> 'CANCELLED'
       LEFT JOIN order_vass orderVass ON orderVass.inventory_id = inv.id  
       LEFT JOIN vass vas ON vas.id = orderVass.vas_id  
       LEFT JOIN pallets plt on plt.id = inv.reusable_pallet_id
