@@ -92,7 +92,7 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
 
     const invItems: any[] = await trxMgr.query(
     ` 
-      SELECT inv.id AS "inv_id", inv.pallet_id AS "palletId", inv.packing_type AS "packingType", inv.created_at AS "createdAt", product.name AS "productName", 
+      SELECT inv.id AS "inv_id", inv.packing_type AS "packingType", inv.created_at AS "createdAt", product.name AS "productName", 
       (	
         select distinct on(pallet_id) COALESCE(qty, 0) AS unloadedQty from temp_invHistory invh 
         where invh.status = 'UNLOADED' and invh.inventory_id = inv.id
@@ -104,6 +104,7 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
         order by pallet_id, seq desc
       ) AS "outboundAt",
       STRING_AGG (case when do2.name is not null then (CONCAT(do2.name, ' (', orderInv.release_qty, ')')) else null end, ', ')  AS "doName",
+      case when plt.name is not null then (CONCAT(inv.pallet_id, ' (', plt.name, ')')) else inv.pallet_id end AS "palletId",
       SUM(orderInv.release_qty) as "qty",
       do2.own_collection AS "ownTransport",
       STRING_AGG (vas.name, ', ') AS "vasName" 
@@ -111,12 +112,13 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
       LEFT JOIN order_inventories orderInv ON orderInv.inventory_id = inv.id AND orderInv.release_good_id is not null  
       LEFT JOIN order_vass orderVass ON orderVass.inventory_id = inv.id  
       LEFT JOIN vass vas ON vas.id = orderVass.vas_id  
+      LEFT JOIN pallets plt on plt.id = inv.reusable_pallet_id
       LEFT JOIN delivery_orders do2 ON do2.id = orderInv.delivery_order_id  
       LEFT JOIN products product ON product.id=inv.product_id 
       inner join order_inventories oi on oi.inventory_id = inv.id
       where oi.arrival_notice_id = $1
       AND inv.domain_id = $2
-      GROUP BY inv.id, product.name, do2.own_collection 
+      GROUP BY inv.id, product.name, do2.own_collection, plt.name
       ORDER BY inv.pallet_id, product.name asc
     `, [foundGAN.id, domain.id ]
     )
@@ -126,80 +128,6 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
         drop table temp_invHistory
       `
     )
-
-    // const subQueryInvHis = await getRepository(InventoryHistory)
-    //   .createQueryBuilder('invHis')
-    //   .select('invHis.palletId')
-    //   .addSelect('invHis.domain')
-    //   .addSelect('invHis.status')
-    //   .addSelect('MAX(invHis.seq)', 'seq')
-    //   .where("invHis.transactionType IN ('UNLOADING','ADJUSTMENT','TERMINATED')")
-    //   .andWhere('invHis.domain = :domainId', { domainId: domain.id })
-    //   .groupBy('invHis.palletId')
-    //   .addGroupBy('invHis.status')
-    //   .addGroupBy('invHis.domain')
-
-    // const query = await getRepository(Inventory)
-    //   .createQueryBuilder('inv')
-    //   .select('inv.id')
-    //   .addSelect(subQuery => {
-    //     return subQuery
-    //       .select('COALESCE("invh".qty, 0)', 'unloadedQty')
-    //       .from('inventory_histories', 'invh')
-    //       .innerJoin(
-    //         '(' + subQueryInvHis.getQuery() + ')',
-    //         'invhsrc',
-    //         '"invhsrc"."invHis_pallet_id" = "invh"."pallet_id" AND "invhsrc"."seq" = "invh"."seq" AND "invhsrc"."domain_id" = "invh"."domain_id"'
-    //       )
-    //       .where('"invhsrc"."invHis_status" = \'UNLOADED\'')
-    //       .andWhere('"invh"."pallet_id" = "inv"."pallet_id"')
-    //       .andWhere('"invh"."domain_id" = "inv"."domain_id"')
-    //   }, 'unloadedQty')
-    //   .addSelect(subQuery => {
-    //     return subQuery
-    //       .select('COALESCE("invh".created_at, null)', 'outboundAt')
-    //       .from('inventory_histories', 'invh')
-    //       .innerJoin(
-    //         '(' + subQueryInvHis.getQuery() + ')',
-    //         'invhsrc',
-    //         '"invhsrc"."invHis_pallet_id" = "invh"."pallet_id" AND "invhsrc"."seq" = "invh"."seq" AND "invhsrc"."domain_id" = "invh"."domain_id"'
-    //       )
-    //       .where('"invhsrc"."invHis_status" = \'TERMINATED\'')
-    //       .andWhere('"invh"."pallet_id" = "inv"."pallet_id"')
-    //       .andWhere('"invh"."domain_id" = "inv"."domain_id"')
-    //   }, 'outboundAt')
-    //   .addSelect('inv.palletId', 'palletId')
-    //   .addSelect('inv.packingType', 'packingType')
-    //   .addSelect('inv.createdAt', 'createdAt')
-    //   .addSelect('product.name', 'productName')
-    //   .addSelect('STRING_AGG ("do2".name, \', \')', 'doName')
-    //   .addSelect('do2.own_collection', 'ownTransport')
-    //   .addSelect('STRING_AGG ("vas".name, \', \')', 'vasName')
-    //   .leftJoin(
-    //     'order_inventories',
-    //     'orderInv',
-    //     '"orderInv"."inventory_id" = "inv"."id" AND "orderInv"."release_good_id" is not null'
-    //   )
-    //   .leftJoin('order_vass', 'orderVass', '"orderVass"."inventory_id" = "inv"."id"')
-    //   .leftJoin('vass', 'vas', '"vas"."id" = "orderVass"."vas_id"')
-    //   .leftJoin('delivery_orders', 'do2', '"do2"."id" = "orderInv"."delivery_order_id"')
-    //   .leftJoin('inv.product', 'product')
-    //   .where(qb => {
-    //     const subQuery = qb
-    //       .subQuery()
-    //       .select('oi.inventory_id')
-    //       .from('order_inventories', 'oi')
-    //       .where('oi.arrival_notice_id = :arrivalNoticeId', { arrivalNoticeId: foundGAN.id })
-    //       .getQuery()
-    //     return 'inv.id IN ' + subQuery
-    //   })
-    //   .andWhere('inv.domain_id = :domainId', { domainId: domain.id })
-    //   .groupBy('inv.id')
-    //   .addGroupBy('product.name')
-    //   .addGroupBy('do2.own_collection')
-    //   .addOrderBy('product.name')
-
-    // const invItems: any[] = await query.getRawMany()
 
     const sumPackQty = targetProducts.map((op: OrderProduct) => op.actualPackQty).reduce((a, b) => a + b, 0)
 
