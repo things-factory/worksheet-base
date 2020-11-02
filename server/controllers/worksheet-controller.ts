@@ -371,7 +371,9 @@ export class WorksheetController {
     orderTargets: OrderTargetTypes[],
     additionalProps: Partial<WorksheetDetail> = {}
   ): Promise<WorksheetDetail[]> {
-    if (!worksheet.bizplace?.id) await this.findWorksheetById(worksheet.id, ['bizplace'])
+    if (!worksheet.bizplace?.id) {
+      worksheet = await this.findWorksheetById(worksheet.id, ['bizplace'])
+    }
     const bizplace: Bizplace = worksheet.bizplace
 
     const worksheetDetails: Partial<WorksheetDetail>[] = orderTargets.map((orderTarget: OrderTargetTypes) => {
