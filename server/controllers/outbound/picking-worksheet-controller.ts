@@ -37,14 +37,14 @@ export class PickingWorksheetController extends VasWorksheetController {
       )
 
       if (!releaseGood.crossDocking) {
-        const inventories: Inventory[] = orderInventories.map((oi: OrderInventory) => {
+        orderInventories.map(async(oi: OrderInventory) => {
           if (oi.inventory?.id) {
             let inventory: Inventory = oi.inventory
             inventory.lockedQty = oi.releaseQty
             inventory.lockedWeight = oi.releaseWeight
+            await this.updateInventory(inventory)
           }
         })
-        await this.updateInventory(inventories)
       }
     }
 
@@ -118,7 +118,7 @@ export class PickingWorksheetController extends VasWorksheetController {
     return worksheet
   }
 
-  async assignPikcingInventories(
+  async assignPickingInventories(
     worksheetNo: string,
     batchId: string,
     productId: string,

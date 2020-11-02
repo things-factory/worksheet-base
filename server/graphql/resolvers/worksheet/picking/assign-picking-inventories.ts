@@ -37,5 +37,5 @@ export async function assignPickingInventories(
   worksheetDetails: Partial<WorksheetDetail>[]
 ): Promise<void> {
   const worksheetController: PickingWorksheetController = new PickingWorksheetController(trxMgr, domain, user)
-  await worksheetController.assignPikcingInventories(worksheetNo, batchId, productId, packingType, worksheetDetails)
+  await worksheetController.assignPickingInventories(worksheetNo, batchId, productId, packingType, worksheetDetails)
 }
