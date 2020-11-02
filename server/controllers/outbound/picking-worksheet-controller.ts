@@ -35,17 +35,6 @@ export class PickingWorksheetController extends VasWorksheetController {
         WORKSHEET_TYPE.PICKING,
         orderInventories
       )
-
-      if (!releaseGood.crossDocking) {
-        orderInventories.map(async(oi: OrderInventory) => {
-          if (oi.inventory?.id) {
-            let inventory: Inventory = oi.inventory
-            inventory.lockedQty = oi.releaseQty
-            inventory.lockedWeight = oi.releaseWeight
-            await this.updateInventory(inventory)
-          }
-        })
-      }
     }
 
     orderInventories.forEach((oi: OrderInventory) => {
