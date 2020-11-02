@@ -103,7 +103,7 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
         where invh.status = 'TERMINATED' and invh.inventory_id = inv.id
         order by pallet_id, seq desc
       ) AS "outboundAt",
-      STRING_AGG (case when do2.name is not null then (CONCAT(do2.name, ' (', orderInv.release_qty, ')')) else null end, ', ')  AS "doName",
+      STRING_AGG (case when do2.name is not null then (CONCAT(do2.delivery_date, ' (', orderInv.release_qty, ') ', do2.name, ', ', case when do2.own_collection = true then 'TPT N' else 'TPT Y' end )) else null end, ', ')  AS "doName",
       case when plt.name is not null then (CONCAT(inv.pallet_id, ' (', plt.name, ')')) else inv.pallet_id end AS "palletId",
       SUM(orderInv.release_qty) as "qty",
       do2.own_collection AS "ownTransport",
@@ -167,7 +167,6 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
           in_pallet: DateTimeConverter.date(item.createdAt),
           out_pallet: item?.outboundAt ? DateTimeConverter.date(item.outboundAt) : null,
           do_list: item.doName,
-          transport: item?.doName ? (item.ownTransport ? 'N' : 'Y') : null,
           product_qty: item.unloadedQty,
           remark: foundGAN.looseItem ? 'STRETCH FILM' : null
         }
