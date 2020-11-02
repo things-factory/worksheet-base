@@ -29,16 +29,16 @@ import { Equal, In, Not } from 'typeorm'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../constants'
 import { Worksheet, WorksheetDetail } from '../../entities'
 import { VasWorksheetController } from '../vas/vas-worksheet-controller'
-import { PutawayWorksheetController } from '../inbound/putaway-worksheet-controller'
+import { PutawayWorksheetController } from './putaway-worksheet-controller'
 
-export type OutboundReturningWorksheetDetail = Partial<WorksheetDetail> & {
+export type UnloadingReturningWorksheetDetail = Partial<WorksheetDetail> & {
   palletizingVasId: string
   palletQty: number
   palletizingDescription: string
 }
 
-export class OutboundReturningWorksheetController extends VasWorksheetController {
-  async generateOutboundReturningWorksheet(returnOrderNo: string, bufferLocationId: string): Promise<Worksheet> {
+export class UnloadingReturningWorksheetController extends VasWorksheetController {
+  async generateUnloadingReturnWorksheet(returnOrderNo: string, bufferLocationId: string): Promise<Worksheet> {
     let returnOrder: ReturnOrder = await this.findRefOrder(
       ReturnOrder,
       {
@@ -53,7 +53,7 @@ export class OutboundReturningWorksheetController extends VasWorksheetController
     const bufferLocation: Location = await this.trxMgr.getRepository(Location).findOne(bufferLocationId)
 
     const worksheet: Worksheet = await this.generateWorksheet(
-      WORKSHEET_TYPE.OUTBOUND_RETURN,
+      WORKSHEET_TYPE.UNLOADING_RETURN,
       returnOrder,
       orderInventories,
       ORDER_STATUS.READY_TO_UNLOAD,
@@ -68,11 +68,11 @@ export class OutboundReturningWorksheetController extends VasWorksheetController
     return worksheet
   }
 
-  async activateOutboundReturn(
+  async activateUnloadingReturn(
     worksheetNo: string,
-    outboundReturnWorksheetDetails: OutboundReturningWorksheetDetail[]
+    unloadingReturnWorksheetDetails: UnloadingReturningWorksheetDetail[]
   ): Promise<Worksheet> {
-    let worksheet: Worksheet = await this.findActivatableWorksheet(worksheetNo, WORKSHEET_TYPE.OUTBOUND_RETURN, [
+    let worksheet: Worksheet = await this.findActivatableWorksheet(worksheetNo, WORKSHEET_TYPE.UNLOADING_RETURN, [
       'bizplace',
       'returnOrder',
       'worksheetDetails',
@@ -96,7 +96,7 @@ export class OutboundReturningWorksheetController extends VasWorksheetController
     returnOrder.updater = this.user
     this.updateRefOrder(returnOrder)
 
-    worksheet = await this.activateWorksheet(worksheet, worksheetDetails, outboundReturnWorksheetDetails)
+    worksheet = await this.activateWorksheet(worksheet, worksheetDetails, unloadingReturnWorksheetDetails)
 
     try {
       const vasWorksheet: Worksheet = await this.findWorksheetByRefOrder(returnOrder, WORKSHEET_TYPE.VAS)
@@ -110,45 +110,169 @@ export class OutboundReturningWorksheetController extends VasWorksheetController
     return worksheet
   }
 
-  async completeUnloading(
-    arrivalNoticeNo: string,
-    OutboundReturningWorksheetDetails: Partial<WorksheetDetail>[]
-  ): Promise<void> {
-    let arrivalNotice: ArrivalNotice = await this.findRefOrder(
-      ArrivalNotice,
-      { domain: this.domain, name: arrivalNoticeNo, status: In([ORDER_STATUS.PROCESSING, ORDER_STATUS.PUTTING_AWAY]) },
-      ['orderProducts', 'releaseGood']
+  async unloadReturning(worksheetDetailName: string, inventory: Partial<Inventory>): Promise<void> {
+    const palletId: string = inventory.palletId
+    this.checkPalletDuplication(palletId)
+
+    const worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
+      worksheetDetailName,
+      WORKSHEET_TYPE.UNLOADING_RETURN,
+      [
+        'bizplace',
+        'worksheet',
+        'worksheet.returnOrder',
+        'worksheet.bufferLocation',
+        'worksheet.bufferLocation.warehouse',
+        'targetInventory',
+        'targetInventory.product',
+        'targetInventory.inventory'
+      ]
     )
 
-    if (arrivalNotice.crossDocking) {
-      // Picking worksheet for cross docking should be completed before complete it
-      // Find picking worksheet
-      const releaseGood: ReleaseGood = arrivalNotice.releaseGood
-      const executingPickingWS: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne({
-        where: {
-          domain: this.domain,
-          releaseGood,
-          type: WORKSHEET_TYPE.PICKING,
-          status: Not(Equal(WORKSHEET_STATUS.DONE))
-        }
-      })
+    const bizplace: Bizplace = worksheetDetail.bizplace
+    const worksheet: Worksheet = worksheetDetail.worksheet
+    const returnOrder: ReturnOrder = worksheet.returnOrder
+    const targetInventory: OrderInventory = worksheetDetail.targetInventory
+    const batchId: string = targetInventory.batchId
+    const product: Product = targetInventory.product
+    const packingType: string = targetInventory.packingType
+    const qty: number = targetInventory.returnQty
+    const weight: number = Math.round(targetInventory.returnWeight)
+    const location: Location = worksheet.bufferLocation
+    const warehouse: Warehouse = location.warehouse
+    const zone: string = location.zone
 
-      if (executingPickingWS)
-        throw new Error(`Picking should be completed before complete unloading for cross docking.`)
+    let newInventory: Inventory = await this.trxMgr.getRepository(Inventory).findOne({
+      where: {
+        palletId: inventory.palletId
+      }
+    })
+    newInventory.status = INVENTORY_STATUS.TERMINATED
+    await this.transactionInventory(newInventory, returnOrder, 0, 0, INVENTORY_TRANSACTION_TYPE.RETURN)
+
+    newInventory.bizplace = bizplace
+    newInventory.palletId = palletId
+    newInventory.batchId = batchId
+    newInventory.product = product
+    newInventory.packingType = packingType
+    newInventory.qty = qty
+    newInventory.weight = weight
+    newInventory.refOrderId = returnOrder.id
+    if (inventory.reusablePallet?.id) {
+      newInventory.reusablePallet = await this.trxMgr.getRepository(Pallet).findOne(inventory.reusablePallet.id)
     }
+    newInventory.warehouse = warehouse
+    newInventory.location = location
+    newInventory.zone = zone
+    newInventory.status = INVENTORY_STATUS.UNLOADED
+    newInventory = await this.transactionInventory(
+      newInventory,
+      returnOrder,
+      newInventory.qty,
+      newInventory.weight,
+      INVENTORY_TRANSACTION_TYPE.UNLOADING
+    )
 
-    if (arrivalNotice.orderProducts.some((op: OrderProduct) => op.status === ORDER_PRODUCT_STATUS.READY_TO_APPROVED)) {
+    targetInventory.actualPalletQty++
+    targetInventory.actualPackQty += qty
+    targetInventory.status = ORDER_PRODUCT_STATUS.UNLOADED
+    targetInventory.updater = this.user
+    this.updateOrderTargets([targetInventory])
+  }
+
+  async undoUnloadReturning(worksheetDetailName: string, palletId: string): Promise<void> {
+    const worksheetDetail: WorksheetDetail = await this.findWorksheetDetailByName(worksheetDetailName, [
+      'targetInventory',
+      'worksheet',
+      'worksheet.returnOrder'
+    ])
+    this.checkRecordValidity(worksheetDetail, {
+      status: (status: string) => {
+        const availableStatus: string[] = [WORKSHEET_STATUS.EXECUTING, WORKSHEET_STATUS.PARTIALLY_UNLOADED]
+        if (availableStatus.indexOf(status) < 0) {
+          throw new Error(
+            this.ERROR_MSG.VALIDITY.UNEXPECTED_FIELD_VALUE('status', 'Executing or Partially Unloaded', status)
+          )
+        }
+        return true
+      }
+    })
+
+    const worksheet: Worksheet = worksheetDetail.worksheet
+    const returnOrder: ReturnOrder = worksheet.returnOrder
+
+    let inventory: Inventory = await this.trxMgr.getRepository(Inventory).findOne({
+      where: { domain: this.domain, status: INVENTORY_STATUS.UNLOADED, palletId },
+      relations: ['location']
+    })
+
+    const qty: number = inventory.qty
+
+    let targetInventory: OrderInventory = worksheetDetail.targetInventory
+    targetInventory.actualPackQty -= qty
+    targetInventory.actualPalletQty--
+    targetInventory.status = ORDER_PRODUCT_STATUS.UNLOADING
+    targetInventory.updater = this.user
+    await this.updateOrderTargets([targetInventory])
+
+    worksheetDetail.status = WORKSHEET_STATUS.EXECUTING
+    worksheetDetail.updater = this.user
+    await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
+
+    inventory.lastSeq++
+    inventory.status = INVENTORY_STATUS.DELETED
+    inventory.qty = 0
+    inventory.weight = 0
+    inventory.updater = this.user
+    inventory = await this.transactionInventory(
+      inventory,
+      returnOrder,
+      -inventory.qty,
+      -inventory.weight,
+      INVENTORY_TRANSACTION_TYPE.UNDO_UNLOADING
+    )
+    await this.trxMgr.getRepository(Inventory).delete(inventory.id)
+  }
+
+  async completeUnloadReturning(
+    returnOrderNo: string,
+    OutboundReturningWorksheetDetails: Partial<WorksheetDetail>[]
+  ): Promise<void> {
+    let returnOrder: ReturnOrder = await this.findRefOrder(
+      ReturnOrder,
+      { domain: this.domain, name: returnOrderNo, status: In([ORDER_STATUS.PROCESSING, ORDER_STATUS.PUTTING_AWAY]) },
+      ['orderInventories']
+    )
+
+    // if (returnOrder.crossDocking) {
+    //   // Picking worksheet for cross docking should be completed before complete it
+    //   // Find picking worksheet
+    //   const releaseGood: ReleaseGood = arrivalNotice.releaseGood
+    //   const executingPickingWS: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne({
+    //     where: {
+    //       domain: this.domain,
+    //       releaseGood,
+    //       type: WORKSHEET_TYPE.PICKING,
+    //       status: Not(Equal(WORKSHEET_STATUS.DONE))
+    //     }
+    //   })
+
+    //   if (executingPickingWS)
+    //     throw new Error(`Picking should be completed before complete unloading for cross docking.`)
+    // }
+
+    if (returnOrder.orderInventories.some((oi: OrderInventory) => oi.status === ORDER_PRODUCT_STATUS.READY_TO_APPROVED)) {
       throw new Error(`There's non-approved order products`)
     }
 
-    let worksheet: Worksheet = await this.findWorksheetByRefOrder(arrivalNotice, WORKSHEET_TYPE.UNLOADING, [
+    let worksheet: Worksheet = await this.findWorksheetByRefOrder(returnOrder, WORKSHEET_TYPE.UNLOADING_RETURN, [
       'worksheetDetails',
-      'worksheetDetails.targetProduct'
+      'worksheetDetails.targetInventory'
     ])
     this.checkRecordValidity(worksheet, { status: WORKSHEET_STATUS.EXECUTING })
 
     const partiallyUnloadedCnt: number = await this.trxMgr.getRepository(Inventory).count({
-      where: { domain: this.domain, refOrderId: arrivalNotice.id, status: INVENTORY_STATUS.PARTIALLY_UNLOADED }
+      where: { domain: this.domain, refOrderId: returnOrder.id, status: INVENTORY_STATUS.PARTIALLY_UNLOADED }
     })
     if (partiallyUnloadedCnt) {
       throw new Error('There is partially unloaded pallet, generate putaway worksheet before complete unloading.')
@@ -171,15 +295,15 @@ export class OutboundReturningWorksheetController extends VasWorksheetController
         await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetailsWithIssue)
       }
 
-      const targetProductsWithIssue: OrderProduct[] = worksheetDetailsWithIssue.map((wsd: WorksheetDetail) => {
-        let targetProduct: OrderProduct = wsd.targetProduct
-        targetProduct.remark = wsd.issue
-        return targetProduct
+      const targetInventoriesWithIssue: OrderProduct[] = worksheetDetailsWithIssue.map((wsd: WorksheetDetail) => {
+        let targetInventory: OrderProduct = wsd.targetProduct
+        targetInventory.remark = wsd.issue
+        return targetInventory
       })
-      await this.updateOrderTargets(targetProductsWithIssue)
+      await this.updateOrderTargets(targetInventoriesWithIssue)
     }
 
-    if (arrivalNotice.status !== ORDER_STATUS.PUTTING_AWAY) {
+    if (returnOrder.status !== ORDER_STATUS.PUTTING_AWAY) {
       await this.completWorksheet(worksheet, ORDER_STATUS.READY_TO_PUTAWAY)
     } else {
       await this.completWorksheet(worksheet)
@@ -284,7 +408,7 @@ export class OutboundReturningWorksheetController extends VasWorksheetController
     bizplace: Bizplace,
     arrivalNotice: ArrivalNotice,
     worksheetDetails: WorksheetDetail[],
-    palletizingWSDs: OutboundReturningWorksheetDetail[]
+    palletizingWSDs: UnloadingReturningWorksheetDetail[]
   ): Promise<void> {
     let palletizingOrderVASs: Partial<OrderVas>[] = []
 
@@ -325,7 +449,7 @@ export class OutboundReturningWorksheetController extends VasWorksheetController
     }
   }
 
-  filterPalletizingWSDs(unloadingWSDs: OutboundReturningWorksheetDetail[]): OutboundReturningWorksheetDetail[] {
-    return unloadingWSDs.filter((wsd: OutboundReturningWorksheetDetail) => wsd.palletQty && wsd.palletizingDescription)
+  filterPalletizingWSDs(unloadingWSDs: UnloadingReturningWorksheetDetail[]): UnloadingReturningWorksheetDetail[] {
+    return unloadingWSDs.filter((wsd: UnloadingReturningWorksheetDetail) => wsd.palletQty && wsd.palletizingDescription)
   }
 }

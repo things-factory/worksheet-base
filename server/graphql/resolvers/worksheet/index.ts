@@ -27,6 +27,7 @@ import { preunloadWorksheetResolver } from './preunload-worksheet'
 import { proceedEditedBatchResolver } from './proceed-edited-batch'
 import { proceedExtraProductsResolver } from './proceed-extra-products'
 import { putawayWorksheetResolver } from './putaway-worksheet'
+import { putawayReturningWorksheetResolver } from './putaway-returning-worksheet'
 import { rejectCancellationReleaseOrder } from './reject-cancellation-release-order'
 import { replacePickingPalletsResolver } from './replace-picking-pallets'
 import { returnWorksheetResolver } from './return-worksheet'
@@ -61,6 +62,7 @@ export const Query = {
   ...preunloadWorksheetResolver,
   ...deliveryOrderByWorksheetResolver,
   ...putawayWorksheetResolver,
+  ...putawayReturningWorksheetResolver,
   ...returnWorksheetResolver,
   ...pickingWorksheetResolver,
   ...cycleCountWorksheetResolver,

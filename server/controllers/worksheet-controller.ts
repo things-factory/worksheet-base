@@ -218,6 +218,10 @@ export class WorksheetController {
         case ReferenceOrderFields.InventoryCheck:
           refOrder = await this.findRefOrder(InventoryCheck, refOrder, ['bizplace'])
           break
+
+        case ReferenceOrderFields.ReturnOrder:
+          refOrder = await this.findRefOrder(ReturnOrder, refOrder, ['bizplace'])
+          break
       }
     }
 
@@ -573,7 +577,8 @@ export class WorksheetController {
       worksheetType === WORKSHEET_TYPE.PUTAWAY ||
       worksheetType === WORKSHEET_TYPE.PICKING ||
       worksheetType === WORKSHEET_TYPE.LOADING ||
-      worksheetType === WORKSHEET_TYPE.RETURN
+      worksheetType === WORKSHEET_TYPE.RETURN ||
+      worksheetType === WORKSHEET_TYPE.UNLOADING_RETURN
     ) {
       const targetInventories: OrderInventory[] = worksheet.worksheetDetails.map((wsd: WorksheetDetail) => {
         let targetInventory: OrderInventory = wsd.targetInventory
@@ -733,10 +738,10 @@ export class WorksheetController {
    */
   async extractRefOrderFromWorksheet(worksheet: Worksheet): Promise<ReferenceOrderType> {
     let refOrder: ReferenceOrderType =
-      worksheet.arrivalNotice || worksheet.releaseGood || worksheet.vasOrder || worksheet.inventoryCheck || null
+      worksheet.arrivalNotice || worksheet.releaseGood || worksheet.vasOrder || worksheet.inventoryCheck || worksheet.returnOrder || null
     if (!refOrder) {
       const wsWithRefOrd: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne(worksheet.id, {
-        relations: ['arrivalNotice', 'releaseGood', 'vasOrder', 'inventoryCheck']
+        relations: ['arrivalNotice', 'releaseGood', 'vasOrder', 'inventoryCheck', 'returnOrder']
       })
 
       refOrder =
@@ -744,6 +749,7 @@ export class WorksheetController {
         wsWithRefOrd.releaseGood ||
         wsWithRefOrd.vasOrder ||
         wsWithRefOrd.inventoryCheck ||
+        wsWithRefOrd.returnOrder ||
         null
       if (!refOrder) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(worksheet.id))
     }

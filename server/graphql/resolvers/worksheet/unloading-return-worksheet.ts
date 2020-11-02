@@ -25,10 +25,11 @@ export const unloadingReturnWorksheetResolver = {
         'worksheetDetails',
         'worksheetDetails.targetInventory',
         'worksheetDetails.targetInventory.product',
+        'worksheetDetails.targetInventory.inventory',
         'creator',
         'updater'
       ],
-      WORKSHEET_TYPE.OUTBOUND_RETURN,
+      WORKSHEET_TYPE.UNLOADING_RETURN,
       returnOrder
     )
 
@@ -45,13 +46,14 @@ export const unloadingReturnWorksheetResolver = {
         return {
           name: productWSD.name,
           batchId: targetInventory.batchId,
+          palletId: targetInventory.inventory.palletId,
           product: targetInventory.product,
           description: productWSD.description,
           targetName: targetInventory.name,
           packingType: targetInventory.packingType,
           palletQty: targetInventory.palletQty,
           actualPalletQty: targetInventory.actualPalletQty,
-          packQty: targetInventory.packQty,
+          packQty: targetInventory.returnQty,
           actualPackQty: targetInventory.actualPackQty,
           remark: targetInventory.remark,
           issue: productWSD.issue,
