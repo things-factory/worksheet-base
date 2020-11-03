@@ -3,10 +3,11 @@ import { Bizplace, getMyBizplace } from '@things-factory/biz-base'
 import { OrderInventory, ORDER_INVENTORY_STATUS, ReleaseGood } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, getManager } from 'typeorm'
-import { WORKSHEET_TYPE } from '../../../../constants'
+import { WORKSHEET_TYPE, WORKSHEET_STATUS } from '../../../../constants'
 import { LoadingWorksheetController, PickingWorksheetController } from '../../../../controllers/'
 import { WorksheetController } from '../../../../controllers/worksheet-controller'
 import { Worksheet, WorksheetDetail } from '../../../../entities'
+import { WorksheetNoGenerator } from '../../../../utils'
 
 export const completePickingResolver = {
   async completePicking(_: any, { releaseGoodNo }, context: any) {
@@ -52,13 +53,61 @@ export async function completePicking(
 
   await pickingWSCtrl.completePicking(releaseGoodNo)
 
-  const loadingWSCtrl: LoadingWorksheetController = new LoadingWorksheetController(trxMgr, domain, user)
-  let loadingWorksheet: Worksheet = await loadingWSCtrl.generateLoadingWorksheet(releaseGoodNo, pickedTargetInventories)
+  // Find Existing Loading Worksheet if any
+  let existLoadingWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+    where: {
+      releaseGood,
+      type: WORKSHEET_TYPE.LOADING,
+      status: WORKSHEET_STATUS.DEACTIVATED
+    }
+  })
 
-  if (!loadingWorksheet.worksheetDetails?.length) {
-    loadingWorksheet = await pickingWSCtrl.findWorksheetById(loadingWorksheet.id)
+  if(existLoadingWorksheet) {
+    const bizplace: Bizplace = await getMyBizplace(user)
+
+    // 2) Create loading worksheet details
+    let loadingWorksheetDetails = await Promise.all(
+      pickedTargetInventories.map(async (targetInventory: OrderInventory) => {
+        let existingLoadingWorksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
+          where: {
+            domain,
+            worksheet: existLoadingWorksheet,
+            targetInventory,
+            type: WORKSHEET_TYPE.LOADING
+          }
+        })
+
+        return existingLoadingWorksheetDetail
+          ? {
+              ...existingLoadingWorksheetDetail,
+              status: WORKSHEET_STATUS.DEACTIVATED
+            }
+          : {
+              domain,
+              bizplace: bizplace,
+              worksheet: existLoadingWorksheet,
+              name: WorksheetNoGenerator.generateDetail(WORKSHEET_TYPE.LOADING),
+              targetInventory,
+              type: WORKSHEET_TYPE.LOADING,
+              status: WORKSHEET_STATUS.DEACTIVATED,
+              creator: user,
+              updater: user
+            }
+      })
+    )
+
+    loadingWorksheetDetails = await trxMgr.getRepository(WorksheetDetail).save(loadingWorksheetDetails)
+  } else {
+    const loadingWSCtrl: LoadingWorksheetController = new LoadingWorksheetController(trxMgr, domain, user)
+    let loadingWorksheet: Worksheet = await loadingWSCtrl.generateLoadingWorksheet(releaseGoodNo, pickedTargetInventories)
+
+    if (!loadingWorksheet.worksheetDetails?.length) {
+      loadingWorksheet = await pickingWSCtrl.findWorksheetById(loadingWorksheet.id)
+    }
+
+    const loadingWorksheetDetails: WorksheetDetail[] = loadingWorksheet.worksheetDetails
+    await loadingWSCtrl.activateLoading(loadingWorksheet.name, loadingWorksheetDetails)
   }
 
-  const loadingWorksheetDetails: WorksheetDetail[] = loadingWorksheet.worksheetDetails
-  await loadingWSCtrl.activateLoading(loadingWorksheet.name, loadingWorksheetDetails)
+  
 }
