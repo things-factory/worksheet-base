@@ -122,12 +122,12 @@ export class PutawayReturningWorksheetController extends VasWorksheetController 
     return this.activateWorksheet(worksheet, worksheetDetails, putawayWorksheetDetails)
   }
 
-  async completePutaway(arrivalNoticeNo: string): Promise<Worksheet> {
+  async completePutawayReturn(returnOrderNo: string): Promise<Worksheet> {
     // Because of partial unloading current status of arrivalNotice can be PUTTING_AWAY or PROCESSING
     // PUTTING_AWAY means unloading is completely finished.
     // PROCESSING means some products are still being unloaded.
-    let arrivalNotice: ArrivalNotice = await this.findRefOrder(ArrivalNotice, {
-      name: arrivalNoticeNo,
+    let returnOrder: ReturnOrder = await this.findRefOrder(ReturnOrder, {
+      name: returnOrderNo,
       status: In([ORDER_STATUS.PUTTING_AWAY, ORDER_STATUS.PROCESSING])
     })
 
@@ -135,21 +135,21 @@ export class PutawayReturningWorksheetController extends VasWorksheetController 
     const unloadingWorksheetCnt: number = await this.trxMgr.getRepository(Worksheet).count({
       where: {
         domain: this.domain,
-        arrivalNotice,
-        type: WORKSHEET_TYPE.UNLOADING,
+        returnOrder,
+        type: WORKSHEET_TYPE.UNLOADING_RETURN,
         status: WORKSHEET_STATUS.EXECUTING
       }
     })
     if (unloadingWorksheetCnt) throw new Error(`Unloading is not completed yet`)
 
-    const putawayWorksheet: Worksheet = await this.findWorksheetByRefOrder(arrivalNotice, WORKSHEET_TYPE.PUTAWAY, [
+    const putawayWorksheet: Worksheet = await this.findWorksheetByRefOrder(returnOrder, WORKSHEET_TYPE.PUTAWAY_RETURN, [
       'bufferLocation'
     ])
     await switchLocationStatus(this.domain, putawayWorksheet.bufferLocation, this.user, this.trxMgr)
     return await this.completWorksheet(putawayWorksheet, ORDER_STATUS.DONE)
   }
 
-  async putaway(worksheetDetailName: string, palletId: string, locationName: string): Promise<void> {
+  async putawayReturn(worksheetDetailName: string, palletId: string, locationName: string): Promise<void> {
     const reusablePallet: Pallet = await this.trxMgr.getRepository(Pallet).findOne({
       where: { domain: this.domain, name: palletId }
     })
@@ -164,10 +164,10 @@ export class PutawayReturningWorksheetController extends VasWorksheetController 
   async putawayPallets(worksheetDetailName: string, reusablePallet: Pallet, locationName: string): Promise<void> {
     const worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
       worksheetDetailName,
-      WORKSHEET_TYPE.PUTAWAY,
+      WORKSHEET_TYPE.PUTAWAY_RETURN,
       [
         'worksheet',
-        'worksheet.arrivalNotice',
+        'worksheet.returnOrder',
         'worksheet.worksheetDetails',
         'worksheet.worksheetDetails.targetInventory',
         'worksheet.worksheetDetails.targetInventory.inventory'
@@ -175,13 +175,13 @@ export class PutawayReturningWorksheetController extends VasWorksheetController 
     )
 
     const worksheet: Worksheet = worksheetDetail.worksheet
-    const arrivalNotice: ArrivalNotice = worksheet.arrivalNotice
+    const returnOrder: ReturnOrder = worksheet.returnOrder
     const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
     const inventories: Inventory[] = await this.trxMgr.getRepository(Inventory).find({
       where: {
         domain: this.domain,
         reusablePallet,
-        refOrderId: arrivalNotice.id,
+        refOrderId: returnOrder.id,
         status: In([INVENTORY_STATUS.PUTTING_AWAY, INVENTORY_STATUS.UNLOADED])
       }
     })
@@ -210,7 +210,7 @@ export class PutawayReturningWorksheetController extends VasWorksheetController 
       inventory.status = INVENTORY_STATUS.STORED
       inventory.warehouse = warehouse
       inventory.zone = zone
-      await this.transactionInventory(inventory, arrivalNotice, 0, 0, INVENTORY_TRANSACTION_TYPE.PUTAWAY)
+      await this.transactionInventory(inventory, returnOrder, 0, 0, INVENTORY_TRANSACTION_TYPE.PUTAWAY)
 
       targetInventory.status = ORDER_INVENTORY_STATUS.TERMINATED
       targetInventory.updater = this.user
@@ -225,12 +225,12 @@ export class PutawayReturningWorksheetController extends VasWorksheetController 
   async putawayPallet(worksheetDetailName: string, palletId: string, locationName: string): Promise<void> {
     const worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
       worksheetDetailName,
-      WORKSHEET_TYPE.PUTAWAY,
-      ['worksheet', 'worksheet.arrivalNotice', 'targetInventory', 'targetInventory.inventory']
+      WORKSHEET_TYPE.PUTAWAY_RETURN,
+      ['worksheet', 'worksheet.returnOrder', 'targetInventory', 'targetInventory.inventory']
     )
 
     const worksheet: Worksheet = worksheetDetail.worksheet
-    const arrivalNotice: ArrivalNotice = worksheet.arrivalNotice
+    const returnOrder: ReturnOrder = worksheet.returnOrder
     let targetInventory: OrderInventory = worksheetDetail.targetInventory
     let inventory: Inventory = targetInventory.inventory
 
@@ -250,7 +250,7 @@ export class PutawayReturningWorksheetController extends VasWorksheetController 
     inventory.status = INVENTORY_STATUS.STORED
     inventory.warehouse = warehouse
     inventory.zone = zone
-    await this.transactionInventory(inventory, arrivalNotice, 0, 0, INVENTORY_TRANSACTION_TYPE.PUTAWAY)
+    await this.transactionInventory(inventory, returnOrder, 0, 0, INVENTORY_TRANSACTION_TYPE.PUTAWAY)
 
     targetInventory.status = ORDER_INVENTORY_STATUS.TERMINATED
     targetInventory.updater = this.user
@@ -261,10 +261,10 @@ export class PutawayReturningWorksheetController extends VasWorksheetController 
     await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
   }
 
-  async undoPutaway(worksheetDetailName: string, palletId: string): Promise<void> {
+  async undoPutawayReturn(worksheetDetailName: string, palletId: string): Promise<void> {
     let worksheetDetail: WorksheetDetail = await this.findWorksheetDetailByName(worksheetDetailName, [
       'worksheet',
-      'worksheet.arrivalNotice',
+      'worksheet.returnOrder',
       'targetInventory',
       'targetInventory.inventory',
       'fromLocation'
@@ -272,7 +272,7 @@ export class PutawayReturningWorksheetController extends VasWorksheetController 
     this.checkRecordValidity(worksheetDetail, { status: WORKSHEET_STATUS.DONE })
 
     const worksheet: Worksheet = worksheetDetail.worksheet
-    const arrivalNotice: ArrivalNotice = worksheet.arrivalNotice
+    const returnOrder: ReturnOrder = worksheet.returnOrder
     const targetInventory: OrderInventory = worksheetDetail.targetInventory
     let inventory: Inventory = await this.trxMgr.getRepository(Inventory).findOne({
       where: { domain: this.domain, palletId }
@@ -284,7 +284,7 @@ export class PutawayReturningWorksheetController extends VasWorksheetController 
     })
     inventory.location = bufferLocation
     inventory.status = INVENTORY_STATUS.UNLOADED
-    await this.transactionInventory(inventory, arrivalNotice, 0, 0, INVENTORY_TRANSACTION_TYPE.UNDO_PUTAWAY)
+    await this.transactionInventory(inventory, returnOrder, 0, 0, INVENTORY_TRANSACTION_TYPE.UNDO_PUTAWAY)
 
     targetInventory.status = ORDER_PRODUCT_STATUS.PUTTING_AWAY
     targetInventory.updater = this.user

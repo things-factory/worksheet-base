@@ -182,7 +182,18 @@ export const Mutation = /* GraphQL */ `
     toLocation: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
+  putawayReturn (
+    worksheetDetailName: String!
+    palletId: String!
+    toLocation: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
   undoPutaway (
+    worksheetDetailName: String!
+    palletId: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  undoPutawayReturn (
     worksheetDetailName: String!
     palletId: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
