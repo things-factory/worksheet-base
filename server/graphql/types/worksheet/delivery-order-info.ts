@@ -5,5 +5,6 @@ export const DeliveryOrderInfo = gql`
     ownCollection: Boolean
     doStatus: String
     truckNo: String
+    bizplace: Bizplace
   }
 `

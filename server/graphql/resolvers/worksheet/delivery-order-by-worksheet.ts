@@ -26,7 +26,8 @@ export const deliveryOrderByWorksheetResolver = {
       deliveryOrderInfo: {
         ownCollection: foundDO.ownCollection,
         doStatus: foundDO.status,
-        truckNo: foundDO.truckNo
+        truckNo: foundDO.truckNo,
+        bizplace: foundDO.bizplace
       },
       contactPointInfo: partnerContactPoint.map(async (cp: ContactPoint) => {
         return {
