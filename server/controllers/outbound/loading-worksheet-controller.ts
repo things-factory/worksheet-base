@@ -4,6 +4,7 @@ import {
   OrderInventory,
   OrderNoGenerator,
   ORDER_INVENTORY_STATUS,
+  ORDER_TYPES,
   ORDER_STATUS,
   ReleaseGood
 } from '@things-factory/sales-base'
@@ -122,12 +123,13 @@ export class LoadingWorksheetController extends VasWorksheetController {
         worksheetDetail = await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
 
         // Create order inventory for remaining item
-        let newTargetInventory: Partial<OrderInventory> = Object.assign({}, targetInventory)
-        delete newTargetInventory.id
+        let newTargetInventory: OrderInventory = new OrderInventory()        
         newTargetInventory.domain = this.domain
         newTargetInventory.bizplace = bizplace
         newTargetInventory.name = OrderNoGenerator.orderInventory()
         newTargetInventory.releaseGood = releaseGood
+        newTargetInventory.inventory = inventory
+        newTargetInventory.type = ORDER_TYPES.RELEASE_OF_GOODS
         newTargetInventory.status = ORDER_INVENTORY_STATUS.LOADING
         newTargetInventory.releaseQty = remainQty
         newTargetInventory.releaseWeight = remainWeight
