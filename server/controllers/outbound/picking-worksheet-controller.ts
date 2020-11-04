@@ -73,7 +73,7 @@ export class PickingWorksheetController extends VasWorksheetController {
       'worksheetDetails.targetInventory'
     ])
 
-    const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails
+    const worksheetDetails: WorksheetDetail[] = worksheet.worksheetDetails.filter(x => x.status == 'DEACTIVATED')
     const targetInventories: OrderInventory[] = worksheetDetails.map((wsd: WorksheetDetail) => {
       let targetInventory: OrderInventory = wsd.targetInventory
       targetInventory.status = ORDER_INVENTORY_STATUS.PICKING
