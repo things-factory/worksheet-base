@@ -50,8 +50,8 @@ export async function completeUnloadReturning(
   domain: Domain,
   user: User,
   returnOrderNo: string,
-  outboundReturnWorksheetDetails: Partial<WorksheetDetail>[]
+  unloadingReturnWorksheetDetails: Partial<WorksheetDetail>[]
 ): Promise<void> {
   const worksheetController: UnloadingReturningWorksheetController = new UnloadingReturningWorksheetController(trxMgr, domain, user)
-  await worksheetController.completeUnloadReturning(returnOrderNo, outboundReturnWorksheetDetails)
+  await worksheetController.completeUnloadReturning(returnOrderNo, unloadingReturnWorksheetDetails)
 }

@@ -48,6 +48,11 @@ export const Mutation = /* GraphQL */ `
     inventories: [InventoryPatch]!
   ): Boolean
 
+  generatePartialPutawayReturnWorksheet (
+    returnOrderNo: String!
+    inventories: [InventoryPatch]!
+  ): Boolean
+
   generateReleaseGoodWorksheet (
     releaseGoodNo: String!
   ): ReleaseGoodWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
@@ -157,6 +162,11 @@ export const Mutation = /* GraphQL */ `
     worksheetDetail: WorksheetDetailPatch!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
+  completeUnloadReturnPartially (
+    returnOrderNo: String!
+    worksheetDetail: WorksheetDetailPatch!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
   completeUnloading (
     arrivalNoticeNo: String!
     worksheetDetails: [WorksheetDetailPatch]
@@ -227,6 +237,10 @@ export const Mutation = /* GraphQL */ `
 
   completePutaway (
     arrivalNoticeNo: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  completePutawayReturn (
+    returnOrderNo: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   completeReturn (
