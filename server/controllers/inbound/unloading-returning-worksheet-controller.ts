@@ -148,7 +148,7 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
       }
     })
     newInventory.status = INVENTORY_STATUS.TERMINATED
-    await this.transactionInventory(newInventory, returnOrder, 0, 0, INVENTORY_TRANSACTION_TYPE.RETURN)
+    await this.transactionInventory(newInventory, returnOrder, 0, 0, INVENTORY_TRANSACTION_TYPE.EXTERNAL_RETURN)
 
     newInventory.bizplace = bizplace
     newInventory.palletId = palletId
