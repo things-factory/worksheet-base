@@ -129,7 +129,7 @@ export const repalletizingResolver = {
       // If pallet is created completely
       // If there's no more products on from pallet
       if (remainQty - reducedQty === 0 || requiredPalletQty === 0) {
-        await executeVas(trxMgr, wsd, domain, user)
+        await executeVas(trxMgr, domain, user, wsd)
       }
     })
   }

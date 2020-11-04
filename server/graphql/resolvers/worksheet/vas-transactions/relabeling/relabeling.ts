@@ -92,7 +92,7 @@ export const relabelingResolver = {
 
       // Update every order vas to share same operation guide
       await updateRelatedOrderVas<RelabelingGuide>(trxMgr, domain, bizplace, wsd, targetVas, operationGuide, user)
-      await executeVas(trxMgr, wsd, domain, user)
+      await executeVas(trxMgr, domain, user, wsd)
     })
   }
 }
