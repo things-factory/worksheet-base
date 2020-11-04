@@ -114,10 +114,9 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
     const palletId: string = inventory.palletId
     this.checkPalletDuplication(palletId)
 
-    const worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
-      worksheetDetailName,
-      WORKSHEET_TYPE.UNLOADING_RETURN,
-      [
+    const worksheetDetail: WorksheetDetail = await this.trxMgr.getRepository(WorksheetDetail).findOne({
+      where: { name: worksheetDetailName, type: WORKSHEET_TYPE.UNLOADING_RETURN, status: Not(Equal(WORKSHEET_STATUS.DEACTIVATED)) },
+      relations: [
         'bizplace',
         'worksheet',
         'worksheet.returnOrder',
@@ -127,7 +126,8 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
         'targetInventory.product',
         'targetInventory.inventory'
       ]
-    )
+    })
+    if (!worksheetDetail) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(worksheetDetailName))
 
     const bizplace: Bizplace = worksheetDetail.bizplace
     const worksheet: Worksheet = worksheetDetail.worksheet

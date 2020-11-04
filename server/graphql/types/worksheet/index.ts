@@ -98,6 +98,11 @@ export const Mutation = /* GraphQL */ `
     putawayWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
+  activatePutawayReturn (
+    worksheetNo: String!
+    putawayWorksheetDetails: [WorksheetDetailPatch]
+  ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
+
   activateLoading (
     worksheetNo: String!
     loadingWorksheetDetails: [WorksheetDetailPatch]

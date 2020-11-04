@@ -4,7 +4,7 @@ import { Mutations as LoadingMutations } from './loading'
 import { Mutations as PickingMutations } from './picking'
 import { Mutations as PutawayMutations } from './putaway'
 import { Mutations as ReturningMutations } from './returning'
-import { Mutations as OutboundReturnMutations } from './outbound-return'
+import { Mutations as UnloadingReturnMutations } from './unloading-return'
 import { Mutations as PutawayReturnMutations } from './putaway-return'
 import { Mutations as UnloadingMutations } from './unloading'
 import { Mutations as VasMutations } from './vas'
@@ -90,7 +90,7 @@ export const Mutation = {
   ...PickingMutations,
   ...LoadingMutations,
   ...ReturningMutations,
-  ...OutboundReturnMutations,
+  ...UnloadingReturnMutations,
   ...InspectMutations,
   ...updateWorksheet,
   ...createWorksheet,
