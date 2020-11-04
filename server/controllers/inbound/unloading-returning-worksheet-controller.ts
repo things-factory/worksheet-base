@@ -304,9 +304,9 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
     }
 
     if (returnOrder.status !== ORDER_STATUS.PUTTING_AWAY) {
-      await this.completWorksheet(worksheet, ORDER_STATUS.READY_TO_PUTAWAY)
+      await this.completeWorksheet(worksheet, ORDER_STATUS.READY_TO_PUTAWAY)
     } else {
-      await this.completWorksheet(worksheet)
+      await this.completeWorksheet(worksheet)
     }
   }
 

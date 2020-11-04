@@ -146,7 +146,7 @@ export class PutawayReturningWorksheetController extends VasWorksheetController 
       'bufferLocation'
     ])
     await switchLocationStatus(this.domain, putawayWorksheet.bufferLocation, this.user, this.trxMgr)
-    return await this.completWorksheet(putawayWorksheet, ORDER_STATUS.DONE)
+    return await this.completeWorksheet(putawayWorksheet, ORDER_STATUS.DONE)
   }
 
   async putawayReturn(worksheetDetailName: string, palletId: string, locationName: string): Promise<void> {
