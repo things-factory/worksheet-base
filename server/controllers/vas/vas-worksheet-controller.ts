@@ -131,7 +131,7 @@ export class VasWorksheetController extends WorksheetController {
     return await this.activateWorksheet(worksheet, worksheetDetails, vasWorksheetDetails)
   }
 
-  async excuteVAS(worksheetDetail: Partial<WorksheetDetail>, palletId?: string): Promise<void> {
+  async executeVAS(worksheetDetail: Partial<WorksheetDetail>, palletId?: string): Promise<void> {
     const worksheetDetailName = worksheetDetail.name
     let foundWorksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
       worksheetDetailName,

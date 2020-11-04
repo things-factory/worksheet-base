@@ -148,7 +148,7 @@ export const repackagingResolver = {
       await updateRelatedOrderVas<RepackagingGuide>(trxMgr, domain, bizplace, wsd, targetVas, operationGuide, user)
 
       if (isCompleted || remainRequiredPackageQty === 0) {
-        await executeVas(trxMgr, wsd, domain, user)
+        await executeVas(trxMgr, domain, user, wsd)
       }
     })
   }

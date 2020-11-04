@@ -27,5 +27,5 @@ export async function executeVas(
   palletId?: string
 ): Promise<void> {
   const worksheetController: VasWorksheetController = new VasWorksheetController(trxMgr, domain, user)
-  await worksheetController.excuteVAS(worksheetDetail, palletId)
+  await worksheetController.executeVAS(worksheetDetail, palletId)
 }
