@@ -1,6 +1,13 @@
 import { User } from '@things-factory/auth-base'
 import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, InventoryCheck, ReleaseGood, ShippingOrder, VasOrder } from '@things-factory/sales-base'
+import {
+  ArrivalNotice,
+  InventoryCheck,
+  ReleaseGood,
+  ShippingOrder,
+  VasOrder,
+  ReturnOrder
+} from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { Location } from '@things-factory/warehouse-base'
 import {
@@ -38,6 +45,9 @@ export class Worksheet {
 
   @ManyToOne(type => ReleaseGood)
   releaseGood: ReleaseGood
+
+  @ManyToOne(type => ReturnOrder)
+  returnOrder: ReturnOrder
 
   @ManyToOne(type => InventoryCheck)
   inventoryCheck: InventoryCheck

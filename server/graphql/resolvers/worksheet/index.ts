@@ -1,22 +1,14 @@
-import { activateCycleCount } from './activate-cycle-count'
-import { activateLoadingResolver } from './activate-loading'
-import { activatePickingResolver } from './activate-picking'
-import { activatePutawayResolver } from './activate-putaway'
-import { activateReturnResolver } from './activate-return'
-import { activateUnloadingResolver } from './activate-unloading'
-import { activateVasResolver } from './activate-vas'
-import { addExtraPalletResolver } from './add-extra-pallet'
-import { assignVasInventoriesResolver } from './assign-vas-inventories'
-import { checkMissingPalletResolver } from './check-missing-pallet'
-import { completeInspectionResolver } from './complete-inspection'
-import { completeLoading } from './complete-loading'
-import { completePicking } from './complete-picking'
-import { completePreunload } from './complete-preunload'
-import { completePutaway } from './complete-putaway'
-import { completeReturn } from './complete-return'
-import { completeUnloading } from './complete-unloading'
-import { completeUnloadingPartiallyResolver } from './complete-unloading-partially'
-import { completeVas } from './complete-vas'
+import { Mutations as GenerateWorksheetMutations } from './generate-worksheet'
+import { Mutations as InspectMutations } from './inspecting'
+import { Mutations as LoadingMutations } from './loading'
+import { Mutations as PickingMutations } from './picking'
+import { Mutations as PutawayMutations } from './putaway'
+import { Mutations as ReturningMutations } from './returning'
+import { Mutations as UnloadingReturnMutations } from './unloading-return'
+import { Mutations as PutawayReturnMutations } from './putaway-return'
+import { Mutations as UnloadingMutations } from './unloading'
+import { Mutations as VasMutations } from './vas'
+
 import { confirmCancellationReleaseOrder } from './confirm-cancellation-release-order'
 import { createWorksheet } from './create-worksheet'
 import { crossDockPickingResolver } from './cross-dock-picking'
@@ -25,47 +17,27 @@ import { cycleCountWorksheetResolver } from './cycle-count-worksheet'
 import { deleteWorksheet } from './delete-worksheet'
 import { deliveryOrderByWorksheetResolver } from './delivery-order-by-worksheet'
 import { editBatchNo } from './edit-batch-no'
-import { executeVasResolver } from './execute-vas'
-import { generateArrivalNoticeWorksheetResolver } from './generate-arrival-notice-worksheet'
-import { generateCycleCountWorksheetResolver } from './generate-cycle-count-worksheet'
-import { generatePartialPutawayWorksheetResolver } from './generate-partial-putaway-worksheet'
-import { generatePutawayWorksheetResolver } from './generate-putaway-worksheet'
-import { generateReleaseGoodWorksheetResolver } from './generate-release-good-worksheet'
-import { generateVasOrderWorksheet } from './generate-vas-order-worksheet'
 import { havingVasResolver } from './having-vas'
-import { inspectingResolver } from './inspecting'
 import { inventoriesByPalletResolver } from './inventories-by-pallet'
 import { loadedInventories } from './loaded-inventories'
-import { loading } from './loading'
 import { loadingWorksheetResolver } from './loading-worksheet'
 import { notTallyTargetInventoriesResolver } from './not-tally-target-inventories'
 import { pendingCancellationReleaseOrder } from './pending-cancellation-release-order'
-import { picking } from './picking'
 import { pickingWorksheetResolver } from './picking-worksheet'
-import { preunload } from './preunload'
 import { preunloadWorksheetResolver } from './preunload-worksheet'
 import { proceedEditedBatchResolver } from './proceed-edited-batch'
 import { proceedExtraProductsResolver } from './proceed-extra-products'
-import { putaway } from './putaway'
 import { putawayWorksheetResolver } from './putaway-worksheet'
+import { putawayReturningWorksheetResolver } from './putaway-returning-worksheet'
 import { rejectCancellationReleaseOrder } from './reject-cancellation-release-order'
-import { relocatePalletResolver } from './relocate-pallet'
 import { replacePickingPalletsResolver } from './replace-picking-pallets'
 import { returnWorksheetResolver } from './return-worksheet'
-import { returning } from './returning'
 import { submitAdjustmentForApprovalResolver } from './submit-adjustment-for-approval'
 import { transfer } from './transfer'
-import { undoInspectionResolver } from './undo-inspection'
-import { undoLoading } from './undo-loading'
-import { undoPickingAssigmentResolver } from './undo-picking-assignment'
-import { undoPreunload } from './undo-preunload'
-import { undoPutaway } from './undo-putaway'
-import { undoUnloading } from './undo-unloading'
-import { undoVas } from './undo-vas'
-import { unload } from './unload'
 import { unloadedInventories } from './unloaded-inventories'
 import { unloadedInventoriesByReusablePallet } from './unloaded-inventories-by-reusable-pallet'
 import { unloadingWorksheetResolver } from './unloading-worksheet'
+import { unloadingReturnWorksheetResolver } from './unloading-return-worksheet'
 import { updateWorksheet } from './update-worksheet'
 import { vasCandidatesResolver } from './vas-candidates'
 import {
@@ -87,9 +59,11 @@ export const Query = {
   ...worksheetsResolver,
   ...worksheetResolver,
   ...unloadingWorksheetResolver,
+  ...unloadingReturnWorksheetResolver,
   ...preunloadWorksheetResolver,
   ...deliveryOrderByWorksheetResolver,
   ...putawayWorksheetResolver,
+  ...putawayReturningWorksheetResolver,
   ...returnWorksheetResolver,
   ...pickingWorksheetResolver,
   ...cycleCountWorksheetResolver,
@@ -108,65 +82,34 @@ export const Query = {
 }
 
 export const Mutation = {
+  ...GenerateWorksheetMutations,
+  ...UnloadingMutations,
+  ...PutawayMutations,
+  ...PutawayReturnMutations,
+  ...VasMutations,
+  ...PickingMutations,
+  ...LoadingMutations,
+  ...ReturningMutations,
+  ...UnloadingReturnMutations,
+  ...InspectMutations,
   ...updateWorksheet,
   ...createWorksheet,
   ...cycleCountAdjustmentResolver,
-  ...generateCycleCountWorksheetResolver,
   ...deleteWorksheet,
-  ...generateArrivalNoticeWorksheetResolver,
-  ...generatePutawayWorksheetResolver,
-  ...generatePartialPutawayWorksheetResolver,
-  ...generateReleaseGoodWorksheetResolver,
-  ...generateVasOrderWorksheet,
-  ...activateUnloadingResolver,
-  ...activatePutawayResolver,
-  ...activateLoadingResolver,
-  ...activateReturnResolver,
-  ...activateVasResolver,
-  ...activatePickingResolver,
-  ...activateCycleCount,
-  ...completeInspectionResolver,
   ...editBatchNo,
   ...proceedEditedBatchResolver,
-  ...preunload,
-  ...completePreunload,
-  ...undoPreunload,
-  ...unload,
-  ...returning,
-  ...undoUnloading,
-  ...undoPutaway,
-  ...undoInspectionResolver,
-  ...checkMissingPalletResolver,
-  ...completeUnloading,
-  ...completeUnloadingPartiallyResolver,
-  ...completeLoading,
-  ...completeReturn,
-  ...putaway,
-  ...loading,
-  ...undoLoading,
   ...transfer,
-  ...inspectingResolver,
-  ...relocatePalletResolver,
-  ...addExtraPalletResolver,
-  ...completePutaway,
-  ...picking,
-  ...completePicking,
-  ...executeVasResolver,
-  ...undoVas,
-  ...completeVas,
   ...proceedExtraProductsResolver,
   ...replacePickingPalletsResolver,
   ...pendingCancellationReleaseOrder,
   ...confirmCancellationReleaseOrder,
   ...rejectCancellationReleaseOrder,
   ...submitAdjustmentForApprovalResolver,
-  ...assignVasInventoriesResolver,
   ...repalletizingResolver,
   ...undoRepalletizingResolver,
   ...repackagingResolver,
   ...undoRepackagingResolver,
   ...relabelingResolver,
   ...undoRelabelingResolver,
-  ...undoPickingAssigmentResolver,
   ...crossDockPickingResolver
 }

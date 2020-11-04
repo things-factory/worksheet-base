@@ -1,0 +1,73 @@
+import { User } from '@things-factory/auth-base'
+import { Domain } from '@things-factory/shell'
+import { EntityManager, Equal, getManager, Not } from 'typeorm'
+import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../../../constants'
+import { LoadingWorksheetController } from '../../../../controllers'
+import { Worksheet, WorksheetDetail } from '../../../../entities'
+
+export const activateLoadingResolver = {
+  async activateLoading(_: any, { worksheetNo, loadingWorksheetDetails }, context: any) {
+    return getManager().transaction(async (trxMgr: EntityManager) => {
+      const { domain, user }: { domain: Domain; user: User } = context.state
+      const foundWorksheet: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
+        where: {
+          domain,
+          name: worksheetNo,
+          status: WORKSHEET_STATUS.DEACTIVATED,
+          type: WORKSHEET_TYPE.LOADING
+        },
+        relations: ['bizplace', 'releaseGood', 'worksheetDetails', 'worksheetDetails.targetInventory']
+      })
+
+      if (!foundWorksheet) throw new Error(`Worksheet doesn't exists`)
+
+      const relatedPickingWorksheetCnt: number = await trxMgr.getRepository(Worksheet).count({
+        where: {
+          domain,
+          releaseGood: foundWorksheet.releaseGood,
+          type: WORKSHEET_TYPE.PICKING,
+          status: Not(Equal(WORKSHEET_STATUS.DONE))
+        }
+      })
+
+      const relatedWorksheetCnt: number = await trxMgr.getRepository(Worksheet).count({
+        where: {
+          domain,
+          releaseGood: foundWorksheet.releaseGood,
+          type: WORKSHEET_TYPE.VAS,
+          status: Not(Equal(WORKSHEET_STATUS.DONE))
+        }
+      })
+
+      let errMsg = []
+
+      // Stop to activate loading worksheet with Exception
+      // This resolver is being called from client side not from other resolver.
+      // So if there's a related worksheet, it should throw an Error to inform user about non-finished order.
+      if (relatedPickingWorksheetCnt) {
+        errMsg.push(`Picking Worksheet with RO: ${foundWorksheet.releaseGood.name} is still under processing.`)
+      }
+
+      if (relatedWorksheetCnt) {
+        errMsg.push(`Related VAS order with RO: ${foundWorksheet.releaseGood.name} is still under processing.`)
+      }
+
+      if (errMsg.length > 0) {
+        throw errMsg.join('')
+      }
+
+      return await activateLoading(trxMgr, domain, user, worksheetNo, loadingWorksheetDetails)
+    })
+  }
+}
+
+export async function activateLoading(
+  trxMgr: EntityManager,
+  domain: Domain,
+  user: User,
+  worksheetNo: string,
+  loadingWorksheetDetails: Partial<WorksheetDetail>[]
+): Promise<Worksheet> {
+  const worksheetController: LoadingWorksheetController = new LoadingWorksheetController(trxMgr, domain, user)
+  return await worksheetController.activateLoading(worksheetNo, loadingWorksheetDetails)
+}

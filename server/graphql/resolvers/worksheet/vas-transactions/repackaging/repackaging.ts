@@ -6,7 +6,7 @@ import { Inventory, Location, Warehouse } from '@things-factory/warehouse-base'
 import { EntityManager, getManager } from 'typeorm'
 import { Worksheet, WorksheetDetail } from '../../../../../entities'
 import { checkPalletDuplication, checkPalletIdenticallity } from '../../../../../utils'
-import { executeVas } from '../../execute-vas'
+import { executeVas } from '../../vas/execute-vas'
 import {
   assignInventory,
   getRemainInventoryAmount,
@@ -148,7 +148,7 @@ export const repackagingResolver = {
       await updateRelatedOrderVas<RepackagingGuide>(trxMgr, domain, bizplace, wsd, targetVas, operationGuide, user)
 
       if (isCompleted || remainRequiredPackageQty === 0) {
-        await executeVas(trxMgr, wsd, domain, user)
+        await executeVas(trxMgr, domain, user, wsd)
       }
     })
   }

@@ -10,6 +10,8 @@ import { LoadedWorksheetDetail } from './loaded-worksheet-detail'
 import { NewWorksheet } from './new-worksheet'
 import { ProductApproval } from './product-approval'
 import { ReleaseGoodWorksheet } from './release-good-worksheet'
+import { CycleCountWorksheet } from './cycle-count-worksheet'
+import { ReturnOrderWorksheet } from './return-order-worksheet'
 import { VasOrderWorksheet } from './vas-order-worksheet'
 import { Worksheet } from './worksheet'
 import { WorksheetDetailInfo } from './worksheet-detail-info'
@@ -47,6 +49,11 @@ export const Mutation = /* GraphQL */ `
     inventories: [InventoryPatch]!
   ): Boolean
 
+  generatePartialPutawayReturnWorksheet (
+    returnOrderNo: String!
+    inventories: [InventoryPatch]!
+  ): Boolean
+
   generateReleaseGoodWorksheet (
     releaseGoodNo: String!
   ): ReleaseGoodWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
@@ -55,7 +62,12 @@ export const Mutation = /* GraphQL */ `
     executionDate: String!
     customerId: String!
     orderInventoryIds: [String]
-  ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
+  ): CycleCountWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
+
+  generateReturnOrderWorksheet (
+    returnOrderNo: String!
+    bufferLocation: ObjectRef!
+  ): ReturnOrderWorksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   generateVasOrderWorksheet (
     vasNo: String!
@@ -64,6 +76,11 @@ export const Mutation = /* GraphQL */ `
   activateUnloading (
     worksheetNo: String!
     unloadingWorksheetDetails: [WorksheetDetailPatch]
+  ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
+
+  activateUnloadingReturn (
+    worksheetNo: String!
+    unloadingReturnWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   editBatchNo (
@@ -77,6 +94,11 @@ export const Mutation = /* GraphQL */ `
   ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   activatePutaway (
+    worksheetNo: String!
+    putawayWorksheetDetails: [WorksheetDetailPatch]
+  ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
+
+  activatePutawayReturn (
     worksheetNo: String!
     putawayWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
@@ -96,11 +118,26 @@ export const Mutation = /* GraphQL */ `
     vasWorksheetDetails: [WorksheetDetailPatch]
   ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
+  assignPickingInventories (
+    worksheetNo: String!
+    batchId: String!
+    productId: String!
+    packingType: String!
+    worksheetDetails: [NewWorksheetDetail]
+  ): Boolean
+
+  worksheetDetailsByProductGroup(worksheetNo: String!, batchId: String!, productName: String!, packingType: String!): WorksheetDetailList
+
   activatePicking (
     worksheetNo: String!
   ): Worksheet @priviledge(category: "worksheet_control", priviledge: "mutation")
 
   unload (
+    worksheetDetailName: String!
+    inventory: InventoryPatch!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  unloadReturn (
     worksheetDetailName: String!
     inventory: InventoryPatch!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
@@ -121,13 +158,28 @@ export const Mutation = /* GraphQL */ `
     palletId: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
+  undoUnloadReturning (
+    worksheetDetailName: String!
+    palletId: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
   completeUnloadingPartially (
     arrivalNoticeNo: String!
     worksheetDetail: WorksheetDetailPatch!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
+  completeUnloadReturnPartially (
+    returnOrderNo: String!
+    worksheetDetail: WorksheetDetailPatch!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
   completeUnloading (
     arrivalNoticeNo: String!
+    worksheetDetails: [WorksheetDetailPatch]
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  completeUnloadReturning (
+    returnOrderNo: String!
     worksheetDetails: [WorksheetDetailPatch]
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
@@ -146,7 +198,18 @@ export const Mutation = /* GraphQL */ `
     toLocation: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
+  putawayReturn (
+    worksheetDetailName: String!
+    palletId: String!
+    toLocation: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
   undoPutaway (
+    worksheetDetailName: String!
+    palletId: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  undoPutawayReturn (
     worksheetDetailName: String!
     palletId: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
@@ -180,6 +243,10 @@ export const Mutation = /* GraphQL */ `
 
   completePutaway (
     arrivalNoticeNo: String!
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
+
+  completePutawayReturn (
+    returnOrderNo: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   completeReturn (
@@ -354,6 +421,10 @@ export const Query = /* GraphQL */ `
     arrivalNoticeNo: String!
   ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
 
+  unloadingReturnWorksheet (
+    returnOrderNo: String!
+  ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
+
   preunloadWorksheet (
     arrivalNoticeNo: String!
   ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
@@ -377,6 +448,10 @@ export const Query = /* GraphQL */ `
 
   putawayWorksheet (
     arrivalNoticeNo: String!
+  ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
+
+  putawayReturningWorksheet (
+    returnOrderNo: String!
   ): ExecutingWorksheet @priviledge(category: "worksheet", priviledge: "query")
 
   returnWorksheet (
@@ -444,6 +519,8 @@ export const Types = /* GraphQL */ [
   WorksheetList,
   ArrivalNoticeWorksheet,
   ReleaseGoodWorksheet,
+  CycleCountWorksheet,
+  ReturnOrderWorksheet,
   InventoryCheckWorksheet,
   DeliveryOrderInfo,
   GoodsDeliveryNote,

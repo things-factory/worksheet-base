@@ -108,7 +108,8 @@ export async function renderDO({ domain: domainName, doNo }) {
     logo = 'data:' + foundLogo.mimetype + ';base64,' + (await STORAGE.readFile(foundLogo.path, 'base64'))
   }
 
-  const productList: any = foundWSD
+  let productList: any[] = []
+  productList = foundWSD
     .map((wsd: WorksheetDetail) => {
       const targetInventory: OrderInventory = wsd.targetInventory
       const inventory: Inventory = targetInventory.inventory
@@ -137,7 +138,8 @@ export async function renderDO({ domain: domainName, doNo }) {
           product_batch: item.product_batch,
           product_qty: item.product_qty,
           product_weight: item.product_weight,
-          remark: 1,
+          remark: item.remark,
+          palletQty: 1,
           cross_docking: item.cross_docking,
           pallet: item.pallet
         }
@@ -154,7 +156,7 @@ export async function renderDO({ domain: domainName, doNo }) {
             ) {
             return {
               ...ni,
-              remark: ni.remark + 1,
+              palletQty: ni.palletQty + 1,
               product_qty: ni.product_qty + item.product_qty,
               product_weight: ni.product_weight + item.product_weight
             }
@@ -190,9 +192,9 @@ export async function renderDO({ domain: domainName, doNo }) {
       return {
         ...prod,
         list_no: idx + 1,
-        remark: prod.cross_docking ?
-         prod.pallet === '' ? `${prod.remark} PALLET(S) [C/D]` : `${prod.remark} PALLET(S) (${prod.pallet}) [C/D]` :
-         prod.pallet === '' ? `${prod.remark} PALLET(S)` : `${prod.remark} PALLET(S) (${prod.pallet})`
+        remark: prod?.remark ? prod.remark : (prod.cross_docking ?
+         prod.pallet === '' ? `${prod.palletQty} PALLET(S) [C/D]` : `${prod.palletQty} PALLET(S) (${prod.pallet}) [C/D]` :
+         prod.pallet === '' ? `${prod.palletQty} PALLET(S)` : `${prod.palletQty} PALLET(S) (${prod.pallet})`)
       }
     })
   } //.. make data from do

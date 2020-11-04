@@ -1,5 +1,5 @@
 import { getPermittedBizplaceIds } from '@things-factory/biz-base'
-import { ArrivalNotice, InventoryCheck, ReleaseGood } from '@things-factory/sales-base'
+import { ArrivalNotice, InventoryCheck, ReleaseGood, ReturnOrder } from '@things-factory/sales-base'
 import { buildQuery, convertListParams, ListParam } from '@things-factory/shell'
 import { getRepository, SelectQueryBuilder } from 'typeorm'
 import { Worksheet } from '../../../entities'
@@ -86,6 +86,45 @@ export const worksheetsResolver = {
         }
       }
 
+      ////For outbound return worksheet filter
+      const returnOrderParam = params.filters.find(param => param.name === 'returnOrderNo')
+      const returnOrderRefNoParam = params.filters.find(param => param.name === 'returnOrderRefNo')
+      if (returnOrderParam || returnOrderRefNoParam) {
+        let arrFilters = []
+        if (returnOrderParam) {
+          params.filters.splice(
+            params.filters.findIndex(item => item.name == 'returnOrderNo'),
+            1
+          )
+          arrFilters.push({ ...returnOrderParam, name: 'name' })
+        }
+        if (returnOrderRefNoParam) {
+          params.filters.splice(
+            params.filters.findIndex(item => item.name == 'returnOrderRefNo'),
+            1
+          )
+          arrFilters.push({ ...returnOrderRefNoParam, name: 'refNo' })
+        }
+        const foundReturnOrders: ReturnOrder[] = await getRepository(ReturnOrder).find({
+          ...convertListParams({ filters: arrFilters })
+        })
+
+        if (foundReturnOrders && foundReturnOrders.length) {
+          params.filters.push({
+            name: 'returnOrderId',
+            operator: 'in',
+            value: foundReturnOrders.map((foundRO: ReturnOrder) => foundRO.id),
+            relation: false
+          })
+        } else {
+          params.filters.push({
+            name: 'returnOrderId',
+            operator: 'is_null',
+            relation: false
+          })
+        }
+      }
+
       ////For inventory check worksheet filter
       const inventoryCheckParam = params.filters.find(param => param.name === 'inventoryCheckNo')
       const executionDateParam = params.filters.find(param => param.name === 'executionDate')
@@ -152,16 +191,17 @@ export const worksheetsResolver = {
       qb.leftJoinAndSelect('ws.bizplace', 'bizplace')
       qb.leftJoinAndSelect('ws.arrivalNotice', 'arrivalNotice')
       qb.leftJoinAndSelect('ws.releaseGood', 'releaseGood')
+      qb.leftJoinAndSelect('ws.returnOrder', 'returnOrder')
       qb.leftJoinAndSelect('ws.inventoryCheck', 'inventoryCheck')
       qb.leftJoinAndSelect('ws.vasOrder', 'vasOrder')
       qb.leftJoinAndSelect('ws.creator', 'creator')
       qb.leftJoinAndSelect('ws.updater', 'updater')
 
       ////Add sorting conditions
-      const arrChildSortData = ['bizplace', 'arrivalNotice', 'releaseGood', 'inventoryCheck']
+      const arrChildSortData = ['bizplace', 'arrivalNotice', 'releaseGood', 'returnOrder', 'inventoryCheck']
       let sort = (params.sortings || []).reduce(
         (acc, sort) => {
-          if (sort.name != 'arrivalRefNo' && sort.name != 'releaseRefNo') {
+          if (sort.name != 'arrivalRefNo' && sort.name != 'releaseRefNo' && sort.name != 'returnOrderNo') {
             return {
               ...acc,
               [arrChildSortData.indexOf(sort.name) >= 0 ? sort.name + '.name' : 'ws.' + sort.name]: sort.desc
@@ -188,6 +228,15 @@ export const worksheetsResolver = {
         sort = {
           ...sort,
           'releaseGood.refNo': params.sortings[params.sortings.findIndex(item => item.name == 'releaseRefNo')].desc
+            ? 'DESC'
+            : 'ASC'
+        }
+      }
+
+      if (params.sortings.some(e => e.name === 'returnOrderRefNo')) {
+        sort = {
+          ...sort,
+          'returnOrder.refNo': params.sortings[params.sortings.findIndex(item => item.name == 'returnOrderRefNo')].desc
             ? 'DESC'
             : 'ASC'
         }

@@ -5,7 +5,7 @@ import { Domain } from '@things-factory/shell'
 import { Inventory, INVENTORY_STATUS } from '@things-factory/warehouse-base'
 import { EntityManager, Equal, getManager, Not } from 'typeorm'
 import { WorksheetDetail } from '../../../../../entities'
-import { executeVas } from '../../execute-vas'
+import { executeVas } from '../../vas/execute-vas'
 import {
   assignInventory,
   getRemainInventoryAmount,
@@ -92,7 +92,7 @@ export const relabelingResolver = {
 
       // Update every order vas to share same operation guide
       await updateRelatedOrderVas<RelabelingGuide>(trxMgr, domain, bizplace, wsd, targetVas, operationGuide, user)
-      await executeVas(trxMgr, wsd, domain, user)
+      await executeVas(trxMgr, domain, user, wsd)
     })
   }
 }

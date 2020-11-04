@@ -21,8 +21,8 @@ export const submitAdjustmentForApprovalResolver = {
         ]
       })
 
-      let customerBizplace: Bizplace = foundArrivalNotice.bizplace
       if (!foundArrivalNotice) throw new Error(`Arrival notice doesn't exists.`)
+      let customerBizplace: Bizplace = foundArrivalNotice.bizplace
 
       const foundWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
         where: {

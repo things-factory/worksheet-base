@@ -40,5 +40,6 @@ export const WorksheetDetailInfo = gql`
     inventory: Inventory
     reusablePallet: Pallet
     relatedOrderInv: OrderInventory
+    targetInventory: OrderInventory
   }
 `

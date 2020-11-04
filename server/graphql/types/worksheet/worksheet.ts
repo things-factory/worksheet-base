@@ -9,6 +9,7 @@ export const Worksheet = gql`
     arrivalNotice: ArrivalNotice
     orderProducts: [OrderProduct]
     releaseGood: ReleaseGood
+    returnOrder: ReturnOrder
     inventoryCheck: InventoryCheck
     orderInventories: [OrderInventory]
     shippingOrder: ShippingOrder

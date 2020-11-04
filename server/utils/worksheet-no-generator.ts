@@ -1,6 +1,81 @@
 import uuid from 'uuid/v4'
+import { WORKSHEET_TYPE } from '../constants'
 
 export class WorksheetNoGenerator {
+  static generate(type: string, isDetail: boolean = false): string {
+    if (isDetail) {
+      return this.generateDetail(type)
+    } else {
+      if (Object.keys(WORKSHEET_TYPE).indexOf(type) < 0) {
+        throw new Error(`Invalid type pased (passed type: ${type})`)
+      }
+
+      switch (type) {
+        case WORKSHEET_TYPE.UNLOADING:
+          return this.unloading()
+
+        case WORKSHEET_TYPE.PUTAWAY:
+          return this.putaway()
+
+        case WORKSHEET_TYPE.PICKING:
+          return this.picking()
+
+        case WORKSHEET_TYPE.LOADING:
+          return this.loading()
+
+        case WORKSHEET_TYPE.RETURN:
+          return this.return()
+
+        case WORKSHEET_TYPE.VAS:
+          return this.vas()
+
+        case WORKSHEET_TYPE.CYCLE_COUNT:
+          return this.cycleCount()
+
+        case WORKSHEET_TYPE.UNLOADING_RETURN:
+          return this.unloadingReturn()
+
+        case WORKSHEET_TYPE.PUTAWAY_RETURN:
+          return this.putawayReturn()
+      }
+    }
+  }
+
+  static generateDetail(type: string): string {
+    if (Object.keys(WORKSHEET_TYPE).indexOf(type) < 0) {
+      throw new Error(`Invalid type pased (passed type: ${type})`)
+    }
+
+    switch (type) {
+      case WORKSHEET_TYPE.UNLOADING:
+        return this.unloadingDetail()
+
+      case WORKSHEET_TYPE.PUTAWAY:
+        return this.putawayDetail()
+
+      case WORKSHEET_TYPE.PICKING:
+        return this.pickingDetail()
+
+      case WORKSHEET_TYPE.LOADING:
+        return this.loadingDetail()
+
+      case WORKSHEET_TYPE.RETURN:
+        return this.returnDetail()
+
+      case WORKSHEET_TYPE.VAS:
+        return this.vasDetail()
+
+      case WORKSHEET_TYPE.CYCLE_COUNT:
+        return this.cycleCountDetail()
+
+      case WORKSHEET_TYPE.UNLOADING_RETURN:
+        return this.unloadingReturnDetail()
+
+      case WORKSHEET_TYPE.PUTAWAY_RETURN:
+        return this.putawayReturnDetail()
+    }
+  }
+
   static unloading() {
     return `ULD-${uuid()}`
   }
@@ -33,6 +108,14 @@ export class WorksheetNoGenerator {
     return `VAS-${uuid()}`
   }
 
+  static unloadingReturn() {
+    return `UR-${uuid()}`
+  }
+
+  static putawayReturn() {
+    return `PR-${uuid()}`
+  }
+
   static unloadingDetail() {
     return `ULD-DETAIL-${uuid()}`
   }
@@ -63,5 +146,13 @@ export class WorksheetNoGenerator {
 
   static vasDetail() {
     return `VAS-DETAIL-${uuid()}`
+  }
+
+  static unloadingReturnDetail() {
+    return `UR-DETAIL-${uuid()}`
+  }
+
+  static putawayReturnDetail() {
+    return `PR-DETAIL-${uuid()}`
   }
 }
