@@ -4,6 +4,8 @@ import { Mutations as LoadingMutations } from './loading'
 import { Mutations as PickingMutations } from './picking'
 import { Mutations as PutawayMutations } from './putaway'
 import { Mutations as ReturningMutations } from './returning'
+import { Mutations as OutboundReturnMutations } from './outbound-return'
+import { Mutations as PutawayReturnMutations } from './putaway-return'
 import { Mutations as UnloadingMutations } from './unloading'
 import { Mutations as VasMutations } from './vas'
 
@@ -26,6 +28,7 @@ import { preunloadWorksheetResolver } from './preunload-worksheet'
 import { proceedEditedBatchResolver } from './proceed-edited-batch'
 import { proceedExtraProductsResolver } from './proceed-extra-products'
 import { putawayWorksheetResolver } from './putaway-worksheet'
+import { putawayReturningWorksheetResolver } from './putaway-returning-worksheet'
 import { rejectCancellationReleaseOrder } from './reject-cancellation-release-order'
 import { replacePickingPalletsResolver } from './replace-picking-pallets'
 import { returnWorksheetResolver } from './return-worksheet'
@@ -34,6 +37,7 @@ import { transfer } from './transfer'
 import { unloadedInventories } from './unloaded-inventories'
 import { unloadedInventoriesByReusablePallet } from './unloaded-inventories-by-reusable-pallet'
 import { unloadingWorksheetResolver } from './unloading-worksheet'
+import { unloadingReturnWorksheetResolver } from './unloading-return-worksheet'
 import { updateWorksheet } from './update-worksheet'
 import { vasCandidatesResolver } from './vas-candidates'
 import {
@@ -55,9 +59,11 @@ export const Query = {
   ...worksheetsResolver,
   ...worksheetResolver,
   ...unloadingWorksheetResolver,
+  ...unloadingReturnWorksheetResolver,
   ...preunloadWorksheetResolver,
   ...deliveryOrderByWorksheetResolver,
   ...putawayWorksheetResolver,
+  ...putawayReturningWorksheetResolver,
   ...returnWorksheetResolver,
   ...pickingWorksheetResolver,
   ...cycleCountWorksheetResolver,
@@ -79,10 +85,12 @@ export const Mutation = {
   ...GenerateWorksheetMutations,
   ...UnloadingMutations,
   ...PutawayMutations,
+  ...PutawayReturnMutations,
   ...VasMutations,
   ...PickingMutations,
   ...LoadingMutations,
   ...ReturningMutations,
+  ...OutboundReturnMutations,
   ...InspectMutations,
   ...updateWorksheet,
   ...createWorksheet,

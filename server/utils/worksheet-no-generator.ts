@@ -31,6 +31,12 @@ export class WorksheetNoGenerator {
 
         case WORKSHEET_TYPE.CYCLE_COUNT:
           return this.cycleCount()
+
+        case WORKSHEET_TYPE.UNLOADING_RETURN:
+          return this.unloadingReturn()
+
+        case WORKSHEET_TYPE.PUTAWAY_RETURN:
+          return this.putawayReturn()
       }
     }
   }
@@ -61,6 +67,12 @@ export class WorksheetNoGenerator {
 
       case WORKSHEET_TYPE.CYCLE_COUNT:
         return this.cycleCountDetail()
+
+      case WORKSHEET_TYPE.UNLOADING_RETURN:
+        return this.unloadingReturnDetail()
+
+      case WORKSHEET_TYPE.PUTAWAY_RETURN:
+        return this.putawayReturnDetail()
     }
   }
 
@@ -96,6 +108,14 @@ export class WorksheetNoGenerator {
     return `VAS-${uuid()}`
   }
 
+  static unloadingReturn() {
+    return `UR-${uuid()}`
+  }
+
+  static putawayReturn() {
+    return `PR-${uuid()}`
+  }
+
   static unloadingDetail() {
     return `ULD-DETAIL-${uuid()}`
   }
@@ -126,5 +146,13 @@ export class WorksheetNoGenerator {
 
   static vasDetail() {
     return `VAS-DETAIL-${uuid()}`
+  }
+
+  static unloadingReturnDetail() {
+    return `UR-DETAIL-${uuid()}`
+  }
+
+  static putawayReturnDetail() {
+    return `PR-DETAIL-${uuid()}`
   }
 }

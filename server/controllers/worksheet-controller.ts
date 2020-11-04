@@ -11,7 +11,8 @@ import {
   ORDER_PRODUCT_STATUS,
   ORDER_VAS_STATUS,
   ReleaseGood,
-  VasOrder
+  VasOrder,
+  ReturnOrder
 } from '@things-factory/sales-base'
 import { Domain, sendNotification } from '@things-factory/shell'
 import { Inventory, Pallet, INVENTORY_STATUS } from '@things-factory/warehouse-base'
@@ -20,14 +21,15 @@ import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../constants'
 import { Worksheet, WorksheetDetail } from '../entities'
 import { generateInventoryHistory, WorksheetNoGenerator } from '../utils'
 
-export type ReferenceOrderType = ArrivalNotice | ReleaseGood | VasOrder | InventoryCheck | DeliveryOrder
+export type ReferenceOrderType = ArrivalNotice | ReleaseGood | VasOrder | InventoryCheck | DeliveryOrder | ReturnOrder
 export type OrderTargetTypes = OrderProduct | OrderInventory | OrderVas
 
 export enum ReferenceOrderFields {
   ArrivalNotice = 'arrivalNotice',
   ReleaseGood = 'releaseGood',
   VasOrder = 'vasOrder',
-  InventoryCheck = 'inventoryCheck'
+  InventoryCheck = 'inventoryCheck',
+  ReturnOrder = 'returnOrder'
 }
 
 export enum OrderTargetFields {
@@ -92,6 +94,8 @@ export class WorksheetController {
       return ReferenceOrderFields.VasOrder
     } else if (refOrder instanceof InventoryCheck) {
       return ReferenceOrderFields.InventoryCheck
+    } else if (refOrder instanceof ReturnOrder) {
+      return ReferenceOrderFields.ReturnOrder
     } else {
       throw new Error(
         this.ERROR_MSG.VALIDITY.UNEXPECTED_FIELD_VALUE('refOrder', 'One of referece order type', refOrder)
@@ -213,6 +217,10 @@ export class WorksheetController {
 
         case ReferenceOrderFields.InventoryCheck:
           refOrder = await this.findRefOrder(InventoryCheck, refOrder, ['bizplace'])
+          break
+
+        case ReferenceOrderFields.ReturnOrder:
+          refOrder = await this.findRefOrder(ReturnOrder, refOrder, ['bizplace'])
           break
       }
     }
@@ -413,6 +421,8 @@ export class WorksheetController {
         entitySchema = VasOrder
       } else if (refOrder instanceof InventoryCheck) {
         entitySchema = InventoryCheck
+      } else if (refOrder instanceof ReturnOrder) {
+        entitySchema = ReturnOrder
       }
     }
 
@@ -569,7 +579,8 @@ export class WorksheetController {
       worksheetType === WORKSHEET_TYPE.PUTAWAY ||
       worksheetType === WORKSHEET_TYPE.PICKING ||
       worksheetType === WORKSHEET_TYPE.LOADING ||
-      worksheetType === WORKSHEET_TYPE.RETURN
+      worksheetType === WORKSHEET_TYPE.RETURN ||
+      worksheetType === WORKSHEET_TYPE.UNLOADING_RETURN
     ) {
       const targetInventories: OrderInventory[] = worksheet.worksheetDetails.map((wsd: WorksheetDetail) => {
         let targetInventory: OrderInventory = wsd.targetInventory
@@ -729,10 +740,10 @@ export class WorksheetController {
    */
   async extractRefOrderFromWorksheet(worksheet: Worksheet): Promise<ReferenceOrderType> {
     let refOrder: ReferenceOrderType =
-      worksheet.arrivalNotice || worksheet.releaseGood || worksheet.vasOrder || worksheet.inventoryCheck || null
+      worksheet.arrivalNotice || worksheet.releaseGood || worksheet.vasOrder || worksheet.inventoryCheck || worksheet.returnOrder || null
     if (!refOrder) {
       const wsWithRefOrd: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne(worksheet.id, {
-        relations: ['arrivalNotice', 'releaseGood', 'vasOrder', 'inventoryCheck']
+        relations: ['arrivalNotice', 'releaseGood', 'vasOrder', 'inventoryCheck', 'returnOrder']
       })
 
       refOrder =
@@ -740,6 +751,7 @@ export class WorksheetController {
         wsWithRefOrd.releaseGood ||
         wsWithRefOrd.vasOrder ||
         wsWithRefOrd.inventoryCheck ||
+        wsWithRefOrd.returnOrder ||
         null
       if (!refOrder) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(worksheet.id))
     }
@@ -847,6 +859,8 @@ export class WorksheetController {
         entitySchema = VasOrder
       } else if (refOrder instanceof InventoryCheck) {
         entitySchema = InventoryCheck
+      } else if (refOrder instanceof ReturnOrder) {
+        entitySchema = ReturnOrder
       }
     }
 

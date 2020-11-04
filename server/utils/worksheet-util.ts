@@ -1,5 +1,5 @@
 import { Bizplace } from '@things-factory/biz-base'
-import { ArrivalNotice, ReleaseGood, VasOrder } from '@things-factory/sales-base'
+import { ArrivalNotice, ReleaseGood, VasOrder, ReturnOrder } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
 import { EntityManager, FindOneOptions, getRepository, Repository } from 'typeorm'
 import { WORKSHEET_STATUS } from '../constants'
@@ -10,7 +10,7 @@ export async function fetchExecutingWorksheet(
   bizplace: Bizplace,
   relations: string[],
   type: string,
-  refOrder: ArrivalNotice | ReleaseGood | VasOrder,
+  refOrder: ArrivalNotice | ReleaseGood | VasOrder | ReturnOrder,
   trxMgr?: EntityManager
 ): Promise<Worksheet> {
   const wsRepo: Repository<Worksheet> = trxMgr?.getRepository(Worksheet) || getRepository(Worksheet)
@@ -29,6 +29,8 @@ export async function fetchExecutingWorksheet(
     findOneOption.where['releaseGood'] = refOrder
   } else if (refOrder instanceof VasOrder) {
     findOneOption.where['vasOrder'] = refOrder
+  } else if (refOrder instanceof ReturnOrder) {
+    findOneOption.where['returnOrder'] = refOrder
   }
 
   const worksheet: Worksheet = await wsRepo.findOne(findOneOption)
