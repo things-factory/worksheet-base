@@ -247,8 +247,8 @@ export class PickingWorksheetController extends VasWorksheetController {
 
     inventory.qty -= targetInventory.releaseQty
     inventory.weight = Math.round((inventory.weight - targetInventory.releaseWeight) * 100) / 100
-    inventory.lockedQty = inventory.lockedQty - inventory.releaseQty
-    inventory.lockedWeight = Math.round((inventory.lockedWeight - inventory.releaseWeight) * 100) / 100
+    inventory.lockedQty = inventory.lockedQty - targetInventory.releaseQty
+    inventory.lockedWeight = Math.round((inventory.lockedWeight - targetInventory.releaseWeight) * 100) / 100
     inventory = await this.transactionInventory(
       inventory,
       releaseGood,
