@@ -238,7 +238,7 @@ export class PutawayWorksheetController extends VasWorksheetController {
     }
 
     const location: Location = await this.trxMgr.getRepository(Location).findOne({
-      where: { domain: this.domain, name: locationName, type: In([LOCATION_TYPE.SHELF, LOCATION_TYPE.BUFFER]) },
+      where: { domain: this.domain, name: locationName, type: In([LOCATION_TYPE.SHELF, LOCATION_TYPE.BUFFER, LOCATION_TYPE.FLOOR]) },
       relations: ['warehouse']
     })
     if (!location) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(locationName))

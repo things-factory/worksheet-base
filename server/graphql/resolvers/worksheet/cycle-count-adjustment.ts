@@ -64,34 +64,34 @@ export async function cycleCountAdjustment(
     const transactWeight: number = targetInventory.inspectedWeight - inventory.weight
 
     if (targetInventory.status === ORDER_INVENTORY_STATUS.MISSING) {
-      const inventoryHistory = {
-        qty: -inventory.qty,
-        weight: -inventory.weight
-      }
 
-      inventory.status = INVENTORY_STATUS.TERMINATED
+      // create STORED, CC_ADJUSTMENT history
+      await generateInventoryHistory(
+        inventory,
+        cycleCount,
+        INVENTORY_TRANSACTION_TYPE.CC_ADJUSTMENT,
+        -inventory.qty,
+        -inventory.weight,
+        user,
+        trxMgr
+      )
+      
       inventory.qty = 0
       inventory.weight = 0
       inventory.lockedQty = 0
       inventory.lockedWeight = 0
       inventory.updater = user
+      inventory.status = INVENTORY_STATUS.TERMINATED
       inventory = await trxMgr.getRepository(Inventory).save(inventory)
 
-      await generateInventoryHistory(
-        inventory,
-        cycleCount,
-        INVENTORY_TRANSACTION_TYPE.ADJUSTMENT,
-        inventoryHistory.qty,
-        inventoryHistory.weight,
-        user,
-        trxMgr
-      )
+      // create TERMINATED, TERMINATED history
+      await generateInventoryHistory(inventory, cycleCount, INVENTORY_TRANSACTION_TYPE.TERMINATED, 0, 0, user, trxMgr)
     } else if (targetInventory.inspectedQty == 0) {
-      // create inventory history
+      // create STORED, CC_ADJUSTMENT history
       await generateInventoryHistory(
         inventory,
         cycleCount,
-        INVENTORY_TRANSACTION_TYPE.ADJUSTMENT,
+        INVENTORY_TRANSACTION_TYPE.CC_ADJUSTMENT,
         transactQty,
         transactWeight,
         user,
@@ -110,10 +110,24 @@ export async function cycleCountAdjustment(
       inventory.updater = user
       inventory = await trxMgr.getRepository(Inventory).save(inventory)
 
-      // create inventory history
+      // create TERMINATED, TERMINATED history
       await generateInventoryHistory(inventory, cycleCount, INVENTORY_TRANSACTION_TYPE.TERMINATED, 0, 0, user, trxMgr)
     } else {
       const prevLocationId: string = inventory.location.id
+
+      if (targetInventory.inspectedBatchNo !== inventory.batchId) {
+        // generate TERMINATED, ADJUSTMENT history
+        inventory.status = INVENTORY_STATUS.TERMINATED
+        await generateInventoryHistory(
+          inventory,
+          cycleCount,
+          INVENTORY_TRANSACTION_TYPE.CC_ADJUSTMENT,
+          -transactQty,
+          -transactWeight,
+          user,
+          trxMgr
+        )
+      }
 
       inventory.batchId = targetInventory.inspectedBatchNo
       inventory.qty = targetInventory.inspectedQty
@@ -122,6 +136,7 @@ export async function cycleCountAdjustment(
       inventory.lockedWeight = 0
       inventory.location = targetInventory.inspectedLocation
       inventory.warehouse = targetInventory.inspectedLocation.warehouse
+      inventory.status = INVENTORY_STATUS.STORED
       inventory.updater = user
       inventory = await trxMgr.getRepository(Inventory).save(inventory)
 
@@ -133,7 +148,7 @@ export async function cycleCountAdjustment(
       await generateInventoryHistory(
         inventory,
         cycleCount,
-        INVENTORY_TRANSACTION_TYPE.ADJUSTMENT,
+        INVENTORY_TRANSACTION_TYPE.CC_ADJUSTMENT,
         transactQty,
         transactWeight,
         user,
