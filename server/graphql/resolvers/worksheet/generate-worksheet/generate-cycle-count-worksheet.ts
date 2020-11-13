@@ -1,7 +1,5 @@
 import { User } from '@things-factory/auth-base'
-import { generateCycleCount, InventoryCheck } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory } from '@things-factory/warehouse-base'
 import { EntityManager, getManager } from 'typeorm'
 import { CycleCountWorksheetController } from '../../../../controllers'
 import { Worksheet } from '../../../../entities'
@@ -20,7 +18,7 @@ export const generateCycleCountWorksheetResolver = {
         orderInventoryIds
       )
 
-      return { cycleCountWorksheet }
+      return cycleCountWorksheet
     })
   }
 }
