@@ -15,7 +15,7 @@ import { WorksheetController } from '../worksheet-controller'
 import { WorksheetNoGenerator } from '../../utils'
 
 export class CycleCountWorksheetController extends WorksheetController {
-  async generateCycleCountWorksheet(executionDate: string, customerId: string, orderInventoryIds: string[] = []): Promise<Worksheet> {
+  async generateCycleCountWorksheet(executionDate: string, customerId: string, orderInventoryIds: string[] = [], limit: number): Promise<Worksheet> {
     // Find out warehouse and customer bizplace
     const customerBizplace: Bizplace = await this.trxMgr.getRepository(Bizplace).findOne(customerId)
     let foundCycleCountWorksheet: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne({
@@ -72,8 +72,7 @@ export class CycleCountWorksheetController extends WorksheetController {
 
       // Find out inventories which is target for cycle counting
       const qb: SelectQueryBuilder<Inventory> = this.trxMgr.getRepository(Inventory).createQueryBuilder('INV')
-      let inventories: Inventory[] = await qb
-        .leftJoinAndSelect('INV.location', 'LOC')
+      qb.leftJoinAndSelect('INV.location', 'LOC')
         .where('INV.domain_id = :domainId', { domainId: this.domain.id })
         .andWhere('INV.bizplace_id = :bizplaceId', { bizplaceId: customerBizplace.id })
         .andWhere('INV.status = :status', { status: INVENTORY_STATUS.STORED })
@@ -83,7 +82,13 @@ export class CycleCountWorksheetController extends WorksheetController {
             qb.orWhere('"INV"."locked_qty" = 0')
           })
         )
-        .getMany()
+
+        if (limit > 0) {
+          qb.orderBy("RANDOM()")
+            .limit(limit)
+        }
+        
+      let inventories: Inventory[] = await qb.getMany()
 
       if (!inventories.length) {
         throw new Error(`Failed to find inventories`)
