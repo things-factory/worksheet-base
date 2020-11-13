@@ -40,6 +40,7 @@ import { unloadingWorksheetResolver } from './unloading-worksheet'
 import { unloadingReturnWorksheetResolver } from './unloading-return-worksheet'
 import { updateWorksheet } from './update-worksheet'
 import { vasCandidatesResolver } from './vas-candidates'
+import { palletizingPallets } from './palletizing-pallets'
 import {
   checkRelabelableResolver,
   relabelingResolver,
@@ -111,5 +112,6 @@ export const Mutation = {
   ...undoRepackagingResolver,
   ...relabelingResolver,
   ...undoRelabelingResolver,
-  ...crossDockPickingResolver
+  ...crossDockPickingResolver,
+  ...palletizingPallets
 }

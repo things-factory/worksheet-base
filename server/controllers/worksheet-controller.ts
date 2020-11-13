@@ -201,7 +201,7 @@ export class WorksheetController {
     relations: string[] = ['worksheetDetails']
   ): Promise<Worksheet> {
     const refOrderField: string = this.getRefOrderField(refOrder)
-    if (!refOrder.bizplace?.id) {
+    if (!refOrder?.bizplace?.id) {
       switch (refOrderField) {
         case ReferenceOrderFields.ArrivalNotice:
           refOrder = await this.findRefOrder(ArrivalNotice, refOrder, ['bizplace'])

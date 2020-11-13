@@ -1,6 +1,6 @@
 {
   "name": "@things-factory/worksheet-base",
-  "version": "2.7.0-uat.30",
+  "version": "2.7.0-uat.31",
   "main": "dist-server/index.js",
   "browser": "client/index.js",
   "things-factory": true,

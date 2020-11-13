@@ -11,7 +11,7 @@ export const unloadingWorksheetResolver = {
       where: { domain: context.state.domain, name: arrivalNoticeNo /*status: ORDER_STATUS.PROCESSING*/ },
       relations: ['bizplace']
     })
-    if (!arrivalNotice) throw new Error(`Arrival notice dosen't exist.`)
+    if (!arrivalNotice) throw new Error(`Arrival notice doesn't exist.`)
 
     const customerBizplace: Bizplace = arrivalNotice.bizplace
     const worksheet: Worksheet = await fetchExecutingWorksheet(
@@ -32,13 +32,34 @@ export const unloadingWorksheetResolver = {
       arrivalNotice
     )
 
+    const vasWorksheet: Worksheet = await getRepository(Worksheet).findOne({
+      where: {
+        domain: context.state.domain,
+        arrivalNotice,
+        type: WORKSHEET_TYPE.VAS
+      },
+      relations: [
+        'bizplace',
+        'bufferLocation',
+        'bufferLocation.warehouse',
+        'arrivalNotice',
+        'worksheetDetails',
+        'worksheetDetails.targetVas',
+        'worksheetDetails.targetVas.vas',
+        'creator',
+        'updater'
+      ]
+    })
+
     return {
       worksheetInfo: {
         bizplaceName: customerBizplace.name,
         containerNo: arrivalNotice.containerNo,
         bufferLocation: worksheet.bufferLocation.name,
         startedAt: worksheet.startedAt,
-        refNo: arrivalNotice.refNo
+        refNo: arrivalNotice.refNo,
+        looseItem: arrivalNotice.looseItem,
+        orderVas: vasWorksheet ? vasWorksheet.worksheetDetails : null
       },
       worksheetDetailInfos: worksheet.worksheetDetails.map(async (productWSD: WorksheetDetail) => {
         const targetProduct: OrderProduct = productWSD.targetProduct
