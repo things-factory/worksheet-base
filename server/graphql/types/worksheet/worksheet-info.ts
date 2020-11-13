@@ -12,5 +12,7 @@ export const WorksheetInfo = gql`
     ownCollection: Boolean
     palletId: String
     refNo: String
+    looseItem: String
+    orderVas: [WorksheetDetail]
   }
 `

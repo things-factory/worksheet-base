@@ -404,6 +404,11 @@ export const Mutation = /* GraphQL */ `
     productId: String!
     packingType: String!
   ): Boolean @priviledge(category: "worksheet_control", priviledge: "mutation")
+
+  palletizingPallets (
+    refOrderNo: String!
+    patches: [OrderVasPatch]
+  ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 `
 
 export const Query = /* GraphQL */ `
@@ -510,6 +515,8 @@ export const Query = /* GraphQL */ `
   notTallyTargetInventories (
     cycleCountNo: String!
   ): [OrderInventory] @priviledge(category: "worksheet", priviledge: "query")
+
+
 `
 
 export const Types = /* GraphQL */ [
