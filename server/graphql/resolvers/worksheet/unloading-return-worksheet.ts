@@ -56,6 +56,7 @@ export const unloadingReturnWorksheetResolver = {
           packQty: targetInventory.returnQty,
           actualPackQty: targetInventory.actualPackQty,
           remark: targetInventory.remark,
+          inventory: targetInventory.inventory,
           issue: productWSD.issue,
           status: productWSD.status
         }
