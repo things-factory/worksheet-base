@@ -11,7 +11,8 @@ import {
   ORDER_VAS_STATUS,
   ReleaseGood,
   Vas,
-  VAS_TARGET_TYPES
+  VAS_TARGET_TYPES,
+  VAS_TYPES
 } from '@things-factory/sales-base'
 import {
   Inventory,
@@ -237,7 +238,8 @@ export class UnloadingWorksheetController extends VasWorksheetController {
       'arrivalNotice',
       'worksheetDetails',
       'worksheetDetails.targetProduct',
-      'worksheetDetails.targetProduct.product'
+      'worksheetDetails.targetProduct.product',
+      'worksheetDetails.targetVas'
     ])
 
     const bizplace: Bizplace = worksheet.bizplace
@@ -350,6 +352,40 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     } else {
       await this.completeWorksheet(worksheet)
     }
+
+    let vasWorksheet: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne({
+      where: {
+        arrivalNotice,
+        type: WORKSHEET_TYPE.VAS
+      },
+      relations: ['worksheetDetails', 'worksheetDetails.targetVas', 'worksheetDetails.targetVas.vas']
+    })
+
+    if(vasWorksheet) {
+      let serviceVasWorksheetDetails: WorksheetDetail[] = vasWorksheet.worksheetDetails.filter(x => x.targetVas.vas.type == VAS_TYPES.SERVICE && x.status != WORKSHEET_STATUS.DONE)
+      let materialsVasWorksheetDetails: WorksheetDetail[] = vasWorksheet.worksheetDetails.filter(x => x.targetVas.vas.type == VAS_TYPES.MATERIALS)
+      materialsVasWorksheetDetails.forEach((wsd: WorksheetDetail) => {
+        wsd.status = WORKSHEET_STATUS.DONE
+        wsd.updater = this.user
+      })
+      await this.trxMgr.getRepository(WorksheetDetail).save(materialsVasWorksheetDetails)
+      
+      let targetVASs: OrderVas[] = materialsVasWorksheetDetails.map((wsd: WorksheetDetail) => {
+        let targetVas: OrderVas = wsd.targetVas
+        targetVas.status = ORDER_VAS_STATUS.TERMINATED
+        targetVas.updater = this.user
+        return targetVas
+      })
+
+      await this.updateOrderTargets(targetVASs)
+
+      if(serviceVasWorksheetDetails.length <= 0) {
+        vasWorksheet.status = WORKSHEET_STATUS.DONE
+        vasWorksheet.updater = this.user
+
+        await this.trxMgr.getRepository(Worksheet).save(vasWorksheet)
+      }
+    }
   }
 
   async completeUnloadingPartially(
@@ -452,7 +488,14 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     worksheetDetails: WorksheetDetail[],
     palletizingWSDs: UnloadingWorksheetDetail[]
   ): Promise<void> {
-    let palletizingOrderVASs: Partial<OrderVas>[] = []
+    let palletizingOrderVASs: OrderVas[] = []
+    let currentSetNo: number = 1
+    
+    if (worksheetDetails.some((wd: WorksheetDetail) => wd.targetVas)) {
+      const getSetNo: number[] = worksheetDetails.map((wd: WorksheetDetail) => wd.targetVas.set)
+
+      if (getSetNo.length > 0) { currentSetNo = Math.max(...getSetNo) + 1 }
+    }
 
     for (let palletizingWSD of palletizingWSDs) {
       const palletizingVAS: Vas = await this.trxMgr.getRepository(Vas).findOne({
@@ -461,31 +504,35 @@ export class UnloadingWorksheetController extends VasWorksheetController {
 
       const targetProduct: OrderProduct = worksheetDetails.find(
         (wsd: WorksheetDetail) => wsd.name === palletizingWSD.name
-      )
+      ).targetProduct
 
-      palletizingOrderVASs.push({
-        domain: this.domain,
-        bizplace,
-        name: OrderNoGenerator.orderVas(),
-        arrivalNotice,
-        vas: palletizingVAS,
-        targetType: VAS_TARGET_TYPES.BATCH_AND_PRODUCT_TYPE,
-        targetBatchId: targetProduct.batchId,
-        targetProduct: targetProduct.product,
-        packingType: targetProduct.packingType,
-        description: palletizingWSD.palletizingDescription,
-        type: ORDER_TYPES.ARRIVAL_NOTICE,
-        status: ORDER_VAS_STATUS.COMPLETED,
-        creator: this.user,
-        updater: this.user
-      })
+      let palletizingOrderVas: OrderVas = new OrderVas()
+      palletizingOrderVas.domain = this.domain
+      palletizingOrderVas.bizplace = bizplace
+      palletizingOrderVas.name = OrderNoGenerator.orderVas()
+      palletizingOrderVas.arrivalNotice = arrivalNotice
+      palletizingOrderVas.vas = palletizingVAS
+      palletizingOrderVas.set = currentSetNo
+      palletizingOrderVas.targetType = VAS_TARGET_TYPES.BATCH_AND_PRODUCT_TYPE
+      palletizingOrderVas.targetBatchId = targetProduct.batchId
+      palletizingOrderVas.qty = targetProduct.packQty
+      palletizingOrderVas.targetProduct = targetProduct.product
+      palletizingOrderVas.packingType = targetProduct.packingType
+      palletizingOrderVas.description = palletizingWSD.palletizingDescription
+      palletizingOrderVas.type = ORDER_TYPES.ARRIVAL_NOTICE
+      palletizingOrderVas.status = ORDER_VAS_STATUS.COMPLETED
+      palletizingOrderVas.creator = this.user
+      palletizingOrderVas.updater = this.user
+
+      palletizingOrderVas = await this.trxMgr.getRepository(OrderVas).save(palletizingOrderVas)
+      palletizingOrderVASs.push(palletizingOrderVas)
+
+      currentSetNo++
     }
-
-    this.trxMgr.getRepository(OrderVas).save(palletizingOrderVASs)
-
+    
     let vasWorksheet: Worksheet = await this.findWorksheetByRefOrder(arrivalNotice, WORKSHEET_TYPE.VAS)
     if (!vasWorksheet) {
-      this.generateVasWorksheet(arrivalNotice)
+      await this.generateVasWorksheet(arrivalNotice)
     } else {
       await this.createWorksheetDetails(vasWorksheet, WORKSHEET_TYPE.VAS, palletizingOrderVASs)
     }

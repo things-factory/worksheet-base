@@ -1,13 +1,11 @@
 import { User } from '@things-factory/auth-base'
-import { generateCycleCount, InventoryCheck } from '@things-factory/sales-base'
 import { Domain } from '@things-factory/shell'
-import { Inventory } from '@things-factory/warehouse-base'
 import { EntityManager, getManager } from 'typeorm'
 import { CycleCountWorksheetController } from '../../../../controllers'
 import { Worksheet } from '../../../../entities'
 
 export const generateCycleCountWorksheetResolver = {
-  async generateCycleCountWorksheet(_: any, { executionDate, customerId, orderInventoryIds }, context: any) {
+  async generateCycleCountWorksheet(_: any, { executionDate, customerId, orderInventoryIds, limit }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const { domain, user }: { domain: Domain; user: User } = context.state
 
@@ -17,10 +15,11 @@ export const generateCycleCountWorksheetResolver = {
         user,
         executionDate,
         customerId,
-        orderInventoryIds
+        orderInventoryIds,
+        limit
       )
 
-      return { cycleCountWorksheet }
+      return cycleCountWorksheet
     })
   }
 }
@@ -31,8 +30,9 @@ export async function generateCycleCountWorksheet(
   user: User,
   executionDate: string,
   customerId: string,
-  orderInventoryIds: string [] = []
+  orderInventoryIds: string [] = [],
+  limit: number
 ): Promise<Worksheet> {
   const worksheetController: CycleCountWorksheetController = new CycleCountWorksheetController(trxMgr, domain, user)
-  return await worksheetController.generateCycleCountWorksheet(executionDate, customerId, orderInventoryIds)
+  return await worksheetController.generateCycleCountWorksheet(executionDate, customerId, orderInventoryIds, limit)
 }

@@ -1,13 +1,10 @@
 import { Bizplace } from '@things-factory/biz-base'
 import { Product } from '@things-factory/product-base'
 import {
-  ArrivalNotice,
-  ReleaseGood,
   OrderNoGenerator,
   OrderInventory,
   OrderProduct,
   OrderVas,
-  ORDER_INVENTORY_STATUS,
   ORDER_PRODUCT_STATUS,
   ORDER_STATUS,
   ORDER_TYPES,
@@ -136,21 +133,21 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
     const batchId: string = targetInventory.batchId
     const product: Product = targetInventory.product
     const packingType: string = targetInventory.packingType
-    const qty: number = targetInventory.returnQty
+    const qty: number = inventory.qty
     const weight: number = Math.round(targetInventory.returnWeight)
     const location: Location = worksheet.bufferLocation
     const warehouse: Warehouse = location.warehouse
     const zone: string = location.zone
 
-    let newInventory: Inventory = await this.trxMgr.getRepository(Inventory).findOne({
-      where: {
-        palletId: inventory.palletId
-      }
-    })
-    newInventory.status = INVENTORY_STATUS.TERMINATED
-    await this.transactionInventory(newInventory, returnOrder, 0, 0, INVENTORY_TRANSACTION_TYPE.EXTERNAL_RETURN)
+    // let newInventory: Inventory = await this.trxMgr.getRepository(Inventory).findOne({
+    //   where: {
+    //     palletId: inventory.palletId
+    //   }
+    // })
 
+    let newInventory: Partial<Inventory> = new Inventory()
     newInventory.bizplace = bizplace
+    newInventory.name = InventoryNoGenerator.inventoryName()
     newInventory.palletId = palletId
     newInventory.batchId = batchId
     newInventory.product = product
@@ -161,6 +158,7 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
     if (inventory.reusablePallet?.id) {
       newInventory.reusablePallet = await this.trxMgr.getRepository(Pallet).findOne(inventory.reusablePallet.id)
     }
+    newInventory.refInventory = inventory.id
     newInventory.warehouse = warehouse
     newInventory.location = location
     newInventory.zone = zone
@@ -296,7 +294,7 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
       }
 
       const targetInventoriesWithIssue: OrderProduct[] = worksheetDetailsWithIssue.map((wsd: WorksheetDetail) => {
-        let targetInventory: OrderProduct = wsd.targetProduct
+        let targetInventory: OrderProduct = wsd.targetInventory
         targetInventory.remark = wsd.issue
         return targetInventory
       })
