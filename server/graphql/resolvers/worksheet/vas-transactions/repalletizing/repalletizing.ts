@@ -86,7 +86,7 @@ export const repalletizingResolver = {
       const palletChanges: PalletChangesInterface[] = repalletizedInvs
         .map((ri: RepalletizedInvInfo) => ri.repalletizedFrom)
         .flat()
-      const { remainQty, remainWeight } = await getRemainInventoryAmount(
+      const { remainQty, remainStdUnitValue } = await getRemainInventoryAmount(
         trxMgr,
         refOrder,
         domain,
@@ -95,7 +95,7 @@ export const repalletizingResolver = {
         palletChanges,
         fromPalletId
       )
-      const unitWeight: number = remainWeight / remainQty
+      const unitStdUnitValue: number = remainStdUnitValue / remainQty
       const stdQty: number = operationGuideData.stdQty
       const { qty } = getCurrentAmount(palletChanges, toPalletId)
       const requiredQty: number = stdQty - qty
@@ -107,7 +107,7 @@ export const repalletizingResolver = {
         fromPalletId,
         toPalletId,
         reducedQty,
-        reducedWeight: reducedQty * unitWeight
+        reducedStdUnitValue: reducedQty * unitStdUnitValue
       }
       repalletizedInv.repalletizedFrom.push(repalletizedFrom)
 

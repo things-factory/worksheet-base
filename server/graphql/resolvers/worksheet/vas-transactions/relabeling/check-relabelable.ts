@@ -12,8 +12,8 @@ export const checkRelabelableResolver = {
       batchId,
       productId,
       packingType,
-      unitWeight
-    }: { batchId: string; productId: string; packingType: string; unitWeight: number },
+      unitStdUnitValue
+    }: { batchId: string; productId: string; packingType: string; unitStdUnitValue: number },
     context: any
   ): Promise<boolean> {
     const domain: Domain = context.state.domain
@@ -24,7 +24,7 @@ export const checkRelabelableResolver = {
     })
     if (!product) throw new Error(`Couldn't find product by ID (${productId})`)
 
-    return await checkRelabelable(domain, bizplace, batchId, product, packingType, unitWeight)
+    return await checkRelabelable(domain, bizplace, batchId, product, packingType, unitStdUnitValue)
   }
 }
 
@@ -39,7 +39,7 @@ export const checkRelabelableResolver = {
  * @param {String} batchId
  * @param {Product} product
  * @param {String} packingType
- * @param {Number} unitWeight
+ * @param {Number} unitStdUnitValue
  */
 export async function checkRelabelable(
   domain: Domain,
@@ -47,10 +47,10 @@ export async function checkRelabelable(
   batchId: string,
   product: Product,
   packingType: string,
-  unitWeight: number
+  unitStdUnitValue: number
 ): Promise<boolean> {
   // Try to find out identical inventory
-  // The condition is same batch id same product same packing type same unit weight
+  // The condition is same batch id same product same packing type same stdUnitValue
   // If there *IS* identical inventory the target inventory for this vas can be executed
   const identicalInvCnt: number = await getRepository(Inventory)
     .createQueryBuilder('inv')
@@ -60,7 +60,7 @@ export async function checkRelabelable(
     .andWhere('inv.product_id = :productId')
     .andWhere('inv.packing_type = :packingType')
     .andWhere('inv.status != :status')
-    .andWhere('(inv.weight / inv.qty) = :unitWeight')
+    .andWhere('(inv.std_unit_value / inv.qty) = :unitStdUnitValue')
     .setParameters({
       domainId: domain.id,
       bizplaceId: bizplace.id,
@@ -68,7 +68,7 @@ export async function checkRelabelable(
       productId: product.id,
       packingType,
       status: INVENTORY_STATUS.TERMINATED,
-      unitWeight
+      unitStdUnitValue
     })
     .getCount()
 

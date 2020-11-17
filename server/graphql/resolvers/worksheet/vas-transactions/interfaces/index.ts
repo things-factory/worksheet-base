@@ -15,6 +15,6 @@ export interface PalletChangesInterface {
   fromPalletId: string
   toPalletId: string
   reducedQty: number
-  reducedWeight: number
+  reducedStdUnitValue: number
   locationName?: string
 }

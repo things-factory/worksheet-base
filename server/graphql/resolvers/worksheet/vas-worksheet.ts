@@ -91,6 +91,7 @@ export const vasWorksheetResolver = {
             otherTarget: targetVas?.otherTarget,
             qty: targetVas?.qty,
             weight: targetVas?.weight,
+            stdUnitValue: targetVas?.stdUnitValue,
             operationGuide: targetVas?.operationGuide,
             description: wsd.description,
             remark: targetVas?.remark

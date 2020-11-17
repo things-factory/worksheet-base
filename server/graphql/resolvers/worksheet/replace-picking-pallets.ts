@@ -34,11 +34,12 @@ export const replacePickingPalletsResolver = {
       const releaseGood: ReleaseGood = worksheet.releaseGood
       const customerBizplace: Bizplace = prevWSD.bizplace
 
-      // remove locked qty and locked weight
+      // remove locked qty and locked stdUnitValue
       await trxMgr.getRepository(Inventory).save({
         ...prevInv,
         lockedQty: 0,
         lockedWeight: 0,
+        lockedStdUnitValue: 0,
         updater: user
       })
 
@@ -65,7 +66,7 @@ export const replacePickingPalletsResolver = {
             },
             relations: ['location']
           })
-          const unitWeight: number = foundInv.weight / foundInv.qty
+          const unitStdUnitValue: number = foundInv.stdUnitValue / foundInv.qty
 
           // 4. create new order inventories
           const targetInventory: OrderInventory = await trxMgr.getRepository(OrderInventory).save({
@@ -74,7 +75,8 @@ export const replacePickingPalletsResolver = {
             name: OrderNoGenerator.orderInventory(),
             releaseGood,
             releaseQty: inventory.qty,
-            releaseWeight: unitWeight * inventory.qty,
+            releaseWeight: 0,
+            releaseStdUnitValue: unitStdUnitValue * inventory.qty,
             inventory: foundInv,
             batchId,
             type: ORDER_TYPES.RELEASE_OF_GOODS,

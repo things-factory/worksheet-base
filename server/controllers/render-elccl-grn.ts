@@ -111,8 +111,8 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
       `
       create temp table tmp as(
         select invh.*, invh2.ref_order_id as release_order_id, invh2.qty as release_qty, invh.qty as inbound_qty, 
-        invh.qty + invh2.qty as remaining_qty, invh2.weight as release_weight, invh.weight as inbound_weight, 
-        invh.weight + invh2.weight as remaining_weight
+        invh.qty + invh2.qty as remaining_qty, invh2.std_unit_value as release_std_unit_value, invh.std_unit_value as inbound_std_unit_value, 
+        invh.std_unit_value + invh2.std_unit_value as remaining_std_unit_value
         from reduced_inventory_histories invh 
         left join reduced_inventory_histories invh2 on 
           invh2.domain_id = invh.domain_id and 
@@ -129,18 +129,21 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
       `
       create temp table tmp2 as(
         select id,seq,ref_order_id,order_no,"name",pallet_id,batch_id,product_id,warehouse_id,location_id,"zone",order_ref_no,packing_type,unit,qty,
-        opening_qty,weight,opening_weight,description,status,transaction_type,created_at,updated_at,domain_id,bizplace_id,creator_id,updater_id,
-        reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, inbound_qty as loose_amt, release_weight, inbound_weight,remaining_weight, inbound_weight as loose_wgt, null as cross_dock
+        opening_qty,std_unit_value,opening_std_unit_value,description,status,transaction_type,created_at,updated_at,domain_id,bizplace_id,creator_id,updater_id,
+        reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, inbound_qty as loose_amt, release_std_unit_value, 
+        inbound_std_unit_value,remaining_std_unit_value, inbound_std_unit_value as loose_wgt, null as cross_dock
         from tmp where release_qty > 0 or release_qty is null
         union all 
         select id,seq,ref_order_id,order_no,"name",pallet_id,batch_id,product_id,warehouse_id,location_id,"zone",order_ref_no,packing_type,unit,qty,
-        opening_qty,weight,opening_weight,description,status,transaction_type,created_at,updated_at,domain_id,bizplace_id,creator_id,updater_id,
-        reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, remaining_qty as loose_amt, release_weight, inbound_weight,remaining_weight, remaining_weight as loose_wgt, null as cross_dock
+        opening_qty,std_unit_value,opening_std_unit_value,description,status,transaction_type,created_at,updated_at,domain_id,bizplace_id,creator_id,updater_id,
+        reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, remaining_qty as loose_amt, release_std_unit_value,
+        inbound_std_unit_value,remaining_std_unit_value, remaining_std_unit_value as loose_wgt, null as cross_dock
         from tmp where release_qty < 0 and remaining_qty > 0
         union all 
         select id,seq,ref_order_id,order_no,"name",pallet_id,batch_id,product_id,warehouse_id,location_id,"zone",order_ref_no,packing_type,unit,qty,
-        opening_qty,weight,opening_weight,description,status,transaction_type,created_at,updated_at,domain_id,bizplace_id,creator_id,updater_id,
-        reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, -release_qty as loose_amt, release_weight,inbound_weight,remaining_weight, -release_weight as loose_wgt, '[C/D]' as cross_dock
+        opening_qty,std_unit_value,opening_std_unit_value,description,status,transaction_type,created_at,updated_at,domain_id,bizplace_id,creator_id,updater_id,
+        reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, -release_qty as loose_amt, release_std_unit_value,
+        inbound_std_unit_value,remaining_std_unit_value, -release_std_unit_value as loose_wgt, '[C/D]' as cross_dock
         from tmp where release_qty < 0
       )
     `
@@ -157,7 +160,8 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
           order by p2.name, reusable_pallet_id desc, cross_dock desc
         ) as sort
         from (
-          select product_id, reusable_pallet_id, packing_type, cross_dock, sum(qty) as ori_qty, sum(loose_amt) as qty, sum(coalesce(release_qty, 0)) as release_qty, sum(loose_wgt) as weight, count(distinct pallet_id) as pallet
+          select product_id, reusable_pallet_id, packing_type, cross_dock, sum(qty) as ori_qty, sum(loose_amt) as qty, sum(coalesce(release_qty, 0)) as release_qty, 
+          sum(loose_wgt) as std_unit_value, count(distinct pallet_id) as pallet
           from tmp2 
           group by cross_dock, reusable_pallet_id, product_id, packing_type
         ) as main
@@ -170,8 +174,8 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
 
     invItems = await trxMgr.query(
     `
-    select product_name, qty, weight, concat(remarks, ' ', cross_dock) as remarks from (
-      select product_name, sum(qty) as qty, sum(weight) as weight, string_agg(remarks,' ' order by product_name, sort, remarks) as remarks, cross_dock
+    select product_name, qty, std_unit_value, concat(remarks, ' ', cross_dock) as remarks from (
+      select product_name, sum(qty) as qty, sum(std_unit_value) as std_unit_value, string_agg(remarks,' ' order by product_name, sort, remarks) as remarks, cross_dock
       from tmp3 group by product_name, cross_dock
     ) as foo
     order by product_name, remarks
@@ -207,8 +211,8 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
         product_type: item.packing_type,
         product_batch: item.batch_id,
         product_qty: item.qty,
-        product_weight: item.weight,
-        unit_weight: Math.round((item.total_weight / item.total_qty) * 100) / 100,
+        product_std_unit_value: item.std_unit_value,
+        unit_std_unit_value: Math.round((item.total_std_unit_value / item.total_qty) * 100) / 100,
         pallet_qty: item.pallet_count,
         remark: item.remarks
       }

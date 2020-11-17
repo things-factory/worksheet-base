@@ -60,10 +60,10 @@ export const crossDockPickingResolver = {
       if (inventory.qty < releaseQty) throw new Error(`Release qty is bigger than what pallet has`)
       if (targetInv.releaseQty < releaseQty) throw new Error(`Release qty is bigger than required qty`)
 
-      const unitWeight: number = inventory.weight / inventory.qty
-      const releaseWeight: number = releaseQty * unitWeight
+      const unitStdUnitValue: number = inventory.stdUnitValue / inventory.qty
+      const releaseStdUnitValue: number = releaseQty * unitStdUnitValue
       const remainQty: number = targetInv.releaseQty - releaseQty
-      const remainWeight: number = targetInv.releaseWeight - releaseWeight
+      const remainStdUnitValue: number = targetInv.releaseStdUnitValue - releaseStdUnitValue
 
       const originWSD: WorksheetDetail = await fetchOriginalWSD(
         trxMgr,
@@ -80,18 +80,18 @@ export const crossDockPickingResolver = {
         // 1. update release amount
         // 2. assign inventory
         targetInv.releaseQty = releaseQty
-        targetInv.releaseWeight = releaseWeight
+        targetInv.releaseStdUnitValue = releaseStdUnitValue
 
         targetInv.inventory = inventory
         targetInv = await trxMgr.getRepository(OrderInventory).save(targetInv)
 
-        if (remainQty > 0 || remainWeight > 0) {
+        if (remainQty > 0 || remainStdUnitValue > 0) {
           // Need to create order inventory and worksheet detail without inventory assignment
           let targetInventory: OrderInventory = trxMgr.getRepository(OrderInventory).create(targetInv)
           delete targetInventory.id
           targetInventory.name = OrderNoGenerator.orderInventory()
           targetInventory.releaseQty = remainQty
-          targetInventory.releaseWeight = remainWeight
+          targetInventory.releaseStdUnitValue = remainStdUnitValue
           targetInventory.inventory = null
           targetInventory.creator = user
           targetInventory.updater = user
@@ -107,15 +107,15 @@ export const crossDockPickingResolver = {
           relations: ['targetInventory']
         })
         originOrdInv.releaseQty += releaseQty
-        originOrdInv.releaseWeight += releaseWeight
+        originOrdInv.releaseStdUnitValue += releaseStdUnitValue
         originOrdInv.updater = user
         await trxMgr.getRepository(OrderInventory).save(originOrdInv)
 
         targetInv.releaseQty -= releaseQty
-        targetInv.releaseWeight -= releaseWeight
+        targetInv.releaseStdUnitValue -= releaseStdUnitValue
         targetInv.updater = user
 
-        if (targetInv.releaseQty === 0 || targetInv.releaseWeight === 0) {
+        if (targetInv.releaseQty === 0 || targetInv.releaseStdUnitValue === 0) {
           // Delete worksheet detail
           await trxMgr.getRepository(WorksheetDetail).delete(wsd.id)
           // Delete order inventory

@@ -134,7 +134,7 @@ export async function renderKimedaGRN({ domain: domainName, grnNo }) {
         product_type: item.packingType,
         product_batch: item.batchId,
         product_qty: item.actualPackQty,
-        unit_weight: item.weight,
+        unit_std_unit_value: item.std_unit_value,
         pallet_qty: item.actualPalletQty,
         remark: item.remark
       }

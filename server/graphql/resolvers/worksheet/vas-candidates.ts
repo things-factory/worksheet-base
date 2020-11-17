@@ -73,7 +73,7 @@ export const vasCandidatesResolver = {
        * @description
        * If current worksheet is comes together with release good.
        * VAS order should be done before processing loading.
-       * And qty and weight information for target inventories should be originated from orderInventories
+       * And qty and stdUnitValue information for target inventories should be originated from orderInventories
        */
 
       if (orderType === OrderType.ReleaseGood) {
@@ -91,7 +91,7 @@ export const vasCandidatesResolver = {
             return {
               ...inventory,
               qty: orderInv.releaseQty,
-              weight: orderInv.releaseWeight
+              stdUnitValue: orderInv.releaseStdUnitValue
             }
           })
         )

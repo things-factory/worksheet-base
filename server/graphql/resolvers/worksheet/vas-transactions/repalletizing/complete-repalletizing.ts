@@ -42,7 +42,7 @@ export async function completeRepalletizing(trxMgr: EntityManager, orderVas: Ord
     const repalletizedFromList: PalletChangesInterface[] = ri.repalletizedFrom.filter(
       (rf: PalletChangesInterface) => rf.toPalletId === ri.palletId
     )
-    const { qty, weight } = getCurrentAmount(repalletizedFromList, ri.palletId)
+    const { qty, stdUnitValue } = getCurrentAmount(repalletizedFromList, ri.palletId)
     const changedInv: Inventory = await upsertInventory(
       trxMgr,
       domain,
@@ -54,7 +54,7 @@ export async function completeRepalletizing(trxMgr: EntityManager, orderVas: Ord
       ri.locationName,
       originInv.packingType,
       qty,
-      weight,
+      stdUnitValue,
       INVENTORY_TRANSACTION_TYPE.REPALLETIZING
     )
 
@@ -67,7 +67,7 @@ export async function completeRepalletizing(trxMgr: EntityManager, orderVas: Ord
       refOrder,
       originInv,
       qty,
-      weight,
+      stdUnitValue,
       INVENTORY_TRANSACTION_TYPE.REPALLETIZING
     )
 

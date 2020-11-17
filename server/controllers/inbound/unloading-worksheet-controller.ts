@@ -136,8 +136,10 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     const batchId: string = targetProduct.batchId
     const product: Product = targetProduct.product
     const packingType: string = targetProduct.packingType
+    const stdUnit: string = targetProduct.stdUnit
     const qty: number = inventory.qty
     const weight: number = Math.round(qty * targetProduct.weight * 100) / 100
+    const stdUnitValue: number = Math.round(qty * targetProduct.stdUnitValue * 100) / 100
     const location: Location = worksheet.bufferLocation
     const warehouse: Warehouse = location.warehouse
     const zone: string = location.zone
@@ -149,8 +151,10 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     newInventory.batchId = batchId
     newInventory.product = product
     newInventory.packingType = packingType
+    newInventory.stdUnit = stdUnit
     newInventory.qty = qty
     newInventory.weight = weight
+    newInventory.stdUnitValue = stdUnitValue
     newInventory.refOrderId = arrivalNotice.id
     if (inventory.reusablePallet?.id) {
       newInventory.reusablePallet = await this.trxMgr.getRepository(Pallet).findOne(inventory.reusablePallet.id)
@@ -164,7 +168,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
       newInventory,
       arrivalNotice,
       newInventory.qty,
-      newInventory.weight,
+      newInventory.stdUnitValue,
       INVENTORY_TRANSACTION_TYPE.UNLOADING
     )
 
@@ -218,15 +222,24 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     inventory.status = INVENTORY_STATUS.DELETED
     inventory.qty = 0
     inventory.weight = 0
+    inventory.stdUnitValue = 0
     inventory.updater = this.user
     inventory = await this.transactionInventory(
       inventory,
       arrivalNotice,
       -inventory.qty,
-      -inventory.weight,
+      -inventory.stdUnitValue,
       INVENTORY_TRANSACTION_TYPE.UNDO_UNLOADING
     )
-    await this.trxMgr.getRepository(Inventory).delete(inventory.id)
+    
+    await this.trxMgr.getRepository(Inventory).update(
+      {
+        id: inventory.id
+      },
+      {
+        status: INVENTORY_STATUS.TERMINATED
+      }
+    )
   }
 
   async activateUnloading(

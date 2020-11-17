@@ -119,6 +119,7 @@ export async function renderDO({ domain: domainName, doNo }) {
         product_batch: inventory.batchId,
         product_qty: targetInventory.releaseQty,
         product_weight: targetInventory.releaseWeight,
+        product_std_unit_value: targetInventory.releaseStdUnitValue,
         remark: targetInventory.remark,
         cross_docking: targetInventory.crossDocking,
         pallet: inventory?.reusablePallet && inventory?.reusablePallet?.name ? inventory.reusablePallet.name : ''
@@ -138,6 +139,7 @@ export async function renderDO({ domain: domainName, doNo }) {
           product_batch: item.product_batch,
           product_qty: item.product_qty,
           product_weight: item.product_weight,
+          product_std_unit_value: item.product_std_unit_value,
           remark: item.remark,
           palletQty: 1,
           cross_docking: item.cross_docking,
@@ -158,7 +160,8 @@ export async function renderDO({ domain: domainName, doNo }) {
               ...ni,
               palletQty: ni.palletQty + 1,
               product_qty: ni.product_qty + item.product_qty,
-              product_weight: ni.product_weight + item.product_weight
+              product_weight: ni.product_weight + item.product_weight,
+              product_std_unit_value: ni.product_std_unit_value + item.product_std_unit_value
             }
           } else {
             return ni

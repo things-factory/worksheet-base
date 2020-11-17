@@ -117,18 +117,21 @@ export class CycleCountWorksheetController extends WorksheetController {
         targetInventory.name = OrderNoGenerator.orderInventory()
         targetInventory.inventoryCheck = cycleCount
         targetInventory.originQty = inventory.qty
-        targetInventory.originWeight = inventory.weight
+        targetInventory.originWeight = 0
+        targetInventory.originStdUnitValue = inventory.stdUnitValue
         targetInventory.originBatchNo = inventory.batchId
         targetInventory.originLocation = inventory.location
         targetInventory.releaseQty = 0
         targetInventory.releaseWeight = 0
+        targetInventory.releaseStdUnitValue = 0
         targetInventory.inventory = inventory
         targetInventory.creator = this.user
         targetInventory.updater = this.user
         targetInventories.push(targetInventory)
 
         inventory.lockedQty = inventory.qty
-        inventory.lockedWeight = inventory.weight
+        inventory.lockedWeight = 0
+        inventory.lockedStdUnitValue = inventory.stdUnitValue
         inventory.updater = this.user
       }
 
@@ -198,7 +201,7 @@ export class CycleCountWorksheetController extends WorksheetController {
     worksheetDetailName: string,
     inspectedBatchNo: string,
     inspectedQty: number,
-    inspectedWeight: number
+    inspectedStdUnitValue: number
   ): Promise<void> {
     let worksheetDetail: WorksheetDetail = await this.findExecutableWorksheetDetailByName(
       worksheetDetailName,
@@ -208,9 +211,9 @@ export class CycleCountWorksheetController extends WorksheetController {
 
     let targetInventory: OrderInventory = worksheetDetail.targetInventory
     const inventory: Inventory = targetInventory.inventory
-    const { batchId, qty, weight }: { batchId: string; qty: number; weight: number } = inventory
+    const { batchId, qty, stdUnitValue }: { batchId: string; qty: number; stdUnitValue: number } = inventory
 
-    const isChanged: boolean = batchId !== inspectedBatchNo || qty !== inspectedQty || weight !== inspectedWeight
+    const isChanged: boolean = batchId !== inspectedBatchNo || qty !== inspectedQty || stdUnitValue !== inspectedStdUnitValue
     const worksheetDetailStatus: string = isChanged ? WORKSHEET_STATUS.NOT_TALLY : WORKSHEET_STATUS.DONE
     const targetInventoryStatus: string = isChanged
       ? ORDER_INVENTORY_STATUS.NOT_TALLY
@@ -222,7 +225,7 @@ export class CycleCountWorksheetController extends WorksheetController {
 
     targetInventory.inspectedBatchNo = inspectedBatchNo
     targetInventory.inspectedQty = inspectedQty
-    targetInventory.inspectedWeight = inspectedWeight
+    targetInventory.inspectedStdUnitValue = inspectedStdUnitValue
     targetInventory.inspectedLocation = targetInventory.inventory.location
     targetInventory.status = targetInventoryStatus
     targetInventory.updater = this.user
@@ -239,6 +242,7 @@ export class CycleCountWorksheetController extends WorksheetController {
     targetInventory.inspectedBatchNo = null
     targetInventory.inspectedQty = null
     targetInventory.inspectedWeight = null
+    targetInventory.inspectedStdUnitValue = null
     targetInventory.inspectedLocation = null
     targetInventory.status =
     targetInventory.status === ORDER_INVENTORY_STATUS.RELOCATED
@@ -269,7 +273,7 @@ export class CycleCountWorksheetController extends WorksheetController {
     await this.updateOrderTargets([targetInventory])  
   }
 
-  async addExtraPallet(cycleCountNo: string, palletId: string, inspectedBatchNo: string, inspectedQty: number, inspectedWeight: number, locationName: string): Promise<void> {
+  async addExtraPallet(cycleCountNo: string, palletId: string, inspectedBatchNo: string, inspectedQty: number, inspectedStdUnitValue: number, locationName: string): Promise<void> {
     const inventoryCheck: InventoryCheck = await this.findRefOrder(
       InventoryCheck, 
       {
@@ -311,7 +315,8 @@ export class CycleCountWorksheetController extends WorksheetController {
     targetInventory.inventory = inventory
     targetInventory.inspectedBatchNo = inspectedBatchNo
     targetInventory.inspectedQty = inspectedQty
-    targetInventory.inspectedWeight = inspectedWeight
+    targetInventory.inspectedWeight = 0
+    targetInventory.inspectedStdUnitValue = inspectedStdUnitValue
     targetInventory.inspectedLocation = location
     targetInventory.creator = this.user
     targetInventory.updater = this.user
@@ -330,7 +335,7 @@ export class CycleCountWorksheetController extends WorksheetController {
     await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
   }
 
-  async relocatePallet( worksheetDetailName: string, inspectedBatchNo: string, inspectedQty: number, inspectedWeight: number, inspectedLocationName: string ): Promise<void> {
+  async relocatePallet( worksheetDetailName: string, inspectedBatchNo: string, inspectedQty: number, inspectedStdUnitValue: number, inspectedLocationName: string ): Promise<void> {
     let worksheetDetail: WorksheetDetail = await this.trxMgr.getRepository(WorksheetDetail).findOne({
       where: { domain: this.domain, name: worksheetDetailName, type: WORKSHEET_TYPE.CYCLE_COUNT },
       relations: ['targetInventory', 'targetInventory.inventory', 'targetInventory.inventory.location']
@@ -353,7 +358,8 @@ export class CycleCountWorksheetController extends WorksheetController {
     targetInventory.inspectedLocation = inspectedLocation
     targetInventory.inspectedBatchNo = inspectedBatchNo
     targetInventory.inspectedQty = inspectedQty
-    targetInventory.inspectedWeight = inspectedWeight
+    targetInventory.inspectedWeight = 0
+    targetInventory.inspectedStdUnitValue = inspectedStdUnitValue    
     targetInventory.status = ORDER_INVENTORY_STATUS.RELOCATED
     targetInventory.updater = this.user
     await this.updateOrderTargets([targetInventory])  
@@ -411,6 +417,7 @@ export class CycleCountWorksheetController extends WorksheetController {
     tallyInventories.forEach((inventory: Inventory) => {
       inventory.lockedQty = 0
       inventory.lockedWeight = 0
+      inventory.lockedStdUnitValue = 0
       inventory.updater = this.user
     })
     await this.trxMgr.getRepository(Inventory).save(tallyInventories, { chunk: 500 })

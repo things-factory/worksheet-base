@@ -271,7 +271,7 @@ export const Mutation = /* GraphQL */ `
     worksheetDetailName: String!
     inspectedBatchNo: String!
     inspectedQty: Int!
-    inspectedWeight: Float!
+    inspectedStdUnitValue: Float!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
   undoInspection (
@@ -286,7 +286,7 @@ export const Mutation = /* GraphQL */ `
     worksheetDetailName: String!
     inspectedBatchNo: String!
     inspectedQty: Int!
-    inspectedWeight: Float!
+    inspectedStdUnitValue: Float!
     inspectedLocationName: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
@@ -295,7 +295,7 @@ export const Mutation = /* GraphQL */ `
     palletId: String!
     inspectedBatchNo: String!
     inspectedQty: Int!
-    inspectedWeight: Float!
+    inspectedStdUnitValue: Float!
     locationName: String!
   ): Boolean @priviledge(category: "worksheet_execute", priviledge: "mutation")
 
@@ -495,7 +495,7 @@ export const Query = /* GraphQL */ `
     batchId: String!,
     productId: String!,
     packingType: String!,
-    unitWeight: Int!
+    unitStdUnitValue: Int!
   ): Boolean @priviledge(category: "inventory", priviledge: "query")
 
   havingVas (

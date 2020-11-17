@@ -4,7 +4,7 @@ import { EntityManager, getManager } from 'typeorm'
 import { CycleCountWorksheetController } from '../../../../controllers'
 
 export const inspectingResolver = {
-  async inspecting(_: any, { worksheetDetailName, inspectedBatchNo, inspectedQty, inspectedWeight }, context: any) {
+  async inspecting(_: any, { worksheetDetailName, inspectedBatchNo, inspectedQty, inspectedStdUnitValue }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const { domain, user }: { domain: Domain; user: User } = context.state
       await executeInspection(
@@ -14,7 +14,7 @@ export const inspectingResolver = {
         worksheetDetailName,
         inspectedBatchNo,
         inspectedQty,
-        inspectedWeight
+        inspectedStdUnitValue
       )
     })
   }
@@ -27,8 +27,8 @@ export async function executeInspection(
   worksheetDetailName: string,
   inspectedBatchNo: string,
   inspectedQty: number,
-  inspectedWeight: number
+  inspectedStdUnitValue: number
 ) {
   const worksheetController: CycleCountWorksheetController = new CycleCountWorksheetController(trxMgr, domain, user)
-  await worksheetController.inspecting(worksheetDetailName, inspectedBatchNo, inspectedQty, inspectedWeight)
+  await worksheetController.inspecting(worksheetDetailName, inspectedBatchNo, inspectedQty, inspectedStdUnitValue)
 }

@@ -83,12 +83,12 @@ export class VasWorksheetController extends WorksheetController {
         delete newTargetVAS.id
 
         inventory = await this.trxMgr.getRepository(Inventory).findOne(inventory.id)
-        const unitWeight: number = inventory.weight / inventory.qty
+        const unitStdUnitValue: number = inventory.stdUnitValue / inventory.qty
 
         newTargetVAS.domain = this.domain
         newTargetVAS.name = OrderNoGenerator.orderVas()
         newTargetVAS.qty = inventories.qty
-        newTargetVAS.weight = inventory.qty * unitWeight
+        newTargetVAS.stdUnitValue = inventory.qty * unitStdUnitValue
         newTargetVAS.inventory = inventory
         newTargetVAS.creator = this.user
         newTargetVAS.updater = this.user
