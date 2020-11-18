@@ -57,6 +57,7 @@ export const cycleCountWorksheetResolver = {
           product: inventory?.product,
           qty: inventory?.qty,
           stdUnitValue: inventory?.stdUnitValue,
+          stdUnit: inventory?.stdUnit,
           inspectedQty: targetInventory.inspectedQty,
           inspectedStdUnitValue: targetInventory.inspectedStdUnitValue,
           inspectedLocation: targetInventory.inspectedLocation,

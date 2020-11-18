@@ -14,6 +14,7 @@ export const WorksheetDetailInfo = gql`
     adjustedPalletQty: Int
     adjustedBatchId: String
     qty: Int
+    stdUnit: String
     stdUnitValue: Float
     releaseQty: Float
     releaseStdUnitValue: Float
