@@ -67,7 +67,7 @@ export const confirmCancellationReleaseOrder = {
                   ...inv,
                   qty: foundInv.qty + oi.releaseQty,
                   weight: 0,
-                  stdUnitValue: foundInv.stdUnitValue + oi.releaseStdUnitValue,
+                  uomValue: foundInv.uomValue + oi.releaseUomValue,
                   status: INVENTORY_STATUS.STORED,
                   updater: context.state.user
                 }
@@ -78,7 +78,7 @@ export const confirmCancellationReleaseOrder = {
                   foundRO,
                   INVENTORY_TRANSACTION_TYPE.CANCEL_ORDER,
                   oi.releaseQty,
-                  oi.releaseStdUnitValue,
+                  oi.releaseUomValue,
                   context.state.user,
                   trxMgr
                 )
@@ -112,7 +112,7 @@ export const confirmCancellationReleaseOrder = {
                   ...cancelledInv,
                   lockedQty: foundInv.lockedQty - oi.releaseQty,
                   lockedWeight: 0,
-                  lockedStdUnitValue: 0
+                  lockedUomValue: 0
                 })
 
                 await generateInventoryHistory(

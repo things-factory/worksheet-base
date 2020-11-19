@@ -61,7 +61,7 @@ export async function cycleCountAdjustment(
     let inventory: Inventory = targetInventory.inventory
 
     const transactQty: number = targetInventory.inspectedQty - inventory.qty
-    const transactStdUnitValue: number = targetInventory.inspectedStdUnitValue - inventory.stdUnitValue
+    const transactUomValue: number = targetInventory.inspectedUomValue - inventory.uomValue
 
     if (targetInventory.status === ORDER_INVENTORY_STATUS.MISSING) {
 
@@ -71,15 +71,15 @@ export async function cycleCountAdjustment(
         cycleCount,
         INVENTORY_TRANSACTION_TYPE.CC_ADJUSTMENT,
         -inventory.qty,
-        -inventory.stdUnitValue,
+        -inventory.uomValue,
         user,
         trxMgr
       )
       
       inventory.qty = 0
-      inventory.stdUnitValue = 0
+      inventory.uomValue = 0
       inventory.lockedQty = 0
-      inventory.lockedstdUnitValue = 0
+      inventory.lockeduomValue = 0
       inventory.updater = user
       inventory.status = INVENTORY_STATUS.TERMINATED
       inventory = await trxMgr.getRepository(Inventory).save(inventory)
@@ -93,7 +93,7 @@ export async function cycleCountAdjustment(
         cycleCount,
         INVENTORY_TRANSACTION_TYPE.CC_ADJUSTMENT,
         transactQty,
-        transactStdUnitValue,
+        transactUomValue,
         user,
         trxMgr
       )
@@ -102,8 +102,8 @@ export async function cycleCountAdjustment(
       inventory.batchId = targetInventory.inspectedBatchNo
       inventory.qty = targetInventory.inspectedQty
       inventory.lockedQty = 0
-      inventory.stdUnitValue = targetInventory.inspectedStdUnitValue
-      inventory.lockedStdUnitValue = 0
+      inventory.uomValue = targetInventory.inspectedUomValue
+      inventory.lockedUomValue = 0
       inventory.location = targetInventory.inspectedLocation
       inventory.warehouse = targetInventory.inspectedLocation.warehouse
       inventory.status = INVENTORY_STATUS.TERMINATED
@@ -123,7 +123,7 @@ export async function cycleCountAdjustment(
           cycleCount,
           INVENTORY_TRANSACTION_TYPE.CC_ADJUSTMENT,
           -transactQty,
-          -transactStdUnitValue,
+          -transactUomValue,
           user,
           trxMgr
         )
@@ -132,8 +132,8 @@ export async function cycleCountAdjustment(
       inventory.batchId = targetInventory.inspectedBatchNo
       inventory.qty = targetInventory.inspectedQty
       inventory.lockedQty = 0
-      inventory.stdUnitValue = targetInventory.inspectedStdUnitValue
-      inventory.lockedStdUnitValue = 0
+      inventory.uomValue = targetInventory.inspectedUomValue
+      inventory.lockedUomValue = 0
       inventory.location = targetInventory.inspectedLocation
       inventory.warehouse = targetInventory.inspectedLocation.warehouse
       inventory.status = INVENTORY_STATUS.STORED
@@ -150,7 +150,7 @@ export async function cycleCountAdjustment(
         cycleCount,
         INVENTORY_TRANSACTION_TYPE.CC_ADJUSTMENT,
         transactQty,
-        transactStdUnitValue,
+        transactUomValue,
         user,
         trxMgr
       )

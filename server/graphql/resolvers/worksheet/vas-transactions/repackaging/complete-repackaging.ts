@@ -41,8 +41,8 @@ export async function completeRepackaging(trxMgr: EntityManager, orderVas: Order
     const repackedFromList: PalletChangesInterface[] = ri.repackedFrom.filter(
       (rf: PalletChangesInterface) => rf.toPalletId === ri.palletId
     )
-    const { qty, stdUnitValue } = getCurrentAmount(repackedFromList, ri.palletId)
-    const repackedPkgQty: number = packingUnit === PackingUnits.QTY ? qty / stdAmount : stdUnitValue / stdAmount
+    const { qty, uomValue } = getCurrentAmount(repackedFromList, ri.palletId)
+    const repackedPkgQty: number = packingUnit === PackingUnits.QTY ? qty / stdAmount : uomValue / stdAmount
 
     const changedInv: Inventory = await upsertInventory(
       trxMgr,
@@ -55,7 +55,7 @@ export async function completeRepackaging(trxMgr: EntityManager, orderVas: Order
       ri.locationName,
       toPackingType,
       repackedPkgQty,
-      stdUnitValue,
+      uomValue,
       INVENTORY_TRANSACTION_TYPE.REPACKAGING
     )
 
@@ -68,7 +68,7 @@ export async function completeRepackaging(trxMgr: EntityManager, orderVas: Order
       refOrder,
       originInv,
       qty,
-      stdUnitValue,
+      uomValue,
       INVENTORY_TRANSACTION_TYPE.REPACKAGING
     )
 

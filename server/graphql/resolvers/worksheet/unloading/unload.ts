@@ -20,6 +20,6 @@ async function unload(
   worksheetDetailName: string,
   inventory: Partial<Inventory>
 ): Promise<void> {
-  const worksheetController: UnloadingWorksheetController = new UnloadingWorksheetController(trxMgr, domain, user)
-  await worksheetController.unload(worksheetDetailName, inventory)
+    const worksheetController: UnloadingWorksheetController = new UnloadingWorksheetController(trxMgr, domain, user)
+    await worksheetController.unload(worksheetDetailName, inventory)
 }

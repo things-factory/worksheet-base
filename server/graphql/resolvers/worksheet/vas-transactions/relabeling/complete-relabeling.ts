@@ -56,13 +56,13 @@ export async function completeRelabeling(trxMgr: EntityManager, orderVas: OrderV
       palletChange.locationName,
       copiedInv.packingType,
       palletChange.reducedQty,
-      palletChange.reducedStdUnitValue,
+      palletChange.reducedUomValue,
       INVENTORY_TRANSACTION_TYPE.RELABELING
     )
 
-    const { reducedQty, reducedStdUnitValue } = getReducedAmount(palletChanges, orderVas.inventory.palletId)
+    const { reducedQty, reducedUomValue } = getReducedAmount(palletChanges, orderVas.inventory.palletId)
     // Deduct amount of product on original pallet or order inventory (Case for release order)
-    // originInv = await deductProductAmount(trxMgr, domain, bizplace, user, refOrder, originInv, qty, stdUnitValue)
+    // originInv = await deductProductAmount(trxMgr, domain, bizplace, user, refOrder, originInv, qty, uomValue)
     originInv = await deductProductAmount(
       trxMgr,
       domain,
@@ -71,7 +71,7 @@ export async function completeRelabeling(trxMgr: EntityManager, orderVas: OrderV
       refOrder,
       originInv,
       reducedQty,
-      reducedStdUnitValue,
+      reducedUomValue,
       INVENTORY_TRANSACTION_TYPE.RELABELING
     )
 

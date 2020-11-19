@@ -79,7 +79,7 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
       `
       create temp table temp_invHistory as (
         select i2.id as inventory_id, i2.pallet_id, i2.product_id, i2.packing_type, i2.batch_id,
-        ih.id as inventory_history_id, ih.seq, ih.status, ih.transaction_type, ih.qty, ih.opening_qty, ih.std_unit_value, ih.opening_std_unit_value, 
+        ih.id as inventory_history_id, ih.seq, ih.status, ih.transaction_type, ih.qty, ih.opening_qty, ih.uom_value, ih.opening_uom_value, 
         ih.created_at
         from (
           select i2.* from inventories i2 

@@ -44,7 +44,7 @@ export const undoRepackagingResolver = {
       // 완전히 Repacked 상태인 pallet count
       const repackedPkgQty: number =
         undoInventory.repackedFrom.reduce((totalAmount: number, rf: PalletChangesInterface) => {
-          const amount: number = packingUnit === PackingUnits.QTY ? rf.reducedQty : rf.reducedStdUnitValue
+          const amount: number = packingUnit === PackingUnits.QTY ? rf.reducedQty : rf.reducedUomValue
           totalAmount += amount
           return totalAmount
         }, 0) / stdAmount
@@ -119,21 +119,21 @@ async function getRequiredPackageQty(
   })
 
   const orderVASs: OrderVas[] = relatedWSDs.map((wsd: WorksheetDetail) => wsd.targetVas)
-  const { qty, stdUnitValue } = orderVASs
+  const { qty, uomValue } = orderVASs
     .filter((ov: OrderVas) => ov.set === currentOV.set && ov.vas.id === currentOV.vas.id)
     .reduce(
-      (total: { qty: number; stdUnitValue: number }, ov: OrderVas) => {
+      (total: { qty: number; uomValue: number }, ov: OrderVas) => {
         total.qty += ov.qty
-        total.stdUnitValue += ov.stdUnitValue
+        total.uomValue += ov.uomValue
 
         return total
       },
-      { qty: 0, stdUnitValue: 0 }
+      { qty: 0, uomValue: 0 }
     )
 
   if (packingUnit === PackingUnits.QTY) {
     return qty / stdAmount
-  } else if (packingUnit === PackingUnits.STDUNIT) {
-    return stdUnitValue / stdAmount
+  } else if (packingUnit === PackingUnits.UOM) {
+    return uomValue / stdAmount
   }
 }

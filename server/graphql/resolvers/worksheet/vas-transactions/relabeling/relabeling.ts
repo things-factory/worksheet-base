@@ -53,7 +53,7 @@ export const relabelingResolver = {
       let operationGuideData: RelabelingGuide = operationGuide.data
       if (!operationGuideData.relabeledFrom) operationGuideData.relabeledFrom = []
       const palletChanges: PalletChangesInterface[] = operationGuideData.relabeledFrom
-      const { remainQty, remainStdUnitValue } = await getRemainInventoryAmount(
+      const { remainQty, remainUomValue } = await getRemainInventoryAmount(
         trxMgr,
         refOrder,
         domain,
@@ -63,12 +63,12 @@ export const relabelingResolver = {
         fromPalletId
       )
 
-      const unitStdUnitValue: number = remainStdUnitValue / remainQty
+      const unitUomValue: number = remainUomValue / remainQty
       let newPalletChange: PalletChangesInterface = {
         fromPalletId,
         toPalletId,
         reducedQty: 0,
-        reducedStdUnitValue: 0
+        reducedUomValue: 0
       }
       if (locationName) {
         newPalletChange.locationName = locationName
@@ -80,11 +80,11 @@ export const relabelingResolver = {
       if (remainQty < targetVas.qty) {
         // 남은 수량으로 전체 작업을 처리할 수 없는 경우
         newPalletChange.reducedQty = remainQty
-        newPalletChange.reducedStdUnitValue = remainQty * unitStdUnitValue
+        newPalletChange.reducedUomValue = remainQty * unitUomValue
       } else {
         // 남은 수량으로 전체 작업을 처리할 수 있는 경우
         newPalletChange.reducedQty = targetVas.qty
-        newPalletChange.reducedStdUnitValue = targetVas.stdUnitValue
+        newPalletChange.reducedUomValue = targetVas.uomValue
       }
 
       palletChanges.push(newPalletChange)

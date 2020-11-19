@@ -76,12 +76,12 @@ export const inventoriesByPalletResolver = {
 
     items = await Promise.all(
       items.map(async (item: Inventory) => {
-        const { remainQty, remainStdUnitValue } = await getRemainAmount(item)
+        const { remainQty, remainUomValue } = await getRemainAmount(item)
 
         return {
           ...item,
           remainQty,
-          remainStdUnitValue
+          remainUomValue
         }
       })
     )
@@ -90,9 +90,9 @@ export const inventoriesByPalletResolver = {
   }
 }
 
-async function getRemainAmount(inventory: Inventory): Promise<{ remainQty: number; remainStdUnitValue: number }> {
+async function getRemainAmount(inventory: Inventory): Promise<{ remainQty: number; remainUomValue: number }> {
   return {
     remainQty: inventory.qty - inventory.lockedQty,
-    remainStdUnitValue: inventory.stdUnitValue - inventory.lockedStdUnitValue
+    remainUomValue: inventory.uomValue - inventory.lockedUomValue
   }
 }

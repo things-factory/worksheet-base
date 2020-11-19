@@ -111,8 +111,8 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
       `
       create temp table tmp as(
         select invh.*, invh2.ref_order_id as release_order_id, invh2.qty as release_qty, invh.qty as inbound_qty, 
-        invh.qty + invh2.qty as remaining_qty, invh2.std_unit_value as release_weight, invh.std_unit_value as inbound_weight, 
-        invh.std_unit_value + invh2.std_unit_value as remaining_weight
+        invh.qty + invh2.qty as remaining_qty, invh2.uom_value as release_weight, invh.uom_value as inbound_weight, 
+        invh.uom_value + invh2.uom_value as remaining_weight
         from reduced_inventory_histories invh 
         left join reduced_inventory_histories invh2 on 
           invh2.domain_id = invh.domain_id and 
@@ -128,17 +128,17 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
     await trxMgr.query(
       `
       create temp table tmp2 as(
-        select id,seq,ref_order_id,order_no,"name",pallet_id,batch_id,product_id,warehouse_id,location_id,"zone",order_ref_no,packing_type,std_unit as unit,qty,
+        select id,seq,ref_order_id,order_no,"name",pallet_id,batch_id,product_id,warehouse_id,location_id,"zone",order_ref_no,packing_type,uom as unit,qty,
         opening_qty,weight,opening_weight,description,status,transaction_type,created_at,updated_at,domain_id,bizplace_id,creator_id,updater_id,
         reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, inbound_qty as loose_amt, release_weight, inbound_weight,remaining_weight, inbound_weight as loose_wgt, null as cross_dock
         from tmp where release_qty > 0 or release_qty is null
         union all 
-        select id,seq,ref_order_id,order_no,"name",pallet_id,batch_id,product_id,warehouse_id,location_id,"zone",order_ref_no,packing_type,std_unit as unit,qty,
+        select id,seq,ref_order_id,order_no,"name",pallet_id,batch_id,product_id,warehouse_id,location_id,"zone",order_ref_no,packing_type,uom as unit,qty,
         opening_qty,weight,opening_weight,description,status,transaction_type,created_at,updated_at,domain_id,bizplace_id,creator_id,updater_id,
         reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, remaining_qty as loose_amt, release_weight, inbound_weight,remaining_weight, remaining_weight as loose_wgt, null as cross_dock
         from tmp where release_qty < 0 and remaining_qty > 0
         union all 
-        select id,seq,ref_order_id,order_no,"name",pallet_id,batch_id,product_id,warehouse_id,location_id,"zone",order_ref_no,packing_type,std_unit as unit,qty,
+        select id,seq,ref_order_id,order_no,"name",pallet_id,batch_id,product_id,warehouse_id,location_id,"zone",order_ref_no,packing_type,uom as unit,qty,
         opening_qty,weight,opening_weight,description,status,transaction_type,created_at,updated_at,domain_id,bizplace_id,creator_id,updater_id,
         reusable_pallet_id,release_order_id,release_qty,inbound_qty,remaining_qty, -release_qty as loose_amt, release_weight,inbound_weight,remaining_weight, -release_weight as loose_wgt, '[C/D]' as cross_dock
         from tmp where release_qty < 0
@@ -175,7 +175,7 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
         from tmp3 group by product_name, cross_dock
       ) as foo
       union 
-      select vas.name as product_name, qty, 0 as std_unit_value, '' as remarks, 1 as rank 
+      select vas.name as product_name, qty, 0 as uom_value, '' as remarks, 1 as rank 
       from order_vass ov 
       inner join vass vas on vas.id = ov.vas_id 
       where arrival_notice_id = $1 and vas.type = 'MATERIALS'

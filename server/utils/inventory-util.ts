@@ -21,7 +21,7 @@ export async function generateInventoryHistory(
   refOrder: any,
   transactionType: string,
   qty: number,
-  stdUnitValue: number,
+  uomValue: number,
   user: User,
   trxMgr?: EntityManager
 ): Promise<InventoryHistory> {
@@ -49,7 +49,7 @@ export async function generateInventoryHistory(
 
   const seq: number = await invHistoryRepo.count({ domain: inventory.domain, palletId: inventory.palletId })
   let openingQty: number = 0
-  let openingStdUnitValue: number = 0
+  let openingUomValue: number = 0
 
   if (seq) {
     const lastInvHistory: InventoryHistory = await invHistoryRepo.findOne({
@@ -58,7 +58,7 @@ export async function generateInventoryHistory(
       seq: seq - 1
     })
     openingQty = lastInvHistory.openingQty + lastInvHistory.qty
-    openingStdUnitValue = lastInvHistory.stdUnitValue + lastInvHistory.stdUnitValue
+    openingUomValue = lastInvHistory.uomValue + lastInvHistory.uomValue
   }
 
   let inventoryHistory: InventoryHistory = {
@@ -78,8 +78,8 @@ export async function generateInventoryHistory(
     openingQty,
     weight: 0,
     openingWeight: 0,
-    stdUnitValue,
-    openingStdUnitValue,
+    uomValue,
+    openingUomValue,
     creator: user,
     updater: user
   }

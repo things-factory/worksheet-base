@@ -109,12 +109,12 @@ export class LoadingWorksheetController extends VasWorksheetController {
         await this.updateOrderTargets([targetInventory])
       } else if (loadedQty < pickedQty) {
         const remainQty: number = pickedQty - loadedQty
-        const loadedStdUnitValue: number = parseFloat(((targetInventory.releaseStdUnitValue / pickedQty) * loadedQty).toFixed(2))
-        const remainStdUnitValue: number = parseFloat((targetInventory.releaseStdUnitValue - loadedStdUnitValue).toFixed(2))
+        const loadedUomValue: number = parseFloat(((targetInventory.releaseUomValue / pickedQty) * loadedQty).toFixed(2))
+        const remainUomValue: number = parseFloat((targetInventory.releaseUomValue - loadedUomValue).toFixed(2))
 
         targetInventory.status = ORDER_INVENTORY_STATUS.LOADED
         targetInventory.releaseQty = loadedQty
-        targetInventory.releaseStdUnitValue = loadedStdUnitValue
+        targetInventory.releaseUomValue = loadedUomValue
         targetInventory.updater = this.user
         await this.updateOrderTargets([targetInventory])
 
@@ -132,7 +132,7 @@ export class LoadingWorksheetController extends VasWorksheetController {
         newTargetInventory.type = ORDER_TYPES.RELEASE_OF_GOODS
         newTargetInventory.status = ORDER_INVENTORY_STATUS.LOADING
         newTargetInventory.releaseQty = remainQty
-        newTargetInventory.releaseStdUnitValue = remainStdUnitValue
+        newTargetInventory.releaseUomValue = remainUomValue
         newTargetInventory.creator = this.user
         newTargetInventory.updater = this.user
         newTargetInventory = await this.trxMgr.getRepository(OrderInventory).save(newTargetInventory)
@@ -189,9 +189,9 @@ export class LoadingWorksheetController extends VasWorksheetController {
 
       if (prevTargetInventory) {
         // If there's prev target inventory
-        // Merge qty and stdUnitValue into prev target inventory
+        // Merge qty and uomValue into prev target inventory
         prevTargetInventory.releaseQty += undoTargetOrderInventory.releaseQty
-        prevTargetInventory.releaseStdUnitValue += undoTargetOrderInventory.releaseStdUnitValue
+        prevTargetInventory.releaseUomValue += undoTargetOrderInventory.releaseUomValue
         prevTargetInventory.updater = this.user
         await this.updateOrderTargets([prevTargetInventory])
 

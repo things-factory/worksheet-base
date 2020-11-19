@@ -4,7 +4,7 @@ import { EntityManager, getManager } from 'typeorm'
 import { CycleCountWorksheetController } from '../../../../controllers'
 
 export const relocatePalletResolver = {
-  async relocatePallet(_: any, { worksheetDetailName, inspectedBatchNo, inspectedQty, inspectedStdUnitValue, inspectedLocationName }, context: any) {
+  async relocatePallet(_: any, { worksheetDetailName, inspectedBatchNo, inspectedQty, inspectedUomValue, inspectedLocationName }, context: any) {
     return await getManager().transaction(async trxMgr => {
       const { domain, user }: { domain: Domain; user: User } = context.state
       await relocatePallet(
@@ -14,7 +14,7 @@ export const relocatePalletResolver = {
         worksheetDetailName,
         inspectedBatchNo,
         inspectedQty,
-        inspectedStdUnitValue,
+        inspectedUomValue,
         inspectedLocationName
       )
     })
@@ -28,9 +28,9 @@ export async function relocatePallet(
   worksheetDetailName: string,
   inspectedBatchNo: string,
   inspectedQty: number,
-  inspectedStdUnitValue: number,
+  inspectedUomValue: number,
   inspectedLocationName: string
 ) {
   const worksheetController: CycleCountWorksheetController = new CycleCountWorksheetController(trxMgr, domain, user)
-  await worksheetController.relocatePallet(worksheetDetailName, inspectedBatchNo, inspectedQty, inspectedStdUnitValue, inspectedLocationName)
+  await worksheetController.relocatePallet(worksheetDetailName, inspectedBatchNo, inspectedQty, inspectedUomValue, inspectedLocationName)
 }

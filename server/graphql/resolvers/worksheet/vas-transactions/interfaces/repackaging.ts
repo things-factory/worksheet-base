@@ -16,6 +16,6 @@ export interface RepackagingGuide {
 }
 
 export enum PackingUnits {
-  STDUNIT = 'STDUNIT',
+  UOM = 'UOM',
   QTY = 'QTY'
 }

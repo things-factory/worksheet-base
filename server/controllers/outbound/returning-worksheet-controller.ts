@@ -72,7 +72,7 @@ export class ReturningWorksheetController extends VasWorksheetController {
     }
 
     inventory.qty += targetInventory.releaseQty
-    inventory.stdUnitValue += targetInventory.releaseStdUnitValue
+    inventory.uomValue += targetInventory.releaseUomValue
     inventory.status = INVENTORY_STATUS.STORED
 
     const isLocationChanged: boolean = originLocation.id !== toLocation.id
@@ -86,7 +86,7 @@ export class ReturningWorksheetController extends VasWorksheetController {
       inventory,
       releaseGood,
       targetInventory.releaseQty,
-      targetInventory.releaseStdUnitValue,
+      targetInventory.releaseUomValue,
       INVENTORY_TRANSACTION_TYPE.RETURN
     )
 

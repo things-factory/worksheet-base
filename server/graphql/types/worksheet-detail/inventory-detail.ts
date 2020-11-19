@@ -18,9 +18,9 @@ export const InventoryDetail = gql`
     remainQty: Int
     otherRef: String
     lastSeq: Int
-    stdUnitValue: Float
-    remainStdUnitValue: Float
-    stdUnit: String
+    uomValue: Float
+    remainUomValue: Float
+    uom: String
     status: String
     description: String
     creator: User
