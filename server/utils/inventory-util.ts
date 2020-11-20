@@ -58,7 +58,7 @@ export async function generateInventoryHistory(
       seq: seq - 1
     })
     openingQty = lastInvHistory.openingQty + lastInvHistory.qty
-    openingUomValue = lastInvHistory.uomValue + lastInvHistory.uomValue
+    openingUomValue = lastInvHistory.openingUomValue + lastInvHistory.uomValue
   }
 
   let inventoryHistory: InventoryHistory = {
