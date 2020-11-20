@@ -232,12 +232,21 @@ export class CycleCountWorksheetController extends WorksheetController {
     targetInventory.status = targetInventoryStatus
     targetInventory.updater = this.user
     await this.updateOrderTargets([targetInventory])
+
+    //If all tally, remove lockedQty, lockedWeight, lockedUomValue
+    if(!isChanged) {
+      inventory.lockedQty = 0
+      inventory.lockedWeight = 0
+      inventory.lockedUomValue = 0
+      inventory.updater = this.user
+      await this.trxMgr.getRepository(Inventory).save(inventory, { chunk: 500 })
+    }
   }
 
   async undoInspection(worksheetDetailName: string): Promise<void> {
     let worksheetDetail: WorksheetDetail = await this.findWorksheetDetail(
       { domain: this.domain, name: worksheetDetailName, status: Not(Equal(WORKSHEET_STATUS.EXECUTING)) },
-      ['targetInventory']
+      ['targetInventory', 'targetInventory.inventory']
     )
 
     let targetInventory: OrderInventory = worksheetDetail.targetInventory
@@ -256,6 +265,13 @@ export class CycleCountWorksheetController extends WorksheetController {
     worksheetDetail.status = WORKSHEET_STATUS.EXECUTING
     worksheetDetail.updater = this.user
     await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetail)
+
+    const inventory: Inventory = targetInventory.inventory
+    inventory.lockedQty = inventory.qty
+    inventory.lockedWeight = inventory.weight
+    inventory.lockedUomValue = inventory.uomValue
+    inventory.updater = this.user
+    await this.trxMgr.getRepository(Inventory).save(inventory, { chunk: 500 })
   }
 
   async checkMissingPallet(worksheetDetailName: string): Promise<void> {
