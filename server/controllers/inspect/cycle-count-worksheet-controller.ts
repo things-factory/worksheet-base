@@ -110,11 +110,6 @@ export class CycleCountWorksheetController extends WorksheetController {
       for (let i: number = 0; i < inventories.length; i++) {
         const inventory: Inventory = inventories[i]
 
-        inventory.lockedQty = inventory.qty
-        inventory.lockedWeight = 0
-        inventory.lockedUomValue = inventory.uomValue
-        inventory.updater = this.user
-
         let targetInventory: OrderInventory = new OrderInventory()
         targetInventory.domain = this.domain
         targetInventory.bizplace = customerBizplace
@@ -133,11 +128,16 @@ export class CycleCountWorksheetController extends WorksheetController {
         targetInventory.creator = this.user
         targetInventory.updater = this.user
         targetInventories.push(targetInventory)
+
+        inventory.lockedQty = inventory.qty
+        inventory.lockedWeight = 0
+        inventory.lockedUomValue = inventory.uomValue
+        inventory.updater = this.user
       }
 
       targetInventories = await this.trxMgr.getRepository(OrderInventory).save(targetInventories, { chunk: 500 })
 
-      // inventories = await this.trxMgr.getRepository(Inventory).save(inventories, { chunk: 500 })
+      inventories = await this.trxMgr.getRepository(Inventory).save(inventories, { chunk: 500 })
 
       let cycleCountWorksheetDetails: WorksheetDetail[] = []
       for (let i: number = 0; i < targetInventories.length; i++) {
