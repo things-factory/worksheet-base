@@ -138,6 +138,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
       const product: Product = targetProduct.product
       const packingType: string = targetProduct.packingType
       const uom: string = targetProduct.uom
+      const remark: string = targetProduct.remark
       const qty: number = inventory.qty
       const weight: number = Math.round(qty * targetProduct.weight * 100) / 100
       const uomValue: number = Math.round(qty * targetProduct.uomValue * 100) / 100
@@ -153,6 +154,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
       newInventory.product = product
       newInventory.packingType = packingType
       newInventory.uom = uom
+      newInventory.remark = remark
       newInventory.qty = qty
       newInventory.weight = weight
       newInventory.uomValue = uomValue
@@ -350,7 +352,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
 
       const targetProductsWithIssue: OrderProduct[] = worksheetDetailsWithIssue.map((wsd: WorksheetDetail) => {
         let targetProduct: OrderProduct = wsd.targetProduct
-        targetProduct.remark = wsd.issue
+        targetProduct.remark = (targetProduct.remark + ' issue: ' + wsd.issue).trim();
         return targetProduct
       })
       await this.updateOrderTargets(targetProductsWithIssue)
@@ -422,7 +424,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
 
     let targetProduct: OrderProduct = worksheetDetail.targetProduct
     targetProduct.status = ORDER_PRODUCT_STATUS.PARTIALLY_UNLOADED
-    targetProduct.remark = worksheetDetail.issue || targetProduct.remark
+    targetProduct.remark = (targetProduct.remark + ' issue: ' + worksheetDetail.issue).trim()
     await this.updateOrderTargets([targetProduct])
 
     let inventories: Inventory[] = await this.trxMgr.getRepository(Inventory).find({
