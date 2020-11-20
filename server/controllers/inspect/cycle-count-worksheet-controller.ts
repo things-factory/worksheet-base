@@ -137,6 +137,8 @@ export class CycleCountWorksheetController extends WorksheetController {
 
       targetInventories = await this.trxMgr.getRepository(OrderInventory).save(targetInventories, { chunk: 500 })
 
+      inventories = await this.trxMgr.getRepository(Inventory).save(inventories, { chunk: 500 })
+
       let cycleCountWorksheetDetails: WorksheetDetail[] = []
       for (let i: number = 0; i < targetInventories.length; i++) {
         let targetInventory: OrderInventory = targetInventories[i]
