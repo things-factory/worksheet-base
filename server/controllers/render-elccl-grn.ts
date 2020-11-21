@@ -162,7 +162,7 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
         from (
           select product_id, reusable_pallet_id, packing_type, cross_dock, sum(qty) as ori_qty, sum(loose_amt) as qty, sum(coalesce(release_qty, 0)) as release_qty, sum(loose_wgt) as uom_value, count(distinct pallet_id) as pallet, inventory_id
           from tmp2 
-          group by cross_dock, reusable_pallet_id, product_id, packing_type, inventory_id
+          group by cross_dock, reusable_pallet_id, product_id, packing_type
         ) as main
         inner join products p2 on p2.id::varchar = main.product_id
         left join pallets plt on plt.id = main.reusable_pallet_id
