@@ -352,7 +352,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
 
       const targetProductsWithIssue: OrderProduct[] = worksheetDetailsWithIssue.map((wsd: WorksheetDetail) => {
         let targetProduct: OrderProduct = wsd.targetProduct
-        targetProduct.remark = (targetProduct.remark + ' issue: ' + wsd.issue).trim();
+        targetProduct.issue = wsd.issue
         return targetProduct
       })
       await this.updateOrderTargets(targetProductsWithIssue)
@@ -424,7 +424,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
 
     let targetProduct: OrderProduct = worksheetDetail.targetProduct
     targetProduct.status = ORDER_PRODUCT_STATUS.PARTIALLY_UNLOADED
-    targetProduct.remark = (targetProduct.remark + ' issue: ' + worksheetDetail.issue).trim()
+    targetProduct.issue = worksheetDetail.issue
     await this.updateOrderTargets([targetProduct])
 
     let inventories: Inventory[] = await this.trxMgr.getRepository(Inventory).find({

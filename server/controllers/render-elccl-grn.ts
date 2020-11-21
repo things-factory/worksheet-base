@@ -216,7 +216,6 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
         product_batch: item.batch_id,
         product_qty: item.qty,
         product_uom_value: item.uom_value,
-        unit_uom_value: Math.round((item.uom_value / item.qty) * 100) / 100,
         pallet_qty: item.pallet_count,
         remark: item.remarks
       }
