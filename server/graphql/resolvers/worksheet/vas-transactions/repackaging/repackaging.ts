@@ -75,7 +75,7 @@ export const repackagingResolver = {
       const palletChanges: PalletChangesInterface[] = operationGuideData.repackedInvs
         .map((ri: RepackedInvInfo) => ri.repackedFrom)
         .flat()
-      const { remainQty, remainWeight } = await getRemainInventoryAmount(
+      const { remainQty, remainUomValue } = await getRemainInventoryAmount(
         trxMgr,
         refOrder,
         domain,
@@ -84,7 +84,7 @@ export const repackagingResolver = {
         palletChanges,
         fromPalletId
       )
-      const unitWeight: number = remainWeight / remainQty
+      const unitUomValue: number = remainUomValue / remainQty
       const packingUnit: string = operationGuideData.packingUnit
       const stdAmount: number = operationGuideData.stdAmount
       let repackedInv: RepackedInvInfo = getRepackedInv(operationGuideData, toPalletId, locationName)
@@ -96,7 +96,7 @@ export const repackagingResolver = {
           fromPalletId,
           toPalletId,
           reducedQty,
-          reducedWeight: reducedQty * unitWeight
+          reducedUomValue: reducedQty * unitUomValue
         }
 
         repackedInv.repackedFrom.push(repackedFrom)
@@ -106,25 +106,25 @@ export const repackagingResolver = {
         )
         repackedInv.repackedPkgQty = totalPackedQty / stdAmount
         isCompleted = remainQty <= stdAmount * packageQty
-      } else if (packingUnit === PackingUnits.WEIGHT) {
-        // Case 1. When batchProcess is true => Reduce as much as remainWeight to complete this repackaging task
+      } else if (packingUnit === PackingUnits.UOM) {
+        // Case 1. When batchProcess is true => Reduce as much as remainUomValue to complete this repackaging task
         // Case 2. When from pallet has more products than std amount => Reduce as much as stdAmount
-        // Case 3. When from pallet has less products than std amount => Reduce as much as remainWeight
-        const reducedWeight: number = remainWeight >= stdAmount * packageQty ? stdAmount * packageQty : remainWeight
+        // Case 3. When from pallet has less products than std amount => Reduce as much as remainUomValue
+        const reducedUomValue: number = remainUomValue >= stdAmount * packageQty ? stdAmount * packageQty : remainUomValue
         const repackedFrom: PalletChangesInterface = {
           fromPalletId,
           toPalletId,
-          reducedWeight,
-          reducedQty: reducedWeight / unitWeight
+          reducedUomValue,
+          reducedQty: reducedUomValue / unitUomValue
         }
 
         repackedInv.repackedFrom.push(repackedFrom)
-        const totalPackedWeight: number = repackedInv.repackedFrom.reduce(
-          (weight: number, rf: PalletChangesInterface) => (weight += rf.reducedWeight),
+        const totalPackedUomValue: number = repackedInv.repackedFrom.reduce(
+          (uomValue: number, rf: PalletChangesInterface) => (uomValue += rf.reducedUomValue),
           0
         )
-        repackedInv.repackedPkgQty = totalPackedWeight / stdAmount
-        isCompleted = remainWeight <= stdAmount * packageQty
+        repackedInv.repackedPkgQty = totalPackedUomValue / stdAmount
+        isCompleted = remainUomValue <= stdAmount * packageQty
       }
 
       // Get total required package qty to complete this VAS Task
@@ -188,22 +188,22 @@ async function getRequiredPackageQty(
   })
 
   const orderVASs: OrderVas[] = relatedWSDs.map((wsd: WorksheetDetail) => wsd.targetVas)
-  const { qty, weight } = orderVASs
+  const { qty, uomValue } = orderVASs
     .filter((ov: OrderVas) => ov.set === currentOV.set && ov.vas.id === currentOV.vas.id)
     .reduce(
-      (total: { qty: number; weight: number }, ov: OrderVas) => {
+      (total: { qty: number; uomValue: number }, ov: OrderVas) => {
         total.qty += ov.qty
-        total.weight += ov.weight
+        total.uomValue += ov.uomValue
 
         return total
       },
-      { qty: 0, weight: 0 }
+      { qty: 0, uomValue: 0 }
     )
 
   if (packingUnit === PackingUnits.QTY) {
     return qty / stdAmount
-  } else if (packingUnit === PackingUnits.WEIGHT) {
-    return weight / stdAmount
+  } else if (packingUnit === PackingUnits.UOM) {
+    return uomValue / stdAmount
   }
 }
 

@@ -14,12 +14,13 @@ export const WorksheetDetailInfo = gql`
     adjustedPalletQty: Int
     adjustedBatchId: String
     qty: Int
-    weight: Float
+    uom: String
+    uomValue: Float
     releaseQty: Float
-    releaseWeight: Float
+    releaseUomValue: Float
     inspectedBatchNo: String
     inspectedQty: Int
-    inspectedWeight: Float
+    inspectedUomValue: Float
     inspectedLocation: Location
     operationGuide: String
     set: Int

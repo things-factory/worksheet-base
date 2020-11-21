@@ -119,6 +119,8 @@ export async function renderDO({ domain: domainName, doNo }) {
         product_batch: inventory.batchId,
         product_qty: targetInventory.releaseQty,
         product_weight: targetInventory.releaseWeight,
+        product_uom_value: targetInventory.releaseUomValue,
+        product_uom: inventory.uom,
         remark: targetInventory.remark,
         cross_docking: targetInventory.crossDocking,
         pallet: inventory?.reusablePallet && inventory?.reusablePallet?.name ? inventory.reusablePallet.name : ''
@@ -138,6 +140,8 @@ export async function renderDO({ domain: domainName, doNo }) {
           product_batch: item.product_batch,
           product_qty: item.product_qty,
           product_weight: item.product_weight,
+          product_uom_value: item.product_uom_value,
+          product_uom: item.product_uom,
           remark: item.remark,
           palletQty: 1,
           cross_docking: item.cross_docking,
@@ -158,7 +162,8 @@ export async function renderDO({ domain: domainName, doNo }) {
               ...ni,
               palletQty: ni.palletQty + 1,
               product_qty: ni.product_qty + item.product_qty,
-              product_weight: ni.product_weight + item.product_weight
+              product_weight: ni.product_weight + item.product_weight,
+              product_uom_value: ni.product_uom_value + item.product_uom_value
             }
           } else {
             return ni
@@ -192,6 +197,7 @@ export async function renderDO({ domain: domainName, doNo }) {
       return {
         ...prod,
         list_no: idx + 1,
+        product_uom_value: `${prod.product_uom_value} ${prod.product_uom}`,
         remark: prod?.remark ? prod.remark : (prod.cross_docking ?
          prod.pallet === '' ? `${prod.palletQty} PALLET(S) [C/D]` : `${prod.palletQty} PALLET(S) (${prod.pallet}) [C/D]` :
          prod.pallet === '' ? `${prod.palletQty} PALLET(S)` : `${prod.palletQty} PALLET(S) (${prod.pallet})`)

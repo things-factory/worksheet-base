@@ -166,9 +166,9 @@ export class PickingWorksheetController extends VasWorksheetController {
       newTargetInventory.updater = this.user
       newTargetInventory = await this.trxMgr.getRepository(OrderInventory).save(newTargetInventory)
 
-      // Update locked qty and weight of inventory
+      // Update locked qty and uomValue of inventory
       inventory.lockedQty = targetInventory.releaseQty + (inventory.lockedQty || 0)
-      inventory.lockedWeight = targetInventory.releaseWeight + (inventory.lockedWeight || 0)
+      inventory.lockedUomValue = targetInventory.releaseUomValue + (inventory.lockedUomValue || 0)
       await this.updateInventory(inventory)
 
       // Create worksheet details
@@ -206,7 +206,7 @@ export class PickingWorksheetController extends VasWorksheetController {
 
       let inventory: Inventory = worksheetDetail.targetInventory.inventory
       inventory.lockedQty -= targetInventory.releaseQty
-      inventory.lockedWeight -= targetInventory.releaseWeight
+      inventory.lockedUomValue -= targetInventory.releaseUomValue
       await this.updateInventory(inventory)
     }
 
@@ -246,14 +246,14 @@ export class PickingWorksheetController extends VasWorksheetController {
     await this.updateOrderTargets([targetInventory])
 
     inventory.qty -= targetInventory.releaseQty
-    inventory.weight = Math.round((inventory.weight - targetInventory.releaseWeight) * 100) / 100
+    inventory.uomValue = Math.round((inventory.uomValue - targetInventory.releaseUomValue) * 100) / 100
     inventory.lockedQty = inventory.lockedQty - targetInventory.releaseQty
-    inventory.lockedWeight = Math.round((inventory.lockedWeight - targetInventory.releaseWeight) * 100) / 100
+    inventory.lockedUomValue = Math.round((inventory.lockedUomValue - targetInventory.releaseUomValue) * 100) / 100
     inventory = await this.transactionInventory(
       inventory,
       releaseGood,
       -targetInventory.releaseQty,
-      -targetInventory.releaseWeight,
+      -inventory.uomValue,
       INVENTORY_TRANSACTION_TYPE.PICKING
     )
 

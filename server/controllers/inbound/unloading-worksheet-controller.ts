@@ -16,6 +16,7 @@ import {
 } from '@things-factory/sales-base'
 import {
   Inventory,
+  InventoryHistory,
   InventoryNoGenerator,
   INVENTORY_STATUS,
   INVENTORY_TRANSACTION_TYPE,
@@ -112,67 +113,73 @@ export class UnloadingWorksheetController extends VasWorksheetController {
   }
 
   async unload(worksheetDetailName: string, inventory: Partial<Inventory>): Promise<void> {
-    const palletId: string = inventory.palletId
-    this.checkPalletDuplication(palletId)
-
-    const worksheetDetail: WorksheetDetail = await this.trxMgr.getRepository(WorksheetDetail).findOne({
-      where: { name: worksheetDetailName, type: WORKSHEET_TYPE.UNLOADING, status: Not(Equal(WORKSHEET_STATUS.DEACTIVATED)) },
-      relations: [
-        'bizplace',
-        'worksheet',
-        'worksheet.arrivalNotice',
-        'worksheet.bufferLocation',
-        'worksheet.bufferLocation.warehouse',
-        'targetProduct',
-        'targetProduct.product'
-      ]
-    })
-    if (!worksheetDetail) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(worksheetDetailName))
-
-    const bizplace: Bizplace = worksheetDetail.bizplace
-    const worksheet: Worksheet = worksheetDetail.worksheet
-    const arrivalNotice: ArrivalNotice = worksheet.arrivalNotice
-    const targetProduct: OrderProduct = worksheetDetail.targetProduct
-    const batchId: string = targetProduct.batchId
-    const product: Product = targetProduct.product
-    const packingType: string = targetProduct.packingType
-    const qty: number = inventory.qty
-    const weight: number = Math.round(qty * targetProduct.weight * 100) / 100
-    const location: Location = worksheet.bufferLocation
-    const warehouse: Warehouse = location.warehouse
-    const zone: string = location.zone
-
-    let newInventory: Partial<Inventory> = new Inventory()
-    newInventory.bizplace = bizplace
-    newInventory.name = InventoryNoGenerator.inventoryName()
-    newInventory.palletId = palletId
-    newInventory.batchId = batchId
-    newInventory.product = product
-    newInventory.packingType = packingType
-    newInventory.qty = qty
-    newInventory.weight = weight
-    newInventory.refOrderId = arrivalNotice.id
-    if (inventory.reusablePallet?.id) {
-      newInventory.reusablePallet = await this.trxMgr.getRepository(Pallet).findOne(inventory.reusablePallet.id)
-    }
-    newInventory.orderProductId = targetProduct.id
-    newInventory.warehouse = warehouse
-    newInventory.location = location
-    newInventory.zone = zone
-    newInventory.status = INVENTORY_STATUS.UNLOADED
-    newInventory = await this.transactionInventory(
-      newInventory,
-      arrivalNotice,
-      newInventory.qty,
-      newInventory.weight,
-      INVENTORY_TRANSACTION_TYPE.UNLOADING
-    )
-
-    targetProduct.actualPalletQty++
-    targetProduct.actualPackQty += qty
-    targetProduct.status = ORDER_PRODUCT_STATUS.UNLOADED
-    targetProduct.updater = this.user
-    this.updateOrderTargets([targetProduct])
+      const palletId: string = inventory.palletId
+      await this.checkPalletDuplication(palletId)
+  
+      const worksheetDetail: WorksheetDetail = await this.trxMgr.getRepository(WorksheetDetail).findOne({
+        where: { name: worksheetDetailName, type: WORKSHEET_TYPE.UNLOADING, status: Not(Equal(WORKSHEET_STATUS.DEACTIVATED)) },
+        relations: [
+          'bizplace',
+          'worksheet',
+          'worksheet.arrivalNotice',
+          'worksheet.bufferLocation',
+          'worksheet.bufferLocation.warehouse',
+          'targetProduct',
+          'targetProduct.product'
+        ]
+      })
+      if (!worksheetDetail) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(worksheetDetailName))
+  
+      const bizplace: Bizplace = worksheetDetail.bizplace
+      const worksheet: Worksheet = worksheetDetail.worksheet
+      const arrivalNotice: ArrivalNotice = worksheet.arrivalNotice
+      const targetProduct: OrderProduct = worksheetDetail.targetProduct
+      const batchId: string = targetProduct.batchId
+      const product: Product = targetProduct.product
+      const packingType: string = targetProduct.packingType
+      const uom: string = targetProduct.uom
+      const remark: string = targetProduct.remark
+      const qty: number = inventory.qty
+      const weight: number = Math.round(qty * targetProduct.weight * 100) / 100
+      const uomValue: number = Math.round(qty * targetProduct.uomValue * 100) / 100
+      const location: Location = worksheet.bufferLocation
+      const warehouse: Warehouse = location.warehouse
+      const zone: string = location.zone
+  
+      let newInventory: Partial<Inventory> = new Inventory()
+      newInventory.bizplace = bizplace
+      newInventory.name = InventoryNoGenerator.inventoryName()
+      newInventory.palletId = palletId
+      newInventory.batchId = batchId
+      newInventory.product = product
+      newInventory.packingType = packingType
+      newInventory.uom = uom
+      newInventory.remark = remark
+      newInventory.qty = qty
+      newInventory.weight = weight
+      newInventory.uomValue = uomValue
+      newInventory.refOrderId = arrivalNotice.id
+      if (inventory.reusablePallet?.id) {
+        newInventory.reusablePallet = await this.trxMgr.getRepository(Pallet).findOne(inventory.reusablePallet.id)
+      }
+      newInventory.orderProductId = targetProduct.id
+      newInventory.warehouse = warehouse
+      newInventory.location = location
+      newInventory.zone = zone
+      newInventory.status = INVENTORY_STATUS.UNLOADED
+      newInventory = await this.transactionInventory(
+        newInventory,
+        arrivalNotice,
+        newInventory.qty,
+        newInventory.uomValue,
+        INVENTORY_TRANSACTION_TYPE.UNLOADING
+      )
+  
+      targetProduct.actualPalletQty++
+      targetProduct.actualPackQty += qty
+      targetProduct.status = ORDER_PRODUCT_STATUS.UNLOADED
+      targetProduct.updater = this.user
+      this.updateOrderTargets([targetProduct])
   }
 
   async undoUnload(worksheetDetailName: string, palletId: string): Promise<void> {
@@ -218,15 +225,19 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     inventory.status = INVENTORY_STATUS.DELETED
     inventory.qty = 0
     inventory.weight = 0
+    inventory.uomValue = 0
     inventory.updater = this.user
     inventory = await this.transactionInventory(
       inventory,
       arrivalNotice,
       -inventory.qty,
-      -inventory.weight,
+      -inventory.uomValue,
       INVENTORY_TRANSACTION_TYPE.UNDO_UNLOADING
     )
-    await this.trxMgr.getRepository(Inventory).delete(inventory.id)
+    
+    await this.trxMgr.getRepository(InventoryHistory).update({ inventory }, { inventory: null})
+
+    await this.trxMgr.getRepository(Inventory).delete({ id: inventory.id })
   }
 
   async activateUnloading(
@@ -341,7 +352,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
 
       const targetProductsWithIssue: OrderProduct[] = worksheetDetailsWithIssue.map((wsd: WorksheetDetail) => {
         let targetProduct: OrderProduct = wsd.targetProduct
-        targetProduct.remark = wsd.issue
+        targetProduct.issue = wsd.issue
         return targetProduct
       })
       await this.updateOrderTargets(targetProductsWithIssue)
@@ -413,7 +424,7 @@ export class UnloadingWorksheetController extends VasWorksheetController {
 
     let targetProduct: OrderProduct = worksheetDetail.targetProduct
     targetProduct.status = ORDER_PRODUCT_STATUS.PARTIALLY_UNLOADED
-    targetProduct.remark = worksheetDetail.issue || targetProduct.remark
+    targetProduct.issue = worksheetDetail.issue
     await this.updateOrderTargets([targetProduct])
 
     let inventories: Inventory[] = await this.trxMgr.getRepository(Inventory).find({

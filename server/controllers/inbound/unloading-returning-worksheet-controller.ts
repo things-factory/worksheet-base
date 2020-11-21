@@ -135,6 +135,7 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
     const packingType: string = targetInventory.packingType
     const qty: number = inventory.qty
     const weight: number = Math.round(targetInventory.returnWeight)
+    const uomValue: number = Math.round(targetInventory.returnUomValue)
     const location: Location = worksheet.bufferLocation
     const warehouse: Warehouse = location.warehouse
     const zone: string = location.zone
@@ -154,6 +155,7 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
     newInventory.packingType = packingType
     newInventory.qty = qty
     newInventory.weight = weight
+    newInventory.uomValue = uomValue    
     newInventory.refOrderId = returnOrder.id
     if (inventory.reusablePallet?.id) {
       newInventory.reusablePallet = await this.trxMgr.getRepository(Pallet).findOne(inventory.reusablePallet.id)
@@ -167,7 +169,7 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
       newInventory,
       returnOrder,
       newInventory.qty,
-      newInventory.weight,
+      newInventory.uomValue,
       INVENTORY_TRANSACTION_TYPE.UNLOADING
     )
 
@@ -221,12 +223,13 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
     inventory.status = INVENTORY_STATUS.DELETED
     inventory.qty = 0
     inventory.weight = 0
+    inventory.uomValue = 0
     inventory.updater = this.user
     inventory = await this.transactionInventory(
       inventory,
       returnOrder,
       -inventory.qty,
-      -inventory.weight,
+      -inventory.uomValue,
       INVENTORY_TRANSACTION_TYPE.UNDO_UNLOADING
     )
     await this.trxMgr.getRepository(Inventory).delete(inventory.id)

@@ -9,7 +9,7 @@ import { WorksheetDetail } from '../../../entities'
 export const relocatePalletResolver = {
   async relocatePallet(
     _: any,
-    { worksheetDetailName, inspectedBatchNo, inspectedQty, inspectedWeight, inspectedLocationName },
+    { worksheetDetailName, inspectedBatchNo, inspectedQty, inspectedUomValue, inspectedLocationName },
     context: any
   ): Promise<void> {
     return getManager().transaction(async (trxMgr: EntityManager) => {
@@ -21,7 +21,7 @@ export const relocatePalletResolver = {
         worksheetDetailName,
         inspectedBatchNo,
         inspectedQty,
-        inspectedWeight,
+        inspectedUomValue,
         inspectedLocationName
       )
     })
@@ -35,7 +35,7 @@ export async function relocatePallet(
   worksheetDetailName: string,
   inspectedBatchNo: string,
   inspectedQty: number,
-  inspectedWeight: number,
+  inspectedUomValue: number,
   inspectedLocationName: string
 ): Promise<void> {
   let worksheetDetail: WorksheetDetail = await trxMgr.getRepository(WorksheetDetail).findOne({
@@ -60,7 +60,7 @@ export async function relocatePallet(
   targetInventory.inspectedLocation = inspectedLocation
   targetInventory.inspectedBatchNo = inspectedBatchNo
   targetInventory.inspectedQty = inspectedQty
-  targetInventory.inspectedWeight = inspectedWeight
+  targetInventory.inspectedUomValue = inspectedUomValue
   targetInventory.status = ORDER_INVENTORY_STATUS.RELOCATED
   targetInventory.updater = user
   await trxMgr.getRepository(OrderInventory).save(targetInventory)

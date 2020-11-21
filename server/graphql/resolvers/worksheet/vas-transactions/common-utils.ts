@@ -108,17 +108,17 @@ export async function updateRelatedOrderVas<T>(
 export function getCurrentAmount(
   palletChanges: PalletChangesInterface[],
   palletId: string
-): { qty: number; weight: number } {
+): { qty: number; uomValue: number } {
   return palletChanges
     .filter((pc: PalletChangesInterface) => pc.toPalletId === palletId)
     .reduce(
-      (currentAmount: { qty: number; weight: number }, pc: PalletChangesInterface) => {
+      (currentAmount: { qty: number; uomValue: number }, pc: PalletChangesInterface) => {
         return {
           qty: currentAmount.qty + pc.reducedQty,
-          weight: currentAmount.weight + pc.reducedWeight
+          uomValue: currentAmount.uomValue + pc.reducedUomValue
         }
       },
-      { qty: 0, weight: 0 }
+      { qty: 0, uomValue: 0 }
     )
 }
 
@@ -130,17 +130,17 @@ export function getCurrentAmount(
 export function getReducedAmount(
   palletChanges: PalletChangesInterface[],
   palletId: string
-): { reducedQty: number; reducedWeight: number } {
+): { reducedQty: number; reducedUomValue: number } {
   return palletChanges
     .filter((pc: PalletChangesInterface) => pc.fromPalletId === palletId)
     .reduce(
-      (reducedAmount: { reducedQty: number; reducedWeight: number }, pc: PalletChangesInterface) => {
+      (reducedAmount: { reducedQty: number; reducedUomValue: number }, pc: PalletChangesInterface) => {
         return {
           reducedQty: reducedAmount.reducedQty + pc.reducedQty || 0,
-          reducedWeight: reducedAmount.reducedWeight + pc.reducedWeight || 0
+          reducedUomValue: reducedAmount.reducedUomValue + pc.reducedUomValue || 0
         }
       },
-      { reducedQty: 0, reducedWeight: 0 }
+      { reducedQty: 0, reducedUomValue: 0 }
     )
 }
 
@@ -163,25 +163,25 @@ export async function getRemainInventoryAmount(
   originInv: Inventory,
   palletChanges: PalletChangesInterface[],
   palletId: string
-): Promise<{ remainQty: number; remainWeight: number }> {
+): Promise<{ remainQty: number; remainUomValue: number }> {
   let remainQty: number = 0
-  let remainWeight: number = 0
-  const { reducedQty, reducedWeight } = getReducedAmount(palletChanges, palletId)
+  let remainUomValue: number = 0
+  const { reducedQty, reducedUomValue } = getReducedAmount(palletChanges, palletId)
   if (refOrder instanceof ReleaseGood) {
-    // Find loading order inventory to figure out unit weight
+    // Find loading order inventory to figure out uomValue
     const orderInv: OrderInventory = await trxMgr.getRepository(OrderInventory).findOne({
       where: { domain, bizplace, inventory: originInv, releaseGood: refOrder, type: ORDER_TYPES.RELEASE_OF_GOODS }
     })
 
     remainQty = orderInv.releaseQty - reducedQty
-    remainWeight = orderInv.releaseWeight - reducedWeight
+    remainUomValue = orderInv.releaseUomValue - reducedUomValue
   } else {
     remainQty = originInv.qty - reducedQty
-    remainWeight = originInv.weight - reducedWeight
+    remainUomValue = originInv.uomValue - reducedUomValue
   }
 
-  if (remainQty <= 0 || remainWeight <= 0) throw new Error(`There's no more remaining product on the pallet`)
-  return { remainQty, remainWeight }
+  if (remainQty <= 0 || remainUomValue <= 0) throw new Error(`There's no more remaining product on the pallet`)
+  return { remainQty, remainUomValue }
 }
 
 /**
@@ -220,7 +220,7 @@ export async function assignInventory(
     if (targetVas.qty > inventory.qty) {
       // If it doesn't have enough, Need to create new worksheet detail and target vas without inventory assignment
       // So the user can proceed it with another inventory
-      targetVas = await addNewVasTask(targetVas, inventory.qty, inventory.weight, domain, bizplace, user, trxMgr, wsd)
+      targetVas = await addNewVasTask(targetVas, inventory.qty, inventory.uomValue, domain, bizplace, user, trxMgr, wsd)
     }
   } else if (refOrder instanceof ReleaseGood) {
     // Case 2. When the VAS Order comes with Release Good
@@ -242,7 +242,7 @@ export async function assignInventory(
       targetVas = await addNewVasTask(
         targetVas,
         pickedOrdInv.releaseQty,
-        pickedOrdInv.releaseWeight,
+        pickedOrdInv.releaseUomValue,
         domain,
         bizplace,
         user,
@@ -298,12 +298,12 @@ export async function dismissInventory(
 
     if (nonFinishedWSD) {
       // If there non finished same VAS, delete undo target record (worksheet detail & order vas)
-      // Add qty and weight for non finished vas task
+      // Add qty and uomValue for non finished vas task
       await trxMgr.getRepository(WorksheetDetail).delete(wsd.id)
       await trxMgr.getRepository(OrderVas).delete(targetVas.id)
 
       nonFinishedWSD.targetVas.qty += targetVas.qty
-      nonFinishedWSD.targetVas.weight += targetVas.weight
+      nonFinishedWSD.targetVas.uomValue += targetVas.uomValue
       await trxMgr.getRepository(OrderVas).save(nonFinishedWSD.targetVas)
     } else {
       // If there no non finished same VAS, dismiss inventory for the record
@@ -320,7 +320,7 @@ export async function dismissInventory(
 export async function addNewVasTask(
   targetVas: OrderVas,
   currentOrderQty: number,
-  currentOrderWeight: number,
+  currentOrderUomValue: number,
   domain: Domain,
   bizplace: Bizplace,
   user: User,
@@ -337,7 +337,7 @@ export async function addNewVasTask(
     bizplace,
     name: OrderNoGenerator.orderVas(),
     qty: targetVas.qty - currentOrderQty,
-    weight: targetVas.weight - currentOrderWeight,
+    uomValue: targetVas.uomValue - currentOrderUomValue,
     creator: user,
     updater: user
   }
@@ -359,7 +359,7 @@ export async function addNewVasTask(
   await trxMgr.getRepository(WorksheetDetail).save(newWSD)
 
   targetVas.qty = currentOrderQty
-  targetVas.weight = currentOrderWeight
+  targetVas.uomValue = currentOrderUomValue
   return targetVas
 }
 
@@ -374,7 +374,7 @@ export async function upsertInventory(
   locationName: string,
   packingType: string,
   addedQty: number,
-  addedWeight: number,
+  addedUomValue: number,
   transactionType: string
 ): Promise<Inventory> {
   const location: Location = await trxMgr.getRepository(Location).findOne({
@@ -412,7 +412,8 @@ export async function upsertInventory(
       name: InventoryNoGenerator.inventoryName(),
       packingType,
       qty: addedQty,
-      weight: addedWeight,
+      weight:0,
+      uomValue: addedUomValue,
       warehouse,
       location,
       zone,
@@ -436,7 +437,7 @@ export async function upsertInventory(
   } else {
     // Update inventory
     inv.qty += addedQty
-    inv.weight += addedWeight
+    inv.uomValue += addedUomValue
     inv.warehouse = warehouse
     inv.location = location
     inv.zone = location.zone
@@ -447,7 +448,7 @@ export async function upsertInventory(
   }
 
   // Create inventory history
-  await generateInventoryHistory(inv, refOrder, transactionType, addedQty, addedWeight, user, trxMgr)
+  await generateInventoryHistory(inv, refOrder, transactionType, addedQty, addedUomValue, user, trxMgr)
 
   return inv
 }
@@ -460,7 +461,7 @@ export async function deductProductAmount(
   refOrder: RefOrderType,
   originInv: Inventory,
   reducedQty: number,
-  reducedWeight: number,
+  reducedUomValue: number,
   transactionType: string
 ) {
   if (refOrder instanceof ReleaseGood) {
@@ -482,18 +483,18 @@ export async function deductProductAmount(
     }
 
     orderInv.releaseQty -= reducedQty
-    orderInv.releaseWeight -= reducedWeight
+    orderInv.releaseUomValue -= reducedUomValue
     orderInv.updater = user
 
     await trxMgr.getRepository(OrderInventory).save(orderInv)
   } else {
     originInv.qty -= reducedQty
-    originInv.weight -= reducedWeight
+    originInv.uomValue -= reducedUomValue
     originInv.updater = user
-    originInv.status = originInv.qty <= 0 || originInv.weight <= 0 ? INVENTORY_STATUS.TERMINATED : originInv.status
+    originInv.status = originInv.qty <= 0 || originInv.uomValue <= 0 ? INVENTORY_STATUS.TERMINATED : originInv.status
 
     originInv = await trxMgr.getRepository(Inventory).save(originInv)
-    await generateInventoryHistory(originInv, refOrder, transactionType, -reducedQty, -reducedWeight, user, trxMgr)
+    await generateInventoryHistory(originInv, refOrder, transactionType, -reducedQty, -reducedUomValue, user, trxMgr)
   }
   return originInv
 }
@@ -582,7 +583,7 @@ export async function createLoadingWorksheet(
   changedInv: Inventory
 ): Promise<void> {
   const changedQty: number = changedInv.qty
-  const changedWeight: number = changedInv.weight
+  const changedUomValue: number = changedInv.uomValue
   const loadingWS: Worksheet = await trxMgr.getRepository(Worksheet).findOne({
     where: { domain, bizplace, releaseGood: refOrder, type: WORKSHEET_TYPE.LOADING },
     relations: ['worksheetDetails', 'worksheetDetails.targetInventory', 'worksheetDetails.targetInventory.inventory']
@@ -601,14 +602,14 @@ export async function createLoadingWorksheet(
   const sameTargetWSD: WorksheetDetail = loadingWSDs.find((wsd: WorksheetDetail) => {
     const targetOI: OrderInventory = wsd.targetInventory
     const targetInv: Inventory = targetOI.inventory
-    const targetUnitWeight: number = targetOI.releaseWeight / targetOI.releaseQty
-    const changeUnitWeight: number = changedWeight / changedQty
+    const targetUnitUomValue: number = targetOI.releaseUomValue / targetOI.releaseQty
+    const changeUnitUomValue: number = changedUomValue / changedQty
 
     if (
       targetInv.palletId === changedInv.palletId &&
       targetInv.batchId === changedInv.batchId &&
       targetInv.packingType === changedInv.packingType &&
-      targetUnitWeight === changeUnitWeight
+      targetUnitUomValue === changeUnitUomValue
     ) {
       return wsd
     }
@@ -624,7 +625,7 @@ export async function createLoadingWorksheet(
       domain,
       bizplace,
       releaseQty: changedQty,
-      releaseWeight: changedWeight,
+      releaseUomValue: changedUomValue,
       name: OrderNoGenerator.orderInventory(),
       type: ORDER_TYPES.RELEASE_OF_GOODS,
       releaseGood: refOrder,
@@ -652,7 +653,7 @@ export async function createLoadingWorksheet(
   } else {
     let sameTargetInv: OrderInventory = sameTargetWSD.targetInventory
     sameTargetInv.releaseQty += changedQty
-    sameTargetInv.releaseWeight += changedWeight
+    sameTargetInv.releaseUomValue += changedUomValue
     sameTargetInv.updater = user
     await trxMgr.getRepository(OrderInventory).save(sameTargetInv)
   }
@@ -661,7 +662,7 @@ export async function createLoadingWorksheet(
   changedInv = await trxMgr.getRepository(Inventory).save({
     ...changedInv,
     qty: changedInv.qty - changedQty,
-    weight: changedInv.weight - changedWeight,
+    uomValue: changedInv.uomValue - changedUomValue,
     updater: user
   })
 
@@ -671,7 +672,7 @@ export async function createLoadingWorksheet(
     refOrder,
     INVENTORY_TRANSACTION_TYPE.PICKING,
     -changedQty,
-    -changedWeight,
+    -changedUomValue,
     user,
     trxMgr
   )

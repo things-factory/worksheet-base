@@ -65,16 +65,16 @@ export const generateReleaseGoodWorksheetDetailsResolver = {
           })
 
           const currentLockedQty: any = inventory.lockedQty
-          const currentLockedWeight: any = inventory.lockedWeight
+          const currentLockedUomValue: any = inventory.lockedUomValue
 
           await trxMgr.getRepository(Inventory).save({
             ...targetInventory.inventory,
             lockedQty: Boolean(currentLockedQty)
               ? targetInventory.releaseQty + currentLockedQty
               : targetInventory.releaseQty,
-            lockedWeight: Boolean(currentLockedWeight)
-              ? targetInventory.releaseWeight + currentLockedWeight
-              : targetInventory.releaseWeight,
+            lockedUomValue: Boolean(currentLockedUomValue)
+              ? targetInventory.releaseUomValue + currentLockedUomValue
+              : targetInventory.releaseUomValue,
             updater: context.state.user
           })
 

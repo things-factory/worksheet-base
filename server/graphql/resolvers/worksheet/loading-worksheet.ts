@@ -52,7 +52,7 @@ export const loadingWorksheetResolver = {
           batchId: inventory.batchId,
           product: inventory.product,
           releaseQty: targetInventory.releaseQty,
-          releaseWeight: targetInventory.releaseWeight,
+          releaseUomValue: targetInventory.releaseUomValue,
           status: loadingWSD.status,
           description: loadingWSD.description,
           targetName: targetInventory.name,

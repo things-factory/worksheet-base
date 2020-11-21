@@ -66,7 +66,8 @@ export const confirmCancellationReleaseOrder = {
                 inv = {
                   ...inv,
                   qty: foundInv.qty + oi.releaseQty,
-                  weight: foundInv.weight + oi.releaseWeight,
+                  weight: 0,
+                  uomValue: foundInv.uomValue + oi.releaseUomValue,
                   status: INVENTORY_STATUS.STORED,
                   updater: context.state.user
                 }
@@ -77,7 +78,7 @@ export const confirmCancellationReleaseOrder = {
                   foundRO,
                   INVENTORY_TRANSACTION_TYPE.CANCEL_ORDER,
                   oi.releaseQty,
-                  oi.releaseWeight,
+                  oi.releaseUomValue,
                   context.state.user,
                   trxMgr
                 )
@@ -110,7 +111,8 @@ export const confirmCancellationReleaseOrder = {
                 await trxMgr.getRepository(Inventory).save({
                   ...cancelledInv,
                   lockedQty: foundInv.lockedQty - oi.releaseQty,
-                  lockedWeight: foundInv.lockedWeight - oi.releaseWeight
+                  lockedWeight: 0,
+                  lockedUomValue: 0
                 })
 
                 await generateInventoryHistory(

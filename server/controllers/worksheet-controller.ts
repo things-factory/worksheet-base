@@ -809,7 +809,7 @@ export class WorksheetController {
     inventory: Partial<Inventory>,
     referencOrder: ReferenceOrderType,
     changedQty: number,
-    changedWeight: number,
+    changedUomValue: number,
     transactionType: string
   ): Promise<Inventory> {
     if (inventory.id) {
@@ -823,7 +823,7 @@ export class WorksheetController {
       referencOrder,
       transactionType,
       changedQty,
-      changedWeight,
+      changedUomValue,
       this.user,
       this.trxMgr
     )
