@@ -112,7 +112,7 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
       create temp table tmp as(
         select invh.*, invh2.ref_order_id as release_order_id, invh2.qty as release_qty, invh.qty as inbound_qty, 
         invh.qty + invh2.qty as remaining_qty, invh2.uom_value as release_uom_value, invh.uom_value as inbound_uom_value, 
-        invh.uom_value + invh2.uom_value as remaining_uom_value, invh.inventory_id
+        invh.uom_value + invh2.uom_value as remaining_uom_value
         from reduced_inventory_histories invh 
         left join reduced_inventory_histories invh2 on 
           invh2.domain_id = invh.domain_id and 
