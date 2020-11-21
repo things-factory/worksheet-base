@@ -133,9 +133,9 @@ export async function renderKimedaGRN({ domain: domainName, grnNo }) {
         product_type: item.packingType,
         product_batch: item.batchId,
         product_qty: item.actualPackQty,
-        total_uom_value: item.totalUomValue,
+        uom_value: `${item.uomValue} ${item.uom}`,
         pallet_qty: item.actualPalletQty,
-        remark: item.remark
+        remark: item.issue
       }
     })
   }
