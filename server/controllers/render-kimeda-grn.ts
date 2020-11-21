@@ -8,12 +8,11 @@ import {
   ORDER_PRODUCT_STATUS,
   ORDER_STATUS
 } from '@things-factory/sales-base'
-import { LOCATION_TYPE } from '@things-factory/warehouse-base'
 import { Domain } from '@things-factory/shell'
 import FormData from 'form-data'
 import fetch from 'node-fetch'
-import { EntityManager, getManager, getRepository, Not, IsNull } from 'typeorm'
-import { TEMPLATE_TYPE, TRANSACTION_TYPE } from '../constants'
+import { getRepository, IsNull, Not } from 'typeorm'
+import { TEMPLATE_TYPE } from '../constants'
 import { Worksheet } from '../entities'
 import { DateTimeConverter } from '../utils/datetime-util'
 
@@ -134,7 +133,7 @@ export async function renderKimedaGRN({ domain: domainName, grnNo }) {
         product_type: item.packingType,
         product_batch: item.batchId,
         product_qty: item.actualPackQty,
-        unit_uom_value: item.uom_value,
+        total_uom_value: item.totalUomValue,
         pallet_qty: item.actualPalletQty,
         remark: item.remark
       }
