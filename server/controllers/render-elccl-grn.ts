@@ -179,7 +179,7 @@ export async function renderElcclGRN({ domain: domainName, grnNo }) {
         from tmp3 group by product_name, cross_dock
       ) as foo
       union 
-      select vas.name as product_name, qty, 0 as uom_value, '' as remarks, 1 as rank 
+      select vas.name as product_name, qty, 0 as uom_value, remark as remarks, 1 as rank 
       from order_vass ov 
       inner join vass vas on vas.id = ov.vas_id 
       where arrival_notice_id = $1 and vas.type = 'MATERIALS'

@@ -442,6 +442,40 @@ export class UnloadingWorksheetController extends VasWorksheetController {
     })
     await this.trxMgr.getRepository(Inventory).save(inventories)
 
+    let vasWorksheet: Worksheet = await this.trxMgr.getRepository(Worksheet).findOne({
+      where: {
+        arrivalNotice,
+        type: WORKSHEET_TYPE.VAS
+      },
+      relations: ['worksheetDetails', 'worksheetDetails.targetVas', 'worksheetDetails.targetVas.vas']
+    })
+
+    if(vasWorksheet) {
+      let serviceVasWorksheetDetails: WorksheetDetail[] = vasWorksheet.worksheetDetails.filter(x => x.targetVas.vas.type == VAS_TYPES.SERVICE && x.status != WORKSHEET_STATUS.DONE)
+      let materialsVasWorksheetDetails: WorksheetDetail[] = vasWorksheet.worksheetDetails.filter(x => x.targetVas.vas.type == VAS_TYPES.MATERIALS)
+      materialsVasWorksheetDetails.forEach((wsd: WorksheetDetail) => {
+        wsd.status = WORKSHEET_STATUS.DONE
+        wsd.updater = this.user
+      })
+      await this.trxMgr.getRepository(WorksheetDetail).save(materialsVasWorksheetDetails)
+      
+      let targetVASs: OrderVas[] = materialsVasWorksheetDetails.map((wsd: WorksheetDetail) => {
+        let targetVas: OrderVas = wsd.targetVas
+        targetVas.status = ORDER_VAS_STATUS.TERMINATED
+        targetVas.updater = this.user
+        return targetVas
+      })
+
+      await this.updateOrderTargets(targetVASs)
+
+      if(serviceVasWorksheetDetails.length <= 0) {
+        vasWorksheet.status = WORKSHEET_STATUS.DONE
+        vasWorksheet.updater = this.user
+
+        await this.trxMgr.getRepository(Worksheet).save(vasWorksheet)
+      }
+    }
+
     return worksheet
   }
 
