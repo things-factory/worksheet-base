@@ -9,6 +9,7 @@ import { Mutations as PutawayReturnMutations } from './putaway-return'
 import { Mutations as UnloadingMutations } from './unloading'
 import { Mutations as VasMutations } from './vas'
 
+import { checkStockTakeCurrentLocationResolver } from './check-stock-take-current-location'
 import { checkInventoryReleaseResolver } from './check-inventory-release'
 import { confirmCancellationReleaseOrder } from './confirm-cancellation-release-order'
 import { createWorksheet } from './create-worksheet'
@@ -77,6 +78,7 @@ export const Query = {
   ...vasCandidatesResolver,
   ...inventoriesByPalletResolver,
   ...checkRelabelableResolver,
+  ...checkStockTakeCurrentLocationResolver,
   ...checkInventoryReleaseResolver,
   ...havingVasResolver,
   ...worksheetByOrderNoResolver,

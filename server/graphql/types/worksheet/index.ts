@@ -520,6 +520,11 @@ export const Query = /* GraphQL */ `
   checkInventoryRelease (
     palletId: String!
   ): Boolean @priviledge(category: "worksheet", priviledge: "query")
+
+  checkStockTakeCurrentLocation (
+    palletId: String!,
+    cycleCountNo: String!
+  ): CycleCountWorksheet @priviledge(category: "worksheet", priviledge: "query")
 `
 
 export const Types = /* GraphQL */ [
