@@ -139,6 +139,7 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
     const location: Location = worksheet.bufferLocation
     const warehouse: Warehouse = location.warehouse
     const zone: string = location.zone
+    const remark: string = targetInventory.remark
 
     // let newInventory: Inventory = await this.trxMgr.getRepository(Inventory).findOne({
     //   where: {
@@ -161,6 +162,7 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
       newInventory.reusablePallet = await this.trxMgr.getRepository(Pallet).findOne(inventory.reusablePallet.id)
     }
     newInventory.refInventory = inventory.id
+    newInventory.remark = remark
     newInventory.warehouse = warehouse
     newInventory.location = location
     newInventory.zone = zone

@@ -767,8 +767,7 @@ export class WorksheetController {
   async checkPalletDuplication(palletId: string): Promise<void> {
     const duplicatedPalletCnt: number = await this.trxMgr.getRepository(Inventory).count({
       domain: this.domain,
-      palletId,
-      status: Not(Equal(INVENTORY_STATUS.TERMINATED))
+      palletId
     })
 
     if (duplicatedPalletCnt) throw new Error(this.ERROR_MSG.VALIDITY.DUPLICATED('Pallet ID', palletId))
