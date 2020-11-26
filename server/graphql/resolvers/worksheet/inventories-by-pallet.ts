@@ -77,11 +77,12 @@ export const inventoriesByPalletResolver = {
     items = await Promise.all(
       items.map(async (item: Inventory) => {
         const { remainQty, remainUomValue } = await getRemainAmount(item)
-
+        
         return {
           ...item,
           remainQty,
-          remainUomValue
+          remainUomValue,
+          remainUomValueWithUom: remainUomValue + ' ' + item.uom
         }
       })
     )
