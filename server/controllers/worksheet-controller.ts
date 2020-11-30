@@ -580,7 +580,8 @@ export class WorksheetController {
       worksheetType === WORKSHEET_TYPE.PICKING ||
       worksheetType === WORKSHEET_TYPE.LOADING ||
       worksheetType === WORKSHEET_TYPE.RETURN ||
-      worksheetType === WORKSHEET_TYPE.UNLOADING_RETURN
+      worksheetType === WORKSHEET_TYPE.UNLOADING_RETURN || 
+      worksheetType === WORKSHEET_TYPE.PUTAWAY_RETURN
     ) {
       const targetInventories: OrderInventory[] = worksheet.worksheetDetails.map((wsd: WorksheetDetail) => {
         let targetInventory: OrderInventory = wsd.targetInventory

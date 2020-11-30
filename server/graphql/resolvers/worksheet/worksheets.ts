@@ -10,8 +10,9 @@ export const worksheetsResolver = {
       ////For inbound worksheet filter
       const arrivalNoticeParam: any = params.filters.find((param: any) => param.name === 'arrivalNoticeNo')
       const arrivalNoticeRefNoParam = params.filters.find(param => param.name === 'arrivalNoticeRefNo')
+      const arrivalNoticeCrossDockingParam = params.filters.find(param => param.name === 'crossDocking')
 
-      if (arrivalNoticeParam || arrivalNoticeRefNoParam) {
+      if (arrivalNoticeParam || arrivalNoticeRefNoParam || arrivalNoticeCrossDockingParam) {
         let arrFilters = []
         if (arrivalNoticeParam) {
           params.filters.splice(
@@ -26,6 +27,13 @@ export const worksheetsResolver = {
             1
           )
           arrFilters.push({ ...arrivalNoticeRefNoParam, name: 'refNo' })
+        }
+        if (arrivalNoticeCrossDockingParam) {
+          params.filters.splice(
+            params.filters.findIndex(item => item.name == 'crossDocking'),
+            1
+          )
+          arrFilters.push({ ...arrivalNoticeCrossDockingParam, name: 'crossDocking' })
         }
         const foundArrivalNotices: ArrivalNotice[] = await getRepository(ArrivalNotice).find({
           ...convertListParams({ filters: arrFilters })
@@ -50,7 +58,8 @@ export const worksheetsResolver = {
       ////For outbound worksheet filter
       const releaseGoodParam = params.filters.find(param => param.name === 'releaseGoodNo')
       const releaseGoodRefNoParam = params.filters.find(param => param.name === 'releaseGoodRefNo')
-      if (releaseGoodParam || releaseGoodRefNoParam) {
+      const releaseGoodCrossDockingParam = params.filters.find(param => param.name === 'crossDocking')
+      if (releaseGoodParam || releaseGoodRefNoParam || releaseGoodCrossDockingParam) {
         let arrFilters = []
         if (releaseGoodParam) {
           params.filters.splice(
@@ -65,6 +74,13 @@ export const worksheetsResolver = {
             1
           )
           arrFilters.push({ ...releaseGoodRefNoParam, name: 'refNo' })
+        }
+        if (releaseGoodCrossDockingParam) {
+          params.filters.splice(
+            params.filters.findIndex(item => item.name == 'crossDocking'),
+            1
+          )
+          arrFilters.push({ ...releaseGoodCrossDockingParam, name: 'crossDocking' })
         }
         const foundReleaseGoods: ReleaseGood[] = await getRepository(ReleaseGood).find({
           ...convertListParams({ filters: arrFilters })
