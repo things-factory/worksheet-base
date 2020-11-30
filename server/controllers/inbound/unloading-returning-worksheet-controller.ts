@@ -15,6 +15,7 @@ import {
 } from '@things-factory/sales-base'
 import {
   Inventory,
+  InventoryHistory,
   InventoryNoGenerator,
   INVENTORY_STATUS,
   INVENTORY_TRANSACTION_TYPE,
@@ -126,6 +127,13 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
     })
     if (!worksheetDetail) throw new Error(this.ERROR_MSG.FIND.NO_RESULT(worksheetDetailName))
 
+    const prevInv: Inventory = await this.trxMgr.getRepository(Inventory).findOne({
+      where: {
+        id: inventory.id
+      },
+      relations: ['bizplace']
+    })
+
     const bizplace: Bizplace = worksheetDetail.bizplace
     const worksheet: Worksheet = worksheetDetail.worksheet
     const returnOrder: ReturnOrder = worksheet.returnOrder
@@ -133,6 +141,7 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
     const batchId: string = targetInventory.batchId
     const product: Product = targetInventory.product
     const packingType: string = targetInventory.packingType
+    const uom: string = prevInv.uom
     const qty: number = inventory.qty
     const weight: number = Math.round(targetInventory.returnWeight)
     const uomValue: number = Math.round(targetInventory.returnUomValue)
@@ -157,6 +166,7 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
     newInventory.qty = qty
     newInventory.weight = weight
     newInventory.uomValue = uomValue    
+    newInventory.uom = uom
     newInventory.refOrderId = returnOrder.id
     if (inventory.reusablePallet?.id) {
       newInventory.reusablePallet = await this.trxMgr.getRepository(Pallet).findOne(inventory.reusablePallet.id)
@@ -234,7 +244,9 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
       -inventory.uomValue,
       INVENTORY_TRANSACTION_TYPE.UNDO_UNLOADING
     )
-    await this.trxMgr.getRepository(Inventory).delete(inventory.id)
+    await this.trxMgr.getRepository(InventoryHistory).update({ inventory }, { inventory: null})
+
+    await this.trxMgr.getRepository(Inventory).delete({ id: inventory.id })
   }
 
   async completeUnloadReturning(
@@ -298,8 +310,8 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
         await this.trxMgr.getRepository(WorksheetDetail).save(worksheetDetailsWithIssue)
       }
 
-      const targetInventoriesWithIssue: OrderProduct[] = worksheetDetailsWithIssue.map((wsd: WorksheetDetail) => {
-        let targetInventory: OrderProduct = wsd.targetInventory
+      const targetInventoriesWithIssue: OrderInventory[] = worksheetDetailsWithIssue.map((wsd: WorksheetDetail) => {
+        let targetInventory: OrderInventory = wsd.targetInventory
         targetInventory.remark = wsd.issue
         return targetInventory
       })
