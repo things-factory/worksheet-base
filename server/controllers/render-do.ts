@@ -197,7 +197,7 @@ export async function renderDO({ domain: domainName, doNo }) {
       return {
         ...prod,
         list_no: idx + 1,
-        product_uom_value: `${prod.product_uom_value} ${prod.product_uom}`,
+        product_uom_value: `${prod.product_uom_value.toFixed(1)} ${prod.product_uom}`,
         remark: prod?.remark ? prod.remark : (prod.cross_docking ?
          prod.pallet === '' ? `${prod.palletQty} PALLET(S) [C/D]` : `${prod.palletQty} PALLET(S) (${prod.pallet}) [C/D]` :
          prod.pallet === '' ? `${prod.palletQty} PALLET(S)` : `${prod.palletQty} PALLET(S) (${prod.pallet})`)
