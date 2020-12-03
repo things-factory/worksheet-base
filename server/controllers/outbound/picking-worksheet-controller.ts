@@ -253,14 +253,22 @@ export class PickingWorksheetController extends VasWorksheetController {
       }
     })
 
-    if(foundPickingHistory) {
-      let totalPickedQty = foundPickingHistory.reduce(function(a, b) {
-        return a.qty + b.qty
-      })
+    if(foundPickingHistory.length > 0) {
+      let totalPickedQty: number = 0
+      let totalPickedUomValue: number = 0
 
-      let totalPickedUomValue = foundPickingHistory.reduce(function(a, b) {
-        return a.uomValue + b.uomValue
-      })
+      if(foundPickingHistory.length > 1) {
+        totalPickedQty = foundPickingHistory.reduce(function(a, b) {
+          return a.qty + b.qty
+        })
+
+        totalPickedUomValue = foundPickingHistory.reduce(function(a, b) {
+          return a.uomValue + b.uomValue
+        })
+      } else {
+        totalPickedQty = foundPickingHistory[0].qty
+        totalPickedUomValue = foundPickingHistory[0].uomValue
+      }
 
       let diffQty = targetInventory.releaseQty + totalPickedQty  //picking history qty negative, so use +
       let diffUomValue = Math.round((targetInventory.releaseUomValue + totalPickedUomValue) * 100) / 100
