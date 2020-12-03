@@ -8,7 +8,7 @@ import {
   ORDER_STATUS,
   ReleaseGood
 } from '@things-factory/sales-base'
-import { Inventory, INVENTORY_STATUS, INVENTORY_TRANSACTION_TYPE, Location } from '@things-factory/warehouse-base'
+import { Inventory, InventoryHistory, INVENTORY_STATUS, INVENTORY_TRANSACTION_TYPE, Location } from '@things-factory/warehouse-base'
 import { WORKSHEET_STATUS, WORKSHEET_TYPE } from '../../constants'
 import { Worksheet, WorksheetDetail } from '../../entities'
 import { VasWorksheetController } from '../vas/vas-worksheet-controller'
@@ -245,17 +245,49 @@ export class PickingWorksheetController extends VasWorksheetController {
     targetInventory.status = ORDER_INVENTORY_STATUS.PICKED
     await this.updateOrderTargets([targetInventory])
 
-    inventory.qty -= targetInventory.releaseQty
-    inventory.uomValue = Math.round((inventory.uomValue - targetInventory.releaseUomValue) * 100) / 100
-    inventory.lockedQty = inventory.lockedQty - targetInventory.releaseQty
-    inventory.lockedUomValue = Math.round((inventory.lockedUomValue - targetInventory.releaseUomValue) * 100) / 100
-    inventory = await this.transactionInventory(
-      inventory,
-      releaseGood,
-      -targetInventory.releaseQty,
-      -inventory.uomValue,
-      INVENTORY_TRANSACTION_TYPE.PICKING
-    )
+    let foundPickingHistory: InventoryHistory[] = await this.trxMgr.getRepository(InventoryHistory).find({
+      where: {
+        refOrderId: releaseGood.id,
+        palletId: inventory.palletId,
+        transactionType: INVENTORY_TRANSACTION_TYPE.PICKING
+      }
+    })
+
+    if(foundPickingHistory) {
+      let totalPickedQty = foundPickingHistory.reduce(function(a, b) {
+        return a.qty + b.qty
+      })
+
+      let totalPickedUomValue = foundPickingHistory.reduce(function(a, b) {
+        return a.uomValue + b.uomValue
+      })
+
+      let diffQty = targetInventory.releaseQty + totalPickedQty  //picking history qty negative, so use +
+      let diffUomValue = Math.round((targetInventory.releaseUomValue + totalPickedUomValue) * 100) / 100
+      inventory.qty -= diffQty
+      inventory.uomValue -= diffUomValue
+      inventory.lockedQty = inventory.lockedQty - targetInventory.releaseQty
+      inventory.lockedUomValue = Math.round((inventory.lockedUomValue - targetInventory.releaseUomValue) * 100) / 100
+      inventory = await this.transactionInventory(
+        inventory,
+        releaseGood,
+        -diffQty,
+        -diffUomValue,
+        INVENTORY_TRANSACTION_TYPE.PICKING
+      )
+    } else {
+      inventory.qty -= targetInventory.releaseQty
+      inventory.uomValue = Math.round((inventory.uomValue - targetInventory.releaseUomValue) * 100) / 100
+      inventory.lockedQty = inventory.lockedQty - targetInventory.releaseQty
+      inventory.lockedUomValue = Math.round((inventory.lockedUomValue - targetInventory.releaseUomValue) * 100) / 100
+      inventory = await this.transactionInventory(
+        inventory,
+        releaseGood,
+        -targetInventory.releaseQty,
+        -targetInventory.releaseUomValue,
+        INVENTORY_TRANSACTION_TYPE.PICKING
+      )
+    }
 
     worksheetDetail.status = WORKSHEET_STATUS.DONE
     worksheetDetail.updater = this.user
