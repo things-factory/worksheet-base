@@ -266,8 +266,8 @@ export class PickingWorksheetController extends VasWorksheetController {
       let diffUomValue = Math.round((targetInventory.releaseUomValue + totalPickedUomValue) * 100) / 100
       inventory.qty -= diffQty
       inventory.uomValue -= diffUomValue
-      inventory.lockedQty = inventory.lockedQty + totalPickedQty
-      inventory.lockedUomValue = Math.round((inventory.lockedUomValue + totalPickedUomValue) * 100) / 100
+      inventory.lockedQty = inventory.lockedQty - targetInventory.releaseQty
+      inventory.lockedUomValue = Math.round((inventory.lockedUomValue - targetInventory.releaseUomValue) * 100) / 100
       inventory = await this.transactionInventory(
         inventory,
         releaseGood,
