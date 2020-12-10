@@ -75,8 +75,7 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
   const prodType: any[] = products.map(prod => prod.type)
 
   return await getManager().transaction(async (trxMgr: EntityManager) => {
-    await trxMgr.query(
-      `
+    await trxMgr.query(`
       create temp table temp_inventories as(
         WITH RECURSIVE cteinventories AS (
           select i1.id, i1."name", i1.pallet_id, i1.batch_id, i1.ref_order_id, i1."zone", i1.packing_type, i1.weight, i1.locked_weight, 
@@ -102,11 +101,9 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
         )
         select * from cteInventories order by orderSeq
       );
-      `, [foundGAN.id]
-    )
+    `, [foundGAN.id])
 
-    await trxMgr.query(
-      `      
+    await trxMgr.query(`      
       create temp table temp_invHistory as (	
         select i2.id as inventory_id, i2.pallet_id, i2.product_id, i2.packing_type, i2.batch_id,
         ih.id as inventory_history_id, ih.seq, ih.status, ih.transaction_type, ih.qty, ih.opening_qty, ih.uom_value, ih.opening_uom_value, 
@@ -114,18 +111,23 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
         from temp_inventories i2
         inner join reduced_inventory_histories ih on ih.pallet_id = i2.pallet_id and ih.domain_id = i2.domain_id
       );
-      `
-    )
+    `)
 
-    const invItems: any[] = await trxMgr.query(
-    ` 
-      select row_number() over(partition by foo.rn ORDER BY foo."productName", foo."originPalletId", foo.orderSeq) as "runningNo", 
-      "palletId", "invId", "packingType", "productName", "unloadedQty", "createdAt", "outboundAt", "doName", "palletId", 
-      "vasName", "remark"
+    const invItems: any[] = await trxMgr.query(` 
+      select case when foo.rn = 1 then row_number() over(partition by foo.rn ORDER BY foo."productName", foo."originPalletId", foo.orderSeq)::varchar else '' end as "runningNo", 
+      case when foo.rn = 1 then "originPalletId" else null end as "originPalletId", 
+      case when foo.rn = 1 then "palletId" else null end as "palletId", 
+      case when foo.rn = 1 then "invId"::varchar else null end as "invId", 
+      case when foo.rn = 1 then "packingType" else null end as "packingType", 
+      case when foo.rn = 1 then "productName" else null end as "productName", 
+      case when foo.rn = 1 then "unloadedQty" else null end as "unloadedQty", 
+      case when foo.rn = 1 then "createdAt" else null end as "createdAt", 
+      case when foo.rn = 1 then "outboundAt" else null end as "outboundAt", 
+      "doName", "vasName", "remark"
       from (
         select 
-        row_number() over(partition by inv.id, inv.pallet_id, inv.origin_pallet_id, product.name, plt.name, inv.packing_type, inv.orderSeq 
-        ORDER BY product.name, inv.origin_pallet_id, inv.orderSeq) as rn, 
+        row_number() over(partition by inv.id, inv.pallet_id ORDER BY product.name, origin_pallet_id, orderSeq, do2.name, do2.own_collection) as rn, 
+        case when plt.name is not null then (CONCAT(inv.pallet_id, ' (', plt.name, ')')) else inv.pallet_id end AS "palletId", 
         inv.origin_pallet_id as "originPalletId", inv.id AS "invId", inv.packing_type AS "packingType", 
         product.name AS "productName", inv.orderSeq,
         (	
@@ -133,16 +135,15 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
           where invh.status = 'UNLOADED' and invh.inventory_id = inv.id
           order by pallet_id, seq asc
         ) AS "unloadedQty", 
+        inv.created_at as "createdAt",
         (
           select distinct on(pallet_id) COALESCE(created_at, null) AS outboundAt from temp_invHistory invh 
           where invh.status = 'TERMINATED' and invh.inventory_id = inv.id
           order by pallet_id, seq desc
         ) AS "outboundAt",
-        min(inv.created_at) as "createdAt"
-        STRING_AGG (case when do2.name is not null then (CONCAT(do2.delivery_date, ' (', orderInv.release_qty, ') ', do2.name, ', ', case when do2.own_collection = true then 'TPT N' else 'TPT Y' end )) else null end, ', ')  AS "doName",
-        case when plt.name is not null then (CONCAT(inv.pallet_id, ' (', plt.name, ')')) else inv.pallet_id end AS "palletId",
-        STRING_AGG (vas.name, ', ') AS "vasName",
-        case when inv.orderSeq <> '1' then 'R' else '' end as remark
+        case when do2.name is not null then (CONCAT(do2.delivery_date, ' (', orderInv.release_qty, ') ', do2.name, ', ', case when do2.own_collection = true then 'TPT N' else 'TPT Y' end )) else null end  AS "doName",
+        vas.name AS "vasName",
+        case when inv.orderSeq <> '1' then '[R]' else '' end as remark
         from temp_inventories inv
         LEFT JOIN order_inventories orderInv ON orderInv.inventory_id = inv.id AND orderInv.release_good_id is not null and orderInv.status <> 'CANCELLED'
         LEFT JOIN order_vass orderVass ON orderVass.inventory_id = inv.id  
@@ -150,12 +151,10 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
         LEFT JOIN pallets plt on plt.id = inv.reusable_pallet_id
         LEFT JOIN delivery_orders do2 ON do2.id = orderInv.delivery_order_id  
         LEFT JOIN products product ON product.id=inv.product_id 
-        LEFT JOIN order_inventories oi on oi.inventory_id = inv.id
-        GROUP BY inv.id, inv.pallet_id, inv.origin_pallet_id, product.name, plt.name, inv.packing_type, inv.orderSeq
+        ORDER BY product.name, origin_pallet_id, orderSeq, do2.name, do2.own_collection
       ) foo
-      ORDER BY foo."productName", foo."originPalletId", foo.orderSeq
-    `
-    )
+      ORDER BY foo."productName", foo."originPalletId", foo.orderSeq, foo.rn
+    `)
 
     await trxMgr.query(
       `
@@ -194,15 +193,15 @@ export async function renderJobSheet({ domain: domainName, ganNo, timezoneOffSet
       ref_no: foundGAN.name,
       product_list: invItems.map((item, idx) => {
         return {
-          idx: idx + 1,
+          idx: item.runningNo,
           pallet_id: item.palletId,
           product_name: item.productName,
           product_type: item.packingType,
-          in_pallet: DateTimeConverter.date(item.createdAt),
+          in_pallet: item?.createdAt ? DateTimeConverter.date(item.createdAt) : null,
           out_pallet: item?.outboundAt ? DateTimeConverter.date(item.outboundAt) : null,
           do_list: item.doName,
           product_qty: item.unloadedQty,
-          remark: foundGAN.looseItem ? 'STRETCH FILM' : null
+          remark: (item.remark != '' ? item.remark + ' ' : '') + (foundGAN.looseItem ? 'STRETCH FILM' : '')
         }
       })
     }
