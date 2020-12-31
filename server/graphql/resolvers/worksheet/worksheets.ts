@@ -143,8 +143,9 @@ export const worksheetsResolver = {
 
       ////For inventory check worksheet filter
       const inventoryCheckParam = params.filters.find(param => param.name === 'inventoryCheckNo')
+      const inventoryCheckStatusParam = params.filters.find(param => param.name === 'inventoryCheckStatus')
       const executionDateParam = params.filters.find(param => param.name === 'executionDate')
-      if (inventoryCheckParam || executionDateParam) {
+      if (inventoryCheckParam || executionDateParam || inventoryCheckStatusParam) {
         let arrFilters = []
         if (inventoryCheckParam) {
           params.filters.splice(
@@ -152,6 +153,13 @@ export const worksheetsResolver = {
             1
           )
           arrFilters.push({ ...inventoryCheckParam, name: 'name' })
+        }
+        if (inventoryCheckStatusParam) {
+          params.filters.splice(
+            params.filters.findIndex(item => item.name == 'inventoryCheckStatus'),
+            1
+          )
+          arrFilters.push({ ...inventoryCheckStatusParam, name: 'status' })
         }
         if (executionDateParam) {
           params.filters.splice(
@@ -217,7 +225,7 @@ export const worksheetsResolver = {
       const arrChildSortData = ['bizplace', 'arrivalNotice', 'releaseGood', 'returnOrder', 'inventoryCheck']
       let sort = (params.sortings || []).reduce(
         (acc, sort) => {
-          if (sort.name != 'arrivalRefNo' && sort.name != 'releaseRefNo' && sort.name != 'returnOrderNo') {
+          if (sort.name != 'arrivalRefNo' && sort.name != 'releaseRefNo' && sort.name != 'returnOrderNo' && sort.name != 'inventoryCheckStatus') {
             return {
               ...acc,
               [arrChildSortData.indexOf(sort.name) >= 0 ? sort.name + '.name' : 'ws.' + sort.name]: sort.desc
@@ -253,6 +261,18 @@ export const worksheetsResolver = {
         sort = {
           ...sort,
           'returnOrder.refNo': params.sortings[params.sortings.findIndex(item => item.name == 'returnOrderRefNo')].desc
+            ? 'DESC'
+            : 'ASC'
+        }
+      }
+
+      if (params.sortings.some(e => e.name === 'inventoryCheckStatus')) {
+        // overwrite the worksheet status sorting since inventory check status is needed
+        sort = {
+          'inventoryCheck.status': params.sortings[params.sortings.findIndex(item => item.name == 'inventoryCheckStatus')].desc
+            ? 'DESC'
+            : 'ASC',
+          'ws.endedAt': params.sortings[params.sortings.findIndex(item => item.name == 'inventoryCheckStatus')].desc
             ? 'DESC'
             : 'ASC'
         }
