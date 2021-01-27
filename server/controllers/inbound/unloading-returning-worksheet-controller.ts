@@ -113,7 +113,11 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
     this.checkPalletDuplication(palletId)
 
     const worksheetDetail: WorksheetDetail = await this.trxMgr.getRepository(WorksheetDetail).findOne({
-      where: { name: worksheetDetailName, type: WORKSHEET_TYPE.UNLOADING_RETURN, status: Not(Equal(WORKSHEET_STATUS.DEACTIVATED)) },
+      where: {
+        name: worksheetDetailName,
+        type: WORKSHEET_TYPE.UNLOADING_RETURN,
+        status: Not(Equal(WORKSHEET_STATUS.DEACTIVATED))
+      },
       relations: [
         'bizplace',
         'worksheet',
@@ -165,7 +169,7 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
     newInventory.packingType = packingType
     newInventory.qty = qty
     newInventory.weight = weight
-    newInventory.uomValue = uomValue    
+    newInventory.uomValue = uomValue
     newInventory.uom = uom
     newInventory.refOrderId = returnOrder.id
     if (inventory.reusablePallet?.id) {
@@ -233,10 +237,6 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
 
     inventory.lastSeq++
     inventory.status = INVENTORY_STATUS.DELETED
-    inventory.qty = 0
-    inventory.weight = 0
-    inventory.uomValue = 0
-    inventory.updater = this.user
     inventory = await this.transactionInventory(
       inventory,
       returnOrder,
@@ -244,7 +244,11 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
       -inventory.uomValue,
       INVENTORY_TRANSACTION_TYPE.UNDO_UNLOADING
     )
-    await this.trxMgr.getRepository(InventoryHistory).update({ inventory }, { inventory: null})
+    inventory.qty = 0
+    inventory.weight = 0
+    inventory.uomValue = 0
+    inventory.updater = this.user
+    await this.trxMgr.getRepository(InventoryHistory).update({ inventory }, { inventory: null })
 
     await this.trxMgr.getRepository(Inventory).delete({ id: inventory.id })
   }
@@ -276,7 +280,9 @@ export class UnloadingReturningWorksheetController extends VasWorksheetControlle
     //     throw new Error(`Picking should be completed before complete unloading for cross docking.`)
     // }
 
-    if (returnOrder.orderInventories.some((oi: OrderInventory) => oi.status === ORDER_PRODUCT_STATUS.READY_TO_APPROVED)) {
+    if (
+      returnOrder.orderInventories.some((oi: OrderInventory) => oi.status === ORDER_PRODUCT_STATUS.READY_TO_APPROVED)
+    ) {
       throw new Error(`There's non-approved order products`)
     }
 
