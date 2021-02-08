@@ -26,7 +26,7 @@ export const generatePalletIdResolver = {
         domain: context.state.domain,
         id: In(ids),
       },
-      relations: ['domain', 'bizplace', 'worksheet', 'worker', 'targetProduct', 'targetProduct.product'],
+      relations: ['domain', 'bizplace', 'worksheet', 'worker', 'targetProduct', 'targetProduct.product', 'targetInventory', 'targetInventory.product'],
     })
 
     // 3. from worksheet detail get product name, product type, batchid, packing type, bizplace
@@ -43,17 +43,25 @@ export const generatePalletIdResolver = {
                 domain: context.state.domain,
                 type: 'pallet_id',
                 seed: {
-                  batchId: foundWSD.targetProduct.batchId,
+                  batchId: foundWSD?.targetProduct?.batchId ? foundWSD.targetProduct.batchId : foundWSD.targetInventory.batchId,
                   date: date,
                 },
               })
 
               // 5. map all data to be returned
-              results.push({
-                ...foundWSD.targetProduct,
-                palletId: generatedPalletId,
-                bizplace: foundWSD.bizplace,
-              })
+              if(foundWSD.targetProduct != null) {
+                results.push({
+                  ...foundWSD.targetProduct,
+                  palletId: generatedPalletId,
+                  bizplace: foundWSD.bizplace,
+                })
+              } else if(foundWSD.targetInventory != null) {
+                results.push({
+                  ...foundWSD.targetInventory,
+                  palletId: generatedPalletId,
+                  bizplace: foundWSD.bizplace,
+                })
+              }
             }
           }
         }
