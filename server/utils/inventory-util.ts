@@ -61,29 +61,35 @@ export async function generateInventoryHistory(
     openingUomValue = lastInvHistory.openingUomValue + lastInvHistory.uomValue
   }
 
-  let inventoryHistory: InventoryHistory = {
-    ...inventory,
-    name: InventoryNoGenerator.inventoryHistoryName(),
-    seq,
-    transactionType,
-    refOrderId: refOrder.id,
-    orderNo: refOrder.name,
-    orderRefNo: refOrder.refNo || null,
-    inventory: inventory,
-    productId: inventory.product.id,
-    reusablePallet: inventory.reusablePallet,
-    warehouseId: inventory.warehouse.id,
-    locationId: inventory.location.id,
-    qty,
-    openingQty,
-    weight: 0,
-    openingWeight: 0,
-    uomValue,
-    openingUomValue,
-    creator: user,
-    updater: user
-  }
-  delete inventoryHistory.id
+  let inventoryHistory: InventoryHistory = new InventoryHistory()
+  inventoryHistory.name = InventoryNoGenerator.inventoryHistoryName()
+  inventoryHistory.description = inventory.description
+  inventoryHistory.seq = seq
+  inventoryHistory.palletId = inventory.palletId
+  inventoryHistory.batchId = inventory.batchId
+  inventoryHistory.status = inventory.status
+  inventoryHistory.transactionType = transactionType
+  inventoryHistory.refOrderId = refOrder.id
+  inventoryHistory.orderNo = refOrder.name
+  inventoryHistory.orderRefNo = refOrder?.refNo ? refOrder.refNo : null
+  inventoryHistory.inventory = inventory
+  inventoryHistory.productId = inventory.product.id
+  inventoryHistory.reusablePallet = inventory.reusablePallet
+  inventoryHistory.zone = inventory.zone
+  inventoryHistory.warehouseId = inventory.warehouse.id
+  inventoryHistory.locationId = inventory.location.id
+  inventoryHistory.packingType = inventory.packingType
+  inventoryHistory.uom = inventory.uom
+  inventoryHistory.qty = qty
+  inventoryHistory.openingQty = openingQty
+  inventoryHistory.weight = 0
+  inventoryHistory.openingWeight = 0
+  inventoryHistory.uomValue = uomValue
+  inventoryHistory.openingUomValue = openingUomValue
+  inventoryHistory.domain = inventory.domain
+  inventoryHistory.bizplace = inventory.bizplace
+  inventoryHistory.creator = user
+  inventoryHistory.updater = user
   inventoryHistory = await invHistoryRepo.save(inventoryHistory)
 
   if (inventory.lastSeq !== seq) {
