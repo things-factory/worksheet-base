@@ -69,9 +69,9 @@ export async function generateInventoryHistory(
   inventoryHistory.batchId = inventory.batchId
   inventoryHistory.status = inventory.status
   inventoryHistory.transactionType = transactionType
-  inventoryHistory.refOrderId = refOrder.id
-  inventoryHistory.orderNo = refOrder.name
-  inventoryHistory.orderRefNo = refOrder?.refNo ? refOrder.refNo : null
+  inventoryHistory.refOrderId = refOrder?.id || null
+  inventoryHistory.orderNo = refOrder?.name || null
+  inventoryHistory.orderRefNo = refOrder?.refNo || null
   inventoryHistory.inventory = inventory
   inventoryHistory.productId = inventory.product.id
   inventoryHistory.reusablePallet = inventory.reusablePallet
